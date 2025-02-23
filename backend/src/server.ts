@@ -33,11 +33,12 @@ for (const [_, value] of Object.entries(api)) {
   routes[value.path] = async (req: BunRequest) => {
     if (req.method === "POST") {
       const args = (await req.json()) as unknown[];
-      const body = await value.handler.call(
-        { req },
+      const ip_addr = server.requestIP(req);
+
+      const body = await (value.handler as any).call(
+        { req, ip: ip_addr?.address.split("").pop() },
         ...(args as Parameters<typeof value.handler>)
       );
-
       const res = value.raw ? (body as any) : Response.json(body);
       addCorsHeaders(res.headers);
       return res;

@@ -5,6 +5,7 @@ import { Link, useRouter } from "./lib/router";
 function NavBar() {
   const { user, logout } = useAuth();
 
+  console.log(user)
   return (
     <nav className="mb-8 flex items-center justify-between">
       <div>

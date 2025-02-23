@@ -1,13 +1,33 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from '@generated/api';
 
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await api.auth();
+        const response = await api.authCheck();
         if ('error' in response) {
-          console.error("Session check failed:", response.error);
+          console.log("Session check failed:", response.error);
           return;
         }
         setUser(response.user);
@@ -22,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await api.auth.login({ email, password });
+    const response = await api.authLogin({ email, password });
     if ('error' in response) {
       throw new Error(response.error);
     }
@@ -30,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, password: string, name: string) => {
-    const response = await api.auth.register({ email, password, name });
+    const response = await api.authRegister({ email, password, name });
     if ('error' in response) {
       throw new Error(response.error);
     }
@@ -38,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    const response = await api.auth.logout();
+    const response = await api.authLogout({});
     if ('error' in response) {
       throw new Error(response.error);
     }
