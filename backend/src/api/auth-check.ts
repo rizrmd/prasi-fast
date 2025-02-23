@@ -1,5 +1,6 @@
 import { apiContext, defineAPI } from "system/api";
 import { PrismaClient } from "@prisma/client";
+import { logAction } from "../utils/action-logger";
 
 const prisma = new PrismaClient();
 

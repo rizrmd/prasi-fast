@@ -2,6 +2,7 @@ import { apiContext, defineAPI } from "system/api";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import { apiClient } from "system/api/client";
+import { logAction } from "../utils/action-logger";
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,14 @@ export default defineAPI({
           ip_address: ip,
           user_agent: req.headers.get("user-agent") || undefined,
         },
+      });
+
+      // Log the successful login
+      await logAction({
+        userId: user.id,
+        action: 'login',
+        ipAddress: ip,
+        userAgent: req.headers.get("user-agent") || undefined,
       });
 
       // Return user data with session cookie

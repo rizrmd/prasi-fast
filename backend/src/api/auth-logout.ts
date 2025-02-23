@@ -1,5 +1,6 @@
 import { apiContext, defineAPI } from "system/api";
 import { PrismaClient } from "@prisma/client";
+import { logAction } from "../utils/action-logger";
 
 // Singleton pattern for PrismaClient
 const globalForPrisma = globalThis as unknown as {
@@ -29,6 +30,22 @@ export default defineAPI({
     }
 
     try {
+      // Get session with user before deleting
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: { user: true }
+      });
+
+      if (session) {
+        // Log the logout action
+        await logAction({
+          userId: session.user_id,
+          action: 'logout',
+          ipAddress: session.ip_address || undefined,
+          userAgent: session.user_agent || undefined,
+        });
+      }
+
       // Delete the session
       await prisma.session.delete({
         where: { id: sessionId },

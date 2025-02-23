@@ -1,4 +1,4 @@
-  // This is your Prisma schema file
+// This is your Prisma schema file
 
 generator client {
   provider = "prisma-client-js"
@@ -10,20 +10,20 @@ datasource db {
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  email             String    @unique
-  name              String
-  role              String    @default("user")
-  password_hash     String
-  verification_token String?
-  email_verified_at DateTime?
-  reset_token       String?
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  name                String
+  role                String    @default("user")
+  password_hash       String
+  verification_token  String?
+  email_verified_at   DateTime?
+  reset_token         String?
   reset_token_expires DateTime?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
-  deleted_at        DateTime?
-  created_by        Int?
-  updated_by        Int?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  deleted_at          DateTime?
+  created_by          String?
+  updated_by          String?
 
   creator      User?       @relation("UserCreatedBy", fields: [created_by], references: [id])
   updater      User?       @relation("UserUpdatedBy", fields: [updated_by], references: [id])
@@ -31,35 +31,50 @@ model User {
   updatedUsers User[]      @relation("UserUpdatedBy")
   s_SChangelog Changelog[]
   sessions     Session[]
+  actionLogs   ActionLog[]
 
   @@map("m_user")
 }
 
 model Session {
-  id          String   @id @default(uuid())
-  user_id     Int
-  expires_at  DateTime
-  ip_address  String?
-  user_agent  String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  user_id    String
+  expires_at DateTime
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   user User @relation(fields: [user_id], references: [id])
 
   @@map("s_session")
 }
 
+model ActionLog {
+  id         String   @id @default(uuid())
+  user_id    String?
+  action     String // login, logout
+  ip_address String?
+  user_agent String?
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id])
+
+  @@map("s_actionlog")
+}
+
 model Changelog {
-  id            Int      @id @default(autoincrement())
+  id            String   @id @default(uuid())
   table_name    String
   record_id     Int
   action        String
   previous_data Json?
   new_data      Json
   created_at    DateTime @default(now())
-  created_by    Int?
+  created_by    String?
 
-  user   User? @relation(fields: [created_by], references: [id])
+  user User? @relation(fields: [created_by], references: [id])
 
   @@map("s_changelog")
 }

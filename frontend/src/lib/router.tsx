@@ -1,5 +1,7 @@
+import { api } from "@/generated/api";
 import { pageModules } from "@/generated/routes";
 import { useState, useEffect, createContext, useContext } from "react";
+import { useAuth } from "./auth";
 
 type Params = Record<string, string>;
 type RoutePattern = {
@@ -48,6 +50,7 @@ function matchRoute(path: string, routePattern: RoutePattern): Params | null {
 }
 
 export function useRouter() {
+  const { user } = useAuth();
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [Page, setPage] = useState<React.ComponentType | null>(null);
   const [params, setParams] = useState<Params>({});
@@ -62,8 +65,15 @@ export function useRouter() {
   }, []);
 
   useEffect(() => {
+    const logRouteChange = async (path: string) => {
+      api.logRoute(path, user?.id)
+    };
+
     const loadPage = async () => {
       const path = currentPath.replace(/\/$/, '') || "/";
+
+      // Log the route change
+      await logRouteChange(path);
 
       // Try exact match first
       let pageLoader = pageModules[path];
