@@ -12,7 +12,8 @@
     "start": "bun run system/cli.ts combined --prod",
     "build": "bun run system/cli.ts build",
     "cli": "bun run system/cli.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "prisma": "cd backend && bun prisma"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",

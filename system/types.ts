@@ -69,13 +69,6 @@ export interface BaseRecord {
   updated_by?: number;
 }
 
-export interface User extends BaseRecord {
-  name: string;
-  email: string;
-  role: string;
-  organization_id?: number;
-}
-
 export interface ServerError {
   code: string;
   message: string;

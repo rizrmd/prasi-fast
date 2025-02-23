@@ -1,8 +1,9 @@
-import type auth from "backend/src/api/auth";
+// This file is auto-generated. Do not edit manually.
+import type authLogin from "backend/src/api/auth-login";
 
 export const api = {
-  auth: {
-    path: "/api/auth",
-    handler: (() => {}) as unknown as (typeof auth)["handler"],
+  authLogin: {
+    path: "/auth/login",
+    handler: (() => {}) as unknown as (typeof authLogin)["handler"],
   },
 };

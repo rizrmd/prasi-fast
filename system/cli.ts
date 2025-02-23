@@ -2,6 +2,8 @@
 import { spawn } from "child_process";
 import { resolve } from "path";
 import { buildRoutes, watchRoutes } from "./gen-route";
+import { buildApis } from "./api/build-api";
+import { watchApis } from "./api/watch-api";
 
 const DEFAULT_PORT = 3000;
 const API_PORT = 3001;
@@ -67,14 +69,14 @@ async function runFrontend({
 }: RunOptions) {
   const cwd = resolve(import.meta.dir, "../frontend");
 
-
-  
   if (prod) {
     // For production, just build routes once
     buildRoutes();
+    buildApis();
   } else {
     // For development, start the watcher
     watchRoutes();
+    watchApis();
   }
 
   const command = "bun";

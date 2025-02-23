@@ -1,24 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { api, User } from '@generated/client';
-
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
+import { api } from '@generated/api';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await api.auth.session();
+        const response = await api.auth();
         if ('error' in response) {
           console.error("Session check failed:", response.error);
           return;
