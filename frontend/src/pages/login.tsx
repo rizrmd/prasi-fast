@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../lib/auth";
+import { useAuth, getStoredRedirectPath } from "../lib/auth";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -19,7 +19,8 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      window.location.href = "/";
+      const redirectPath = getStoredRedirectPath();
+      window.location.href = redirectPath || "/";
     } catch (err: any) {
       setError(err.message);
     } finally {

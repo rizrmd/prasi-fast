@@ -8,9 +8,6 @@ import { App } from "./App";
 const elem = document.getElementById("root")!;
 const app = (
   <App />
-  // <StrictMode>
-  //   <App />
-  // </StrictMode>
 );
 
 if (import.meta.hot) {

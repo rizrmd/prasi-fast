@@ -13,5 +13,8 @@
     ".vscode",
     ".gitignore",
     "bun.lock"
+  ],
+  "css.customData": [
+    ".vscode/tailwind.json"
   ]
 }

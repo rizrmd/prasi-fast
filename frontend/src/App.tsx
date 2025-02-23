@@ -15,7 +15,7 @@ function NavBar() {
       <div>
         {user ? (
           <div className="flex items-center space-x-4">
-            <span className="text-gray-700">Welcome, {user.name}</span>
+            <span className="text-gray-700">Welcome, {user.username}</span>
             <button
               onClick={() => logout()}
               className="text-red-500 hover:text-red-700"

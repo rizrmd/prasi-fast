@@ -76,6 +76,17 @@ export function useAuth() {
   return context;
 }
 
+// Store and retrieve redirect path
+export const storeRedirectPath = (path: string) => {
+  sessionStorage.setItem('redirectPath', path);
+};
+
+export const getStoredRedirectPath = () => {
+  const path = sessionStorage.getItem('redirectPath');
+  sessionStorage.removeItem('redirectPath'); // Clear it after getting it
+  return path;
+};
+
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
@@ -84,6 +95,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
+    // Store current path before redirecting
+    storeRedirectPath(window.location.pathname);
     window.location.href = "/login";
     return null;
   }
