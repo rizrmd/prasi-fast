@@ -25,8 +25,8 @@ function NavBar() {
           </div>
         ) : (
           <div>
-            <Link to="/login" className="mx-2 text-blue-500 hover:text-blue-700">Login</Link>
-            <Link to="/register" className="mx-2 text-blue-500 hover:text-blue-700">Register</Link>
+            <Link to="/auth/login" className="mx-2 text-blue-500 hover:text-blue-700">Login</Link>
+            <Link to="/auth/register" className="mx-2 text-blue-500 hover:text-blue-700">Register</Link>
           </div>
         )}
       </div>
@@ -38,8 +38,7 @@ function AppContent() {
   const { Page } = useRouter();
 
   return (
-    <div className="container mx-auto p-8 text-center relative z-10">
-      <NavBar />
+    <div className="w-full h-full flex-col flex">
       <main>
         {Page ? <Page /> : <div>Page not found</div>}
       </main>
