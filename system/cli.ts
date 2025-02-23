@@ -7,7 +7,9 @@ import { watchApis } from "./api/watch-api";
 import config from "../config.json";
 import { parseServerUrl } from "../shared/types/config";
 
-const { port: DEFAULT_PORT, host: DEFAULT_HOST } = parseServerUrl(config.frontend.url);
+const { port: DEFAULT_PORT, host: DEFAULT_HOST } = parseServerUrl(
+  config.frontend.url
+);
 const { port: API_PORT, host: API_HOST } = parseServerUrl(config.backend.url);
 
 // ANSI Colors
@@ -84,7 +86,7 @@ async function runFrontend({
   }
 
   const command = "bun";
-    const args = [
+  const args = [
     hot && !prod ? "--hot" : "",
     "src/index.html",
     `--port ${port}`,
@@ -106,7 +108,7 @@ async function runBackend({
 }: RunOptions) {
   const cwd = resolve(import.meta.dir, "../backend");
   const command = "bun";
-    const args = [
+  const args = [
     hot && !prod ? "--hot" : "",
     "src/server.ts",
     `--port ${port}`,
@@ -163,8 +165,8 @@ function runCombined({
     // Show URLs after a short delay to ensure servers have started
     setTimeout(() => {
       console.log(`   🌐 ${green}Frontend ${config.frontend.url}${reset}`);
-      console.log(`   🗄️  ${red}Backend  ${config.backend.url}${reset}`);
-    }, 1000);
+      console.log(`   🗄️  ${cyan}Backend  ${config.backend.url}${reset}`);
+    }, 100);
 
     // Keep the process alive
     process.stdin.resume();

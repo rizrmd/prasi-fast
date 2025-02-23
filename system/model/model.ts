@@ -1,11 +1,10 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, User } from "@prisma/client";
 import { cache } from "../cache";
 import { prismaFrontendProxy } from "./model-client";
 import {
   ModelConfig,
   PaginationParams,
   PaginationResult,
-  User,
 } from "../types";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
@@ -13,7 +12,7 @@ const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
 };
 
 interface BaseRecord {
-  id: number;
+  id: string;
   [key: string]: any; // Add index signature to allow string indexing
 }
 

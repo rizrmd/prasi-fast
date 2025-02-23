@@ -46,9 +46,9 @@ export class User extends BaseModel<PrismaUser, Prisma.UserWhereInput> {
         validate: (value) =>
           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || "Invalid email format",
       },
-      name: {
+      username: {
         type: "string",
-        label: "Name",
+        label: "Username",
         required: true,
       },
       role: {

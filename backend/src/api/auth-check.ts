@@ -13,8 +13,9 @@ export default defineAPI({
     const sessionId = cookies
       .split(";")
       .reverse()
-      .find(cookie => cookie.trim().startsWith("sessionId="))
-      ?.split("=")?.[1]?.trim();
+      .find((cookie) => cookie.trim().startsWith("sessionId="))
+      ?.split("=")?.[1]
+      ?.trim();
 
     if (!sessionId) {
       return { error: "No session found" };
@@ -23,17 +24,14 @@ export default defineAPI({
     try {
       const session = await prisma.session.findFirst({
         where: {
-          AND: [
-            { id: sessionId },
-            { expires_at: { gt: new Date() } }
-          ]
+          AND: [{ id: sessionId }, { expires_at: { gt: new Date() } }],
         },
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              name: true,
+              username: true,
               role: true,
             },
           },

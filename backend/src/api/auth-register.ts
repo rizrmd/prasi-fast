@@ -17,19 +17,19 @@ export default defineAPI({
   handler: async function (opt: {
     email: string;
     password: string;
-    name: string;
+    username: string;
   }) {
     const { ip, req } = apiContext(this);
-    const { email, password, name } = opt;
+    const { email, password, username } = opt;
 
-    if (!email || !password || !name) {
+    if (!password || !username) {
       return { error: "Missing required fields" };
     }
 
     try {
       // Check if user exists
       const existingUser = await prisma.user.findUnique({
-        where: { email },
+        where: { username },
       });
 
       if (existingUser) {
@@ -40,14 +40,14 @@ export default defineAPI({
       const user = await prisma.user.create({
         data: {
           email,
-          name,
+          username,
           password_hash: hashPassword(password),
           role: "user",
         },
         select: {
           id: true,
           email: true,
-          name: true,
+          username: true,
           role: true,
         },
       });

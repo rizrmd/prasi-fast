@@ -1,25 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from '@generated/api';
-
-interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-}
+import type { User } from '@prisma/client'
 
 interface AuthContextType {
-  user: User | null;
+  user: Partial<User> | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Partial<User> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -42,15 +36,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await api.authLogin({ email, password });
+    const response = await api.authLogin({ username: email, password });
     if ('error' in response) {
       throw new Error(response.error);
     }
     setUser(response.user);
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    const response = await api.authRegister({ email, password, name });
+  const register = async (username: string, password: string, email: string) => {
+    const response = await api.authRegister({ email, password, username });
     if ('error' in response) {
       throw new Error(response.error);
     }

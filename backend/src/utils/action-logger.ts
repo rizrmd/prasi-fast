@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 interface ActionLogParams {
-  userId?: number;
+  userId?: string;
   action: "login" | "logout" | "visit";
   ipAddress?: string;
   userAgent?: string;

@@ -16,17 +16,17 @@ function verifyPassword(password: string, storedHash: string): boolean {
 
 export default defineAPI({
   path: "/auth/login",
-  handler: async function (opt: { email: string; password: string }) {
-    const { email, password } = opt;
+  handler: async function (opt: { username: string; password: string }) {
+    const { username, password } = opt;
     const { req, ip } = apiContext(this);
 
-    if (!email || !password) {
+    if (!username || !password) {
       return { error: "Email and password are required" };
     }
 
     try {
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { username },
       });
 
       if (!user) {
@@ -50,22 +50,21 @@ export default defineAPI({
       // Log the successful login
       await logAction({
         userId: user.id,
-        action: 'login',
+        action: "login",
         ipAddress: ip,
         userAgent: req.headers.get("user-agent") || undefined,
       });
 
       // Return user data with session cookie
       return {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
+        user,
         headers: {
-          "Set-Cookie": `sessionId=${session.id}; HttpOnly; Path=/; Max-Age=${30 * 24 * 60 * 60}; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax`
-        }
+          "Set-Cookie": `sessionId=${session.id}; HttpOnly; Path=/; Max-Age=${
+            30 * 24 * 60 * 60
+          }; ${
+            process.env.NODE_ENV === "production" ? "Secure; " : ""
+          }SameSite=Lax`,
+        },
       };
     } catch (error) {
       console.error("Login error:", error);
