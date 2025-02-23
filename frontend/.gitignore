@@ -31,4 +31,4 @@ yarn-error.log*
 # Typescript
 *.tsbuildinfo
 
-routes.ts
+generated/*.ts

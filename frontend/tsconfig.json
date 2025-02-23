@@ -18,6 +18,9 @@
     "paths": {
       "@/*": [
         "./frontend/src/*"
+      ],
+      "@generated/*": [
+        "./frontend/generated/*"
       ]
     }
   },

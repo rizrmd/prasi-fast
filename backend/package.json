@@ -8,6 +8,7 @@
     "start": "NODE_ENV=production bun src/server.ts"
   },
   "dependencies": {
+    "better-auth": "^1.1.19",
     "bun": "latest",
     "msgpackr": "^1.11.2"
   },

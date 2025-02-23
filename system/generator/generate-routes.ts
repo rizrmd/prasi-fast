@@ -3,8 +3,8 @@ import { watch } from "fs";
 import { join, parse } from "path";
 import { readdirSync, writeFileSync } from "fs";
 
-const PAGES_DIR = join(import.meta.dir, "../frontend/src/pages");
-const ROUTES_FILE = join(import.meta.dir, "../frontend/src/routes.ts");
+const PAGES_DIR = join(import.meta.dir, "../../frontend/src/pages");
+const ROUTES_FILE = join(import.meta.dir, "../../frontend/generated/routes.ts");
 
 function generateRoutes(dir: string, base = ""): Record<string, string> {
   const routes: Record<string, string> = {};

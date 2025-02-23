@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from "child_process";
 import { resolve } from "path";
-import { buildRoutes, watchRoutes } from "./routes";
+import { buildRoutes, watchRoutes } from "./generator/generate-routes";
 
 const DEFAULT_PORT = 3000;
 const API_PORT = 3001;
@@ -45,7 +45,7 @@ function runCommand(
       if (index > -1) {
         childProcesses.splice(index, 1);
       }
-      
+
       if (code === 0) {
         resolve();
       } else {
@@ -67,6 +67,13 @@ async function runFrontend({
 }: RunOptions) {
   const cwd = resolve(import.meta.dir, "../frontend");
 
+  // Generate API types
+  await runCommand(
+    "bun",
+    ["run", "system/generator/generate-types.ts"],
+    resolve(import.meta.dir, "..")
+  );
+
   if (prod) {
     // For production, just build routes once
     buildRoutes();
@@ -74,7 +81,7 @@ async function runFrontend({
     // For development, start the watcher
     watchRoutes();
   }
-  
+
   const command = "bun";
   const args = [
     hot && !prod ? "--hot" : "",
@@ -112,7 +119,7 @@ async function runBackend({
 async function build() {
   // Build routes first
   buildRoutes();
-  
+
   // Build frontend
   const frontendCwd = resolve(import.meta.dir, "../frontend");
   await runCommand("bun", ["run", "build.ts"], frontendCwd);
@@ -162,7 +169,7 @@ function runCombined({
     process.on("SIGINT", () => {
       console.log("\nShutting down servers...");
       // Kill all child processes
-      childProcesses.forEach(process => process.kill());
+      childProcesses.forEach((process) => process.kill());
       process.exit(0);
     });
   } catch (error: unknown) {

@@ -1,4 +1,4 @@
-import { pageModules } from "@/routes";
+import { pageModules } from "../routes";
 import { useState, useEffect, createContext, useContext } from "react";
 
 type Params = Record<string, string>;
