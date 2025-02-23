@@ -1,0 +1,19 @@
+{
+  "name": "bun-react-template-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/server.ts",
+    "start": "NODE_ENV=production bun src/server.ts"
+  },
+  "dependencies": {
+    "bun": "latest",
+    "msgpackr": "^1.11.2"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.4.1",
+    "prisma": "^6.4.1",
+    "@types/bun": "latest"
+  }
+}

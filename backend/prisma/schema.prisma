@@ -1,0 +1,46 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  name       String
+  role       String    @default("user")
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+  created_by Int?
+  updated_by Int?
+
+  creator      User?       @relation("UserCreatedBy", fields: [created_by], references: [id])
+  updater      User?       @relation("UserUpdatedBy", fields: [updated_by], references: [id])
+  createdUsers User[]      @relation("UserCreatedBy")
+  updatedUsers User[]      @relation("UserUpdatedBy")
+  s_SChangelog Changelog[]
+
+  @@map("m_user")
+}
+
+model Changelog {
+  id            Int      @id @default(autoincrement())
+  table_name    String
+  record_id     Int
+  action        String
+  previous_data Json?
+  new_data      Json
+  created_at    DateTime @default(now())
+  created_by    Int?
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
+  @@map("s_changelog")
+}
