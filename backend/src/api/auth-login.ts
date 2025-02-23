@@ -3,6 +3,6 @@ import { defineAPI } from "system/api";
 export default defineAPI({
   path: "/auth/login",
   handler: async () => {
-    return Response.json("asd");
+    return Response.json("karambol lakarsantri");
   },
 });

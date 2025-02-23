@@ -2,7 +2,7 @@ import { serve } from "bun";
 import { statSync } from "fs";
 import { join } from "path";
 import { modelRoute } from "system/model/model-route";
-
+import * as api from "./generated/api";
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 const STATIC_DIR =
   process.env.NODE_ENV === "production"
@@ -23,9 +23,15 @@ function serveStatic(path: string) {
   }
 }
 
-serve({
+const routes = {} as Record<string, any>;
+for (const [_, value] of Object.entries(api)) {
+  routes[value.path] = value.handler;
+}
+
+const server = serve({
   port: PORT,
   routes: {
+    ...routes,
     "/_system/models/:model": {
       POST: async (req) => {
         return modelRoute(req);
@@ -64,4 +70,15 @@ serve({
       },
     });
   },
+});
+
+// Handle graceful shutdown
+process.on("SIGINT", () => {
+  server.stop();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  server.stop();
+  process.exit(0);
 });
