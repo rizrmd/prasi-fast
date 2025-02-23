@@ -20,13 +20,11 @@ async function generateAPICode(apiFiles: string[]): Promise<string> {
     const camelName = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     imports += `import type ${camelName} from "backend/src/api/${name}";\n`;
 
-    apiObject += `  ${camelName}: {
-    path: "${path}",
-    handler: (() => {}) as unknown as (typeof ${camelName})["handler"],
-  },\n`;
+    apiObject += `  ${camelName}: apiClient<typeof ${camelName}>("${path}"),\n`;
   }
 
   return `// This file is auto-generated. Do not edit manually.
+import { apiClient } from "system/api/client";
 ${imports}
 export const api = {
 ${apiObject}};

@@ -38,7 +38,7 @@ function updateRoutesFile() {
   const content = `// Create a mapping of paths to modules
 export const pageModules: Record<string, () => Promise<any>> = {
 ${Object.entries(routes)
-  .map(([route, path]) => `  "${route}": () => import("@${path}"),`)
+  .map(([route, path]) => `  "${route}": () => import("${path}"),`)
   .join("\n")}
 };`;
 

@@ -1,4 +1,4 @@
-import { pageModules } from "../routes";
+import { pageModules } from "@/generated/routes";
 import { useState, useEffect, createContext, useContext } from "react";
 
 type Params = Record<string, string>;
@@ -28,7 +28,7 @@ function parsePattern(pattern: string): RoutePattern {
     }
     return part;
   });
-  
+
   return {
     pattern,
     regex: new RegExp(`^${regexParts.join('/')}$`),
@@ -64,7 +64,7 @@ export function useRouter() {
   useEffect(() => {
     const loadPage = async () => {
       const path = currentPath.replace(/\/$/, '') || "/";
-      
+
       // Try exact match first
       let pageLoader = pageModules[path];
       let matchedParams = {};
@@ -114,12 +114,12 @@ export function useRouter() {
   };
 
   return {
-    Page: params ? 
+    Page: params ?
       (props: any) => (
         <ParamsContext.Provider value={params}>
           {Page && <Page {...props} />}
         </ParamsContext.Provider>
-      ) : 
+      ) :
       null,
     currentPath,
     navigate,
@@ -131,7 +131,7 @@ export function useParams<T extends Record<string, string>>(): T {
   return useContext(ParamsContext) as T;
 }
 
-export function Link({ to, children, ...props }: { to: string; children: React.ReactNode; [key: string]: any }) {
+export function Link({ to, children, ...props }: { to: string; children: React.ReactNode;[key: string]: any }) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     window.history.pushState({}, '', to);

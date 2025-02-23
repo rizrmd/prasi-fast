@@ -9,3 +9,7 @@ interface ImportMeta {
     accept(): void;
   };
 }
+
+module globalThis {
+  const config = { backend: { url: string }, frontend: { url: string } };
+}

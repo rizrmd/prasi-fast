@@ -4,9 +4,11 @@ import { resolve } from "path";
 import { buildRoutes, watchRoutes } from "./gen-route";
 import { buildApis } from "./api/build-api";
 import { watchApis } from "./api/watch-api";
+import config from "../config.json";
+import { parseServerUrl } from "../shared/types/config";
 
-const DEFAULT_PORT = 3000;
-const API_PORT = 3001;
+const { port: DEFAULT_PORT, host: DEFAULT_HOST } = parseServerUrl(config.frontend.url);
+const { port: API_PORT, host: API_HOST } = parseServerUrl(config.backend.url);
 
 // ANSI Colors
 const cyan = "\u001b[36m";
@@ -16,6 +18,7 @@ const reset = "\u001b[0m";
 
 interface RunOptions {
   port?: number;
+  host?: string;
   hot?: boolean;
   prod?: boolean;
 }
@@ -64,6 +67,7 @@ function runCommand(
 
 async function runFrontend({
   port = DEFAULT_PORT,
+  host = DEFAULT_HOST,
   hot = true,
   prod = false,
 }: RunOptions) {
@@ -80,10 +84,11 @@ async function runFrontend({
   }
 
   const command = "bun";
-  const args = [
+    const args = [
     hot && !prod ? "--hot" : "",
     "src/index.html",
     `--port ${port}`,
+    `--hostname ${host}`,
   ].filter(Boolean);
 
   if (prod) {
@@ -95,15 +100,17 @@ async function runFrontend({
 
 async function runBackend({
   port = API_PORT,
+  host = API_HOST,
   hot = true,
   prod = false,
 }: RunOptions) {
   const cwd = resolve(import.meta.dir, "../backend");
   const command = "bun";
-  const args = [
+    const args = [
     hot && !prod ? "--hot" : "",
     "src/server.ts",
     `--port ${port}`,
+    `--hostname ${host}`,
   ].filter(Boolean);
 
   if (prod) {
@@ -148,15 +155,15 @@ function runCombined({
       process.exit(1);
     });
 
-    runBackend({ port: API_PORT, hot, prod }).catch((error) => {
+    runBackend({ port: API_PORT, host: API_HOST, hot, prod }).catch((error) => {
       console.error(`${red}Backend failed: ${error.message}${reset}`);
       process.exit(1);
     });
 
     // Show URLs after a short delay to ensure servers have started
     setTimeout(() => {
-      console.log(`   🌐 ${green}Frontend http://localhost:${port}${reset}`);
-      console.log(`   🗄️  ${red}Backend  http://localhost:${API_PORT}${reset}`);
+      console.log(`   🌐 ${green}Frontend ${config.frontend.url}${reset}`);
+      console.log(`   🗄️  ${red}Backend  ${config.backend.url}${reset}`);
     }, 1000);
 
     // Keep the process alive
