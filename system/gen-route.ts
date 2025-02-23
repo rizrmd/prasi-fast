@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
-import { watch } from "fs";
+import { readdirSync, watch, writeFileSync } from "fs";
 import { join, parse } from "path";
-import { readdirSync, writeFileSync } from "fs";
 
-const PAGES_DIR = join(import.meta.dir, "../../frontend/src/pages");
-const ROUTES_FILE = join(import.meta.dir, "../../frontend/generated/routes.ts");
+const PAGES_DIR = join(import.meta.dir, "../frontend/src/pages");
+const ROUTES_FILE = join(
+  import.meta.dir,
+  "../frontend/src/generated/routes.ts"
+);
 
 function generateRoutes(dir: string, base = ""): Record<string, string> {
   const routes: Record<string, string> = {};
@@ -23,7 +25,7 @@ function generateRoutes(dir: string, base = ""): Record<string, string> {
         );
         route =
           route === "." ? "/" : route.startsWith("/") ? route : `/${route}`;
-        routes[route] = `./pages${route === "/" ? "" : route}`;
+        routes[route] = `@/pages${route === "/" ? "" : route}`;
       }
     }
   }
@@ -36,7 +38,7 @@ function updateRoutesFile() {
   const content = `// Create a mapping of paths to modules
 export const pageModules: Record<string, () => Promise<any>> = {
 ${Object.entries(routes)
-  .map(([route, path]) => `  "${route}": () => import("${path}"),`)
+  .map(([route, path]) => `  "${route}": () => import("@${path}"),`)
   .join("\n")}
 };`;
 

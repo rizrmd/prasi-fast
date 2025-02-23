@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from "child_process";
 import { resolve } from "path";
-import { buildRoutes, watchRoutes } from "./generator/generate-routes";
+import { buildRoutes, watchRoutes } from "./gen-route";
 
 const DEFAULT_PORT = 3000;
 const API_PORT = 3001;
@@ -67,13 +67,8 @@ async function runFrontend({
 }: RunOptions) {
   const cwd = resolve(import.meta.dir, "../frontend");
 
-  // Generate API types
-  await runCommand(
-    "bun",
-    ["run", "system/generator/generate-types.ts"],
-    resolve(import.meta.dir, "..")
-  );
 
+  
   if (prod) {
     // For production, just build routes once
     buildRoutes();

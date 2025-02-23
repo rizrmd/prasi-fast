@@ -1,5 +1,3 @@
-import { BaseModel } from "./model/model";
-
 export type ColumnType =
   | "string"
   | "number"
