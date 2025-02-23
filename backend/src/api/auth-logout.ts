@@ -17,10 +17,12 @@ export default defineAPI({
   handler: async function () {
     const { req } = apiContext(this);
     const cookies = req.headers.get("Cookie") ?? "";
+    // Get the last sessionId value (most recent) from potential multiple cookies
     const sessionId = cookies
       .split(";")
+      .reverse()
       .find(cookie => cookie.trim().startsWith("sessionId="))
-      ?.split("=")?.[1];
+      ?.split("=")?.[1]?.trim();
 
     if (!sessionId) {
       return { success: true }; // Already logged out
@@ -35,7 +37,7 @@ export default defineAPI({
       return {
         success: true,
         headers: {
-          "Set-Cookie": `sessionId=; Path=/; Expires=${new Date(0).toUTCString()}; HttpOnly; SameSite=Strict`
+          "Set-Cookie": "sessionId=; Path=/; HttpOnly; SameSite=Strict"
         }
       };
     } catch (error) {

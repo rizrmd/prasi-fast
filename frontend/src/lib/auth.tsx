@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    const response = await api.authLogout({});
+    const response = await api.authLogout();
     if ('error' in response) {
       throw new Error(response.error);
     }

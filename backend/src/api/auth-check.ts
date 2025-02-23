@@ -7,21 +7,25 @@ export default defineAPI({
   path: "/auth/check",
   handler: async function () {
     const { req } = apiContext(this);
-    const cookies = req.headers.get("cookie");
+    const cookies = req.headers.get("Cookie") ?? "";
+    // Get the last sessionId value (most recent) from potential multiple cookies
     const sessionId = cookies
-      ?.split(";")
-      .find((c) => c.trim().startsWith("sessionId="))
-      ?.split("=")[1];
+      .split(";")
+      .reverse()
+      .find(cookie => cookie.trim().startsWith("sessionId="))
+      ?.split("=")?.[1]?.trim();
 
     if (!sessionId) {
       return { error: "No session found" };
     }
 
     try {
-      const session = await prisma.session.findUnique({
+      const session = await prisma.session.findFirst({
         where: {
-          id: sessionId,
-          expires_at: { gt: new Date() },
+          AND: [
+            { id: sessionId },
+            { expires_at: { gt: new Date() } }
+          ]
         },
         include: {
           user: {

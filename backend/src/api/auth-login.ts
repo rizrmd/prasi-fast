@@ -46,27 +46,18 @@ export default defineAPI({
         },
       });
 
-      // Create response with cookie and user data
-      const result = {
+      // Return user data with session cookie
+      return {
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
         },
+        headers: {
+          "Set-Cookie": `sessionId=${session.id}; HttpOnly; Path=/; Max-Age=${30 * 24 * 60 * 60}; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax`
+        }
       };
-      const response = Response.json(result);
-
-      response.headers.set(
-        "Set-Cookie",
-        `sessionId=${session.id}; HttpOnly; Path=/; Max-Age=${
-          30 * 24 * 60 * 60
-        }; ${
-          process.env.NODE_ENV === "production" ? "Secure; " : ""
-        }SameSite=Lax`
-      );
-
-      return response as unknown as typeof result;
     } catch (error) {
       console.error("Login error:", error);
       return { error: "Failed to login" };

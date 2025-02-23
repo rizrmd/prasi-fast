@@ -35,21 +35,32 @@ for (const [_, value] of Object.entries(api)) {
       const args = (await req.json()) as unknown[];
       const ip_addr = server.requestIP(req);
 
-      const response = await (value.handler as any).call(
+      const result = await (value.handler as any).call(
         { req, ip: ip_addr?.address.split("").pop() },
         ...(args as Parameters<typeof value.handler>)
       );
 
       // If response is already a Response object, just add CORS headers
-      if (response instanceof Response) {
-        addCorsHeaders(response.headers);
-        return response;
+      if (result instanceof Response) {
+        addCorsHeaders(result.headers);
+        return result;
       }
 
-      // Otherwise wrap it in a Response
-      const res = Response.json(response);
-      addCorsHeaders(res.headers);
-      return res;
+      // Create response and preserve headers from API result
+      const response = Response.json(result);
+      
+      // If the handler returned headers, add them to the response
+      if (result && typeof result === 'object' && 'headers' in result) {
+        const headerEntries = Object.entries(result.headers);
+        for (const [key, value] of headerEntries) {
+          response.headers.set(key, value as string);
+        }
+        // Remove headers from the JSON response
+        delete (result as any).headers;
+      }
+      
+      addCorsHeaders(response.headers);
+      return response;
     } else {
       const response = new Response(null, { status: 200 });
       addCorsHeaders(response.headers);
@@ -65,7 +76,8 @@ function addCorsHeaders(headers: Headers) {
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS"
   );
-  headers.set("Access-Control-Allow-Headers", "Content-Type");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Set-Cookie");
+  headers.set("Access-Control-Expose-Headers", "Set-Cookie");
   headers.set("Access-Control-Allow-Credentials", "true");
 }
 
