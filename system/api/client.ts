@@ -17,6 +17,10 @@ export const apiClient = <T extends { handler: any }>(path: string) => {
     const res = await fetch(url.toString(), {
       method: "POST",
       body: JSON.stringify(args),
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      }
     });
 
     return await res.json();

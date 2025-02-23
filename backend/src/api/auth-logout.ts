@@ -1,13 +1,27 @@
-import { defineAPI } from "system/api";
+import { apiContext, defineAPI } from "system/api";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Singleton pattern for PrismaClient
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
 
 export default defineAPI({
   path: "/auth/logout",
-  handler: async function (req) {
-    const sessionId = req.cookies.get("sessionId");
-    
+  handler: async function () {
+    const { req } = apiContext(this);
+    const cookies = req.headers.get("Cookie") ?? "";
+    const sessionId = cookies
+      .split(";")
+      .find(cookie => cookie.trim().startsWith("sessionId="))
+      ?.split("=")?.[1];
+
     if (!sessionId) {
       return { success: true }; // Already logged out
     }
@@ -15,13 +29,15 @@ export default defineAPI({
     try {
       // Delete the session
       await prisma.session.delete({
-        where: { id: sessionId }
+        where: { id: sessionId },
       });
 
-      // Clear the session cookie
-      req.cookies.delete("sessionId");
-
-      return { success: true };
+      return {
+        success: true,
+        headers: {
+          "Set-Cookie": `sessionId=; Path=/; Expires=${new Date(0).toUTCString()}; HttpOnly; SameSite=Strict`
+        }
+      };
     } catch (error) {
       console.error("Logout error:", error);
       return { error: "Failed to logout" };

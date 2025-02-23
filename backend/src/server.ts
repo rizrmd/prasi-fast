@@ -35,13 +35,25 @@ for (const [_, value] of Object.entries(api)) {
       const args = (await req.json()) as unknown[];
       const ip_addr = server.requestIP(req);
 
-      const body = await (value.handler as any).call(
+      const response = await (value.handler as any).call(
         { req, ip: ip_addr?.address.split("").pop() },
         ...(args as Parameters<typeof value.handler>)
       );
-      const res = value.raw ? (body as any) : Response.json(body);
+
+      // If response is already a Response object, just add CORS headers
+      if (response instanceof Response) {
+        addCorsHeaders(response.headers);
+        return response;
+      }
+
+      // Otherwise wrap it in a Response
+      const res = Response.json(response);
       addCorsHeaders(res.headers);
       return res;
+    } else {
+      const response = new Response(null, { status: 200 });
+      addCorsHeaders(response.headers);
+      return response;
     }
   };
 }
