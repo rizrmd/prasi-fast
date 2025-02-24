@@ -131,6 +131,14 @@ export async function addModelToPrisma(modelBlock: Model, tableName: string) {
               .filter(Boolean)
               .join(" ");
 
+            if (field.name.startsWith("m_") || field.name.startsWith("t_")) {
+              const modelName = capitalize(field.name.slice(2));
+
+              if (modelName === field.fieldType) {
+                field.name = field.name.slice(2);
+              }
+            }
+
             // Add field with type and decorator string
             model.field(
               field.name,

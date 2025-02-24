@@ -25,6 +25,8 @@ model User {
   actionLogs          ActionLog[]
   Changelogs          Changelog[]
   sessions            Session[]
+  Role                Role?       @relation(fields: [roleId], references: [id])
+  roleId              String?
 
   @@map("m_user")
 }
@@ -67,4 +69,17 @@ model Changelog {
   user          User?    @relation(fields: [user_id], references: [id])
 
   @@map("s_changelog")
+}
+
+model Role {
+  id         String    @id @unique
+  name       String
+  created_at DateTime  @default(now())
+  updated_at DateTime
+  deleted_at DateTime?
+  created_by String?
+  updated_by String?
+  user       User[]
+
+  @@map("m_role")
 }
