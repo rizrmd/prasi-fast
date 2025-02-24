@@ -6,6 +6,7 @@
     "backend"
   ],
   "scripts": {
+    "ui": "cd frontend && bun ui",
     "dev": "bun run system/cli.ts combined",
     "dev:frontend": "bun run system/cli.ts frontend",
     "dev:backend": "bun run system/cli.ts backend",

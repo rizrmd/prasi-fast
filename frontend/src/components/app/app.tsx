@@ -1,6 +1,7 @@
 import "@/index.css";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/lib/router";
+import { Layout } from "./layout";
 
 function NavBar() {
   const { user, logout } = useAuth();
@@ -38,11 +39,9 @@ function AppContent() {
   const { Page } = useRouter();
 
   return (
-    <div className="w-full h-full flex-col flex flex-1">
-      <main className="flex-1 flex flex-col">
-        {Page ? <Page /> : <div>Page not found</div>}
-      </main>
-    </div>
+    <Layout>
+      {Page ? <Page /> : <div>Page not found</div>}
+    </Layout>
   );
 }
 
