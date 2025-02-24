@@ -12,8 +12,9 @@ export async function generateModelFile(name: string, schema: string) {
   // Extract model name without m_ prefix if present
   const tableName = name;
   const modelName = name.startsWith("m_") ? name.slice(2) : "Role"; // force modelName to be Role
-  const modelFileName = `role.ts`; // force modelFileName to be role.ts
-  const modelPath = join(MODELS_DIR, modelFileName);
+  const modelFileName = `model.ts`;
+  const modelDirPath = join(MODELS_DIR, modelName.toLowerCase());
+  const modelPath = join(modelDirPath, modelFileName);
 
   const relationsObj = ``; // No relations for Role model
   const columnsObj = `      name: {
@@ -50,7 +51,7 @@ export async function updateModelsRegistry(modelName: string) {
   const content = readFileSync(MODELS_FILE, "utf-8");
   const importStatement = `import { ${capitalize(
     modelName
-  )} } from "./models/${modelName.toLowerCase()}";\n`;
+  )} } from "./models/${modelName.toLowerCase()}/model";\n`;
   const exportStatement = `export const ${modelName.toLowerCase()}: ${capitalize(
     modelName
   )} = ModelRegistry.getInstance("${capitalize(modelName)}", ${capitalize(

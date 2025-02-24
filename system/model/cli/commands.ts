@@ -46,12 +46,14 @@ export async function suggestModels() {
   ];
 
   // Get existing model files
-  const files = existsSync(MODELS_DIR)
-    ? execSync(`ls ${MODELS_DIR}`, { encoding: "utf-8" })
+  const dirs = existsSync(MODELS_DIR)
+    ? execSync(`ls -d ${MODELS_DIR}/*/`, { encoding: "utf-8" })
         .split("\n")
-        .filter((f) => f.endsWith(".ts"))
+        .filter(Boolean)
+        .map(dir => dir.slice(0, -1))  // Remove trailing slash
+        .map(dir => basename(dir))
     : [];
-  const existingModels = files.map((f) => basename(f, ".ts"));
+  const existingModels = dirs;
 
   // Find models that don't have corresponding files and aren't system tables
   const missingModels = allModels
@@ -81,20 +83,22 @@ export async function suggestModels() {
 }
 
 export function listModels() {
-  const files = existsSync(MODELS_DIR)
-    ? execSync(`ls ${MODELS_DIR}`, { encoding: "utf-8" })
+  const dirs = existsSync(MODELS_DIR)
+    ? execSync(`ls -d ${MODELS_DIR}/*/`, { encoding: "utf-8" })
         .split("\n")
-        .filter((f) => f.endsWith(".ts"))
+        .filter(Boolean)
+        .map(dir => dir.slice(0, -1))  // Remove trailing slash
+        .map(dir => basename(dir))
     : [];
 
   // Find the longest model name for padding
   const maxLength = Math.max(
-    ...files.map((file) => capitalize(basename(file, ".ts")).length)
+    ...dirs.map((dir) => capitalize(dir).length)
   );
 
   console.log("\nAvailable models:");
-  files.forEach((file) => {
-    const modelName = capitalize(basename(file, ".ts"));
+  dirs.forEach((dir) => {
+    const modelName = capitalize(dir);
     const tableName = `m_${modelName.toLowerCase()}`;
     console.log(`${modelName.padEnd(maxLength)} → ${tableName}`);
   });
@@ -102,14 +106,16 @@ export function listModels() {
 
 export function repairModels() {
   try {
-    const files = existsSync(MODELS_DIR)
-      ? execSync(`ls ${MODELS_DIR}`, { encoding: "utf-8" })
+    const dirs = existsSync(MODELS_DIR)
+      ? execSync(`ls -d ${MODELS_DIR}/*/`, { encoding: "utf-8" })
           .split("\n")
-          .filter((f) => f.endsWith(".ts"))
+          .filter(Boolean)
+          .map(dir => dir.slice(0, -1))  // Remove trailing slash
+          .map(dir => basename(dir))
       : [];
 
     // Get all model names
-    const modelNames = files.map((f) => basename(f, ".ts"));
+    const modelNames = dirs;
 
     // Read current models registry
     let content = readFileSync(MODELS_FILE, "utf-8");
@@ -127,7 +133,7 @@ export function repairModels() {
     let exports = "";
 
     modelNames.forEach((name) => {
-      imports += `import { ${capitalize(name)} } from "./models/${name}";\n`;
+      imports += `import { ${capitalize(name)} } from "./models/${name}/model";\n`;
       exports += `export const ${name}: ${capitalize(
         name
       )} = ModelRegistry.getInstance("${capitalize(name)}", ${capitalize(

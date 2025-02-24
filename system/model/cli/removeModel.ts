@@ -107,7 +107,8 @@ export function removeModel(tableName: string) {
   }
 
   const modelName = modelToRemove.name;
-  const modelFile = join(MODELS_DIR, `${modelName.toLowerCase()}.ts`);
+  const modelDir = join(MODELS_DIR, modelName.toLowerCase());
+  const modelFile = join(modelDir, 'model.ts');
 
   try {
     // First check for relations referencing this model
@@ -164,8 +165,13 @@ export function removeModel(tableName: string) {
 
     // Now we can start removing things
     if (existsSync(modelFile)) {
-      unlinkSync(modelFile);
-      console.log(`Removed model file: ${modelFile}`);
+      if (existsSync(modelFile)) {
+        unlinkSync(modelFile);
+      }
+      if (existsSync(modelDir)) {
+        execSync(`rm -rf ${modelDir}`);
+      }
+      console.log(`Removed model directory: ${modelDir}`);
     }
 
     // Update models registry
@@ -175,7 +181,7 @@ export function removeModel(tableName: string) {
         new RegExp(
           `import { ${capitalize(
             modelName
-          )} } from "./models/${modelName.toLowerCase()}";\n`
+          )} } from "./models/${modelName.toLowerCase()}/model";\n`
         ),
         ""
       )
