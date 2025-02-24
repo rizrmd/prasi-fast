@@ -6,7 +6,7 @@ import {
   generateModelFile,
   updateModelsRegistry,
 } from "./generators";
-import { capitalize } from "./utils";
+import { capitalize, ensureRequiredColumns } from "./utils";
 import { getSchema, Model } from "@mrleebo/prisma-ast";
 
 export async function createModel(tableName: string) {
@@ -19,17 +19,15 @@ export async function createModel(tableName: string) {
   const tempSchemaFile = "backend/prisma/temp-schema.prisma";
 
   try {
+    // Ensure required columns exist
+    const columnsAdded = await ensureRequiredColumns(tableName);
+    if (!columnsAdded) {
+      console.error("Error adding required columns to table");
+      return;
+    }
+
     // Create a temporary schema file
     const baseSchema = readFileSync(schemaFile, "utf-8");
-    const parsedBaseSchema = getSchema(baseSchema);
-
-    // Check if model already exists in current schema
-    const existingModel = parsedBaseSchema.list.find(
-      (item) =>
-        item.type === "model" &&
-        item.name.toLowerCase() === tableName.toLowerCase()
-    );
-
     writeFileSync(tempSchemaFile, baseSchema);
 
     try {

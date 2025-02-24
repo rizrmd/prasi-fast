@@ -11,7 +11,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export async function generateModelFile(name: string, schema: string) {
   // Extract model name without m_ prefix if present
   const tableName = name;
-  const modelName = name.startsWith("m_") ? name.slice(2) : "Role"; // force modelName to be Role
+  const modelName = name.startsWith("m_") ? name.slice(2) : name;
   const modelFileName = `model.ts`;
   const modelDirPath = join(MODELS_DIR, modelName.toLowerCase());
   const modelPath = join(modelDirPath, modelFileName);
@@ -43,7 +43,8 @@ ${columnsObj}    }
 }
 `;
 
-  writeFileSync(modelPath, template);
+
+  await Bun.write(modelPath, template, { createPath: true});
   console.log(`Generated model file: ${modelPath}`);
 }
 

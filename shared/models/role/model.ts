@@ -4,21 +4,9 @@ import { ModelConfig } from "system/types";
 
 export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
   protected config: ModelConfig = {
-    modelName: "Role",
-    tableName: "role",
+    modelName: "Role", // Use modelName here as well
+    tableName: "role", // Use tableName for tableName
     relations: {
-      creator: {
-        model: "User",
-        type: "belongsTo",
-        foreignKey: "created_by",
-        label: "Created By",
-      },
-      updater: {
-        model: "User",
-        type: "belongsTo", 
-        foreignKey: "updated_by",
-        label: "Updated By",
-      }
     },
     columns: {
       name: {
@@ -26,14 +14,6 @@ export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
         label: "Name",
         required: true,
       },
-      description: {
-        type: "string",
-        label: "Description",
-      },
-      permissions: {
-        type: "json",
-        label: "Permissions",
-      }
-    },
+    }
   };
 }
