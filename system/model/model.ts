@@ -49,7 +49,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return this;
   }
 
-  title() {
+  title(data: Partial<T>) {
     return "";
   }
 

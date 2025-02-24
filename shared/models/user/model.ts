@@ -3,6 +3,10 @@ import { BaseModel } from "system/model/model";
 import { ModelConfig } from "system/types";
 
 export class User extends BaseModel<PrismaUser, Prisma.UserWhereInput> {
+  title(data: Partial<PrismaUser>) {
+    return `${data.username}`;
+  }
+  
   protected config: ModelConfig = {
     modelName: "User",
     tableName: "user",

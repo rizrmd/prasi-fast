@@ -69,22 +69,22 @@ export async function createModel(tableName: string) {
 
     if (!model) {
       if (alreadyGenerated) {
-        console.error(`Model for table ${tableName} already exists`);
+        console.warn(
+          `Model for table ${tableName} already exists. Skip updating schema.prisma`
+        );
       } else {
-        console.error(`Model for table ${tableName} not found in schema`);
+        console.warn(`Model for table ${tableName} not found in schema`);
       }
-      return;
+    } else {
+      addModelToPrisma(model, tableName, schemaFile);
+      model.name = modelName;
     }
-
-    model.name = modelName;
-
-    addModelToPrisma(model, tableName);
 
     execSync("cd backend && bun prisma format", { stdio: "ignore" });
     execSync("cd backend && bun prisma generate", { stdio: "ignore" });
 
     // Generate the model file
-    generateModelFile(modelName, tempSchema);
+    generateModelFile(modelName, schemaFile);
     // Update the models registry
     updateModelsRegistry(modelName);
   } catch (error) {

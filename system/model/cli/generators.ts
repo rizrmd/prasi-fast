@@ -1,51 +1,110 @@
-import { Block, Model, produceSchema } from "@mrleebo/prisma-ast";
-import { readFileSync, writeFileSync } from "fs";
+import { Model, produceSchema } from "@mrleebo/prisma-ast";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
+import { sortByEstimatedImportance } from "./utils";
 
 const MODELS_DIR = "shared/models";
 const MODELS_FILE = "shared/models.ts";
 
 // Helper to capitalize first letter
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+export async function generateModelFile(modelName: string, schemaFile: string) {
+  // Read the Prisma schema file
+  const schemaContent = readFileSync(schemaFile, "utf-8");
+  let modelBlock: any;
+  let allModelNames: string[] = [];
 
-export async function generateModelFile(name: string, schema: string) {
-  // Extract model name without m_ prefix if present
-  const tableName = name;
-  const modelName = name.startsWith("m_") ? name.slice(2) : name;
-  const modelFileName = `model.ts`;
-  const modelDirPath = join(MODELS_DIR, modelName.toLowerCase());
-  const modelPath = join(modelDirPath, modelFileName);
+  // Use produceSchema to parse the schema and locate the model block and get all model names
+  produceSchema(schemaContent, (builder) => {
+    const models = builder.findAllByType("model", {});
+    allModelNames = models.map((m: any) => m.name);
+    modelBlock = models.find(
+      (m: any) => m.name.toLowerCase() === modelName.toLowerCase()
+    );
+  });
 
-  const relationsObj = ``; // No relations for Role model
-  const columnsObj = `      name: {
-        type: "string",
-        label: "Name",
-        required: true,
-      },\n`;
+  if (!modelBlock) {
+    throw new Error(
+      `Model "${modelName}" not found in schema file: ${schemaFile}`
+    );
+  }
 
-  const template = `import type { Prisma, ${capitalize(
-    modelName
-  )} as Prisma${capitalize(modelName)} } from "@prisma/client";
+  // Determine table name as lower-case of the model name
+  const tableName = modelName.toLowerCase();
+
+  // Generate columns and relations based on modelBlock properties
+  const columns: Record<string, any> = {};
+  const relations: Record<string, any> = {};
+
+  modelBlock.properties
+    .filter((prop: any) => prop.type === "field")
+    .forEach((field: any) => {
+      // Check if field type exists as a model name (relation)
+      const isRelation = allModelNames.includes(field.fieldType);
+
+      if (isRelation) {
+        // Field is a relation - determine type based on array property
+        const relationType = field.array ? "hasMany" : "belongsTo";
+        relations[field.name] = {
+          model: field.fieldType,
+          type: relationType,
+          foreignKey: field.name,
+          label: capitalize(field.name),
+        };
+      } else {
+        // Regular field - add as column
+        columns[field.name] = {
+          type: getFieldType(field.fieldType),
+          label: capitalize(field.name),
+          required: !field.optional,
+        };
+      }
+    });
+
+  const titleColumn = sortByEstimatedImportance(Object.keys(columns))[0];
+  // Prepare the model file content using the shared model sample as reference
+  const className = capitalize(modelName);
+  const fileContent = `import type { Prisma, ${className} as Prisma${className} } from "@prisma/client";
 import { BaseModel } from "system/model/model";
 import { ModelConfig } from "system/types";
 
-export class ${capitalize(modelName)} extends BaseModel<Prisma${capitalize(
-    modelName
-  )}, Prisma.${capitalize(modelName)}WhereInput> {
+export class ${className} extends BaseModel<Prisma${className}, Prisma.${className}WhereInput> {
+  title(data: Partial<Prisma${className}>) {
+    return \`\${data.${titleColumn}}\`;
+  }
   protected config: ModelConfig = {
-    modelName: "${capitalize(modelName)}", // Use modelName here as well
-    tableName: "${tableName.toLowerCase()}", // Use tableName for tableName
-    relations: {
-${relationsObj}    },
-    columns: {
-${columnsObj}    }
+    modelName: "${className}",
+    tableName: "${tableName}",
+    relations: ${JSON.stringify(relations, null, 2)},
+    columns: ${JSON.stringify(columns, null, 2)}
   };
 }
 `;
 
+  // Write the model file to the appropriate directory
+  const modelDir = join(MODELS_DIR, modelName.toLowerCase());
+  mkdirSync(modelDir, { recursive: true });
+  const modelFilePath = join(modelDir, "model.ts");
+  writeFileSync(modelFilePath, fileContent);
+  console.log(`Generated model file at: ${modelFilePath}`);
+}
 
-  await Bun.write(modelPath, template, { createPath: true});
-  console.log(`Generated model file: ${modelPath}`);
+// Helper function to map Prisma types to system types
+function getFieldType(prismaType: string): string {
+  const typeMap: Record<string, string> = {
+    String: "string",
+    Int: "number",
+    Float: "number",
+    Boolean: "boolean",
+    DateTime: "date",
+    Json: "json",
+    Decimal: "number",
+  };
+
+  // Clean up any modifiers like [], ? etc.
+  const baseType = prismaType.replace(/\[\]|\?/g, "");
+
+  return typeMap[baseType] || "string";
 }
 
 export async function updateModelsRegistry(modelName: string) {
@@ -72,11 +131,13 @@ export async function updateModelsRegistry(modelName: string) {
   console.log(`Updated models registry in: ${MODELS_FILE}`);
 }
 
-export async function addModelToPrisma(modelBlock: Model, tableName: string) {
-  const prismaSchemaPath = "backend/prisma/schema.prisma";
-
+export async function addModelToPrisma(
+  modelBlock: Model,
+  tableName: string,
+  schemaPath: string
+) {
   try {
-    let schemaContent = readFileSync(prismaSchemaPath, "utf-8");
+    let schemaContent = readFileSync(schemaPath, "utf-8");
 
     const updatedSchemaContent = produceSchema(schemaContent, (builder) => {
       // Check if model already exists
@@ -153,8 +214,8 @@ export async function addModelToPrisma(modelBlock: Model, tableName: string) {
       }
     });
 
-    writeFileSync(prismaSchemaPath, updatedSchemaContent);
-    console.log(`Updated Prisma schema in: ${prismaSchemaPath}`);
+    writeFileSync(schemaPath, updatedSchemaContent);
+    console.log(`Updated Prisma schema in: ${schemaPath}`);
   } catch (error) {
     console.error(
       `Failed to update Prisma schema: ${
