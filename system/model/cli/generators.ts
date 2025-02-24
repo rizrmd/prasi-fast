@@ -70,7 +70,7 @@ export async function updateModelsRegistry(modelName: string) {
   console.log(`Updated models registry in: ${MODELS_FILE}`);
 }
 
-export async function addModelToPrisma(modelBlock: Model) {
+export async function addModelToPrisma(modelBlock: Model, tableName: string) {
   const prismaSchemaPath = "backend/prisma/schema.prisma";
 
   try {
@@ -86,47 +86,60 @@ export async function addModelToPrisma(modelBlock: Model) {
       if (!modelExists) {
         // Create a new model using the fluent API
         const model = builder.model(modelBlock.name);
-        
+
         // Add fields with their attributes
         modelBlock.properties
           .filter((p) => p.type === "field")
           .forEach((field) => {
             // Prepare field type with modifiers
-            const fieldType = field.fieldType + (field.array ? '[]' : '') + (field.optional ? '?' : '');
-            
+            const fieldType =
+              field.fieldType +
+              (field.array ? "[]" : "") +
+              (field.optional ? "?" : "");
+
             // Convert attributes to decorator strings
             const decorators = (field.attributes || [])
-              .map(attr => {
-                if (typeof attr === 'string') return '@' + attr;
-                if (typeof attr === 'object' && attr !== null) {
+              .map((attr) => {
+                if (typeof attr === "string") return "@" + attr;
+                if (typeof attr === "object" && attr !== null) {
                   const args = attr.args;
-                  if (attr.name === 'default' && args && Array.isArray(args)) {
+                  if (attr.name === "default" && args && Array.isArray(args)) {
                     const firstArg = args[0];
-                    if (firstArg && 
-                        typeof firstArg === 'object' && 
-                        'type' in firstArg && 
-                        firstArg.type === 'attributeArgument' && 
-                        'value' in firstArg && 
-                        firstArg.value && 
-                        typeof firstArg.value === 'object' && 
-                        'type' in firstArg.value && 
-                        firstArg.value.type === 'function' && 
-                        'name' in firstArg.value) {
+                    if (
+                      firstArg &&
+                      typeof firstArg === "object" &&
+                      "type" in firstArg &&
+                      firstArg.type === "attributeArgument" &&
+                      "value" in firstArg &&
+                      firstArg.value &&
+                      typeof firstArg.value === "object" &&
+                      "type" in firstArg.value &&
+                      firstArg.value.type === "function" &&
+                      "name" in firstArg.value
+                    ) {
                       // Handle function arguments like now()
                       return `@${attr.name}(${firstArg.value.name}())`;
                     }
                   }
                   // For other cases, serialize the args
-                  return `@${attr.name}${args ? `(${JSON.stringify(args)})` : ''}`;
+                  return `@${attr.name}${
+                    args ? `(${JSON.stringify(args)})` : ""
+                  }`;
                 }
-                return '';
+                return "";
               })
               .filter(Boolean)
-              .join(' ');
+              .join(" ");
 
             // Add field with type and decorator string
-            model.field(field.name, decorators ? `${fieldType} ${decorators}` : fieldType);
+            model.field(
+              field.name,
+              decorators ? `${fieldType} ${decorators}` : fieldType
+            );
           });
+
+        // Add @@map attribute to map to the correct table name
+        model.blockAttribute("map", `${tableName}`);
       }
     });
 

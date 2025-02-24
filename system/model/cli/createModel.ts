@@ -36,7 +36,7 @@ export async function createModel(tableName: string) {
       // Pull the database schema into the temporary file
       execSync(
         "cd backend && bun prisma db pull --schema=prisma/temp-schema.prisma",
-        { stdio: "inherit" }
+        { stdio: "ignore" }
       );
     } catch (error) {
       console.error("Error pulling database schema:", error);
@@ -70,12 +70,14 @@ export async function createModel(tableName: string) {
 
     model.name = modelName;
 
-    addModelToPrisma(model);
+    addModelToPrisma(model, tableName);
 
-    // // Generate the model file
-    // generateModelFile(modelName, schema);
-    // // Update the models registry
-    // updateModelsRegistry(modelName);
+    execSync("cd backend && bun prisma format", { stdio: "ignore" });
+
+    // Generate the model file
+    generateModelFile(modelName, schema);
+    // Update the models registry
+    updateModelsRegistry(modelName);
   } catch (error) {
     console.error("Error creating model:", error);
     process.exit(1);
