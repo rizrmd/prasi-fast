@@ -237,6 +237,7 @@ export function removeModel(tableName: string) {
 
     // Format schema
     execSync("bun prisma format", { stdio: "ignore" });
+    execSync("bun prisma generate", { stdio: "ignore" });
 
     console.log(`Successfully removed model for table: ${tableName}`);
   } catch (error) {

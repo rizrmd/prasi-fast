@@ -44,8 +44,8 @@ export async function createModel(tableName: string) {
     }
 
     // Read the pulled schema with actual database structure
-    const schema = readFileSync(tempSchemaFile, "utf-8");
-    const parsedSchema = getSchema(schema);
+    const tempSchema = readFileSync(tempSchemaFile, "utf-8");
+    const parsedSchema = getSchema(tempSchema);
 
     // Clean up temp file
     unlinkSync(tempSchemaFile);
@@ -56,15 +56,25 @@ export async function createModel(tableName: string) {
         ? capitalize(tableName.slice(2))
         : capitalize(tableName);
 
+    let alreadyGenerated = false;
+
     // Find the model in parsed schema
-    const model = parsedSchema.list.find(
-      (item) =>
+    const model = parsedSchema.list.find((item) => {
+      if (item.type === "model" && item.name === modelName) {
+        alreadyGenerated = true;
+      }
+      return (
         item.type === "model" &&
         item.name.toLowerCase() === tableName.toLowerCase()
-    ) as Model;
+      );
+    }) as Model;
 
     if (!model) {
-      console.error(`Model for table ${tableName} not found in schema`);
+      if (alreadyGenerated) {
+        console.error(`Model for table ${tableName} already exists`);
+      } else {
+        console.error(`Model for table ${tableName} not found in schema`);
+      }
       return;
     }
 
@@ -73,9 +83,10 @@ export async function createModel(tableName: string) {
     addModelToPrisma(model, tableName);
 
     execSync("cd backend && bun prisma format", { stdio: "ignore" });
+    execSync("cd backend && bun prisma generate", { stdio: "ignore" });
 
     // Generate the model file
-    generateModelFile(modelName, schema);
+    generateModelFile(modelName, tempSchema);
     // Update the models registry
     updateModelsRegistry(modelName);
   } catch (error) {
