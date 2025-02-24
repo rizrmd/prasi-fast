@@ -6,7 +6,7 @@
     "backend"
   ],
   "scripts": {
-    "ui": "cd frontend && bun ui",
+    "ui": "cd frontend && bunx --bun shadcn@latest",
     "dev": "bun run system/cli.ts combined",
     "dev:frontend": "bun run system/cli.ts frontend",
     "dev:backend": "bun run system/cli.ts backend",
@@ -14,13 +14,15 @@
     "build": "bun run system/cli.ts build",
     "cli": "bun run system/cli.ts",
     "test": "bun test",
-    "prisma": "cd backend && bun prisma"
+    "prisma": "cd backend && bun prisma",
+    "model": "bun system/model/cli/index.ts"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@mrleebo/prisma-ast": "^0.12.1",
     "msgpackr": "^1.11.2"
   }
 }

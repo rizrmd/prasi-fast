@@ -7,19 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Role {
-  id         String    @id @unique
-  name       String
-  hasUsers   User[]
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
-  created_by String?
-  updated_by String?
-
-  @@map("m_role")
-}
-
 model User {
   id                  String      @id @default(uuid())
   username            String      @unique
@@ -38,7 +25,8 @@ model User {
   actionLogs          ActionLog[]
   Changelogs          Changelog[]
   sessions            Session[]
-  roleDetail          Role?       @relation(fields: [role], references: [id])
+  Role                Role?       @relation(fields: [roleId], references: [id])
+  roleId              String?
 
   @@map("m_user")
 }
@@ -81,4 +69,15 @@ model Changelog {
   user          User?    @relation(fields: [user_id], references: [id])
 
   @@map("s_changelog")
+}
+
+model Role {
+  id         String    @id @unique
+  name       String
+  created_at DateTime  @default(now())
+  updated_at DateTime
+  deleted_at DateTime?
+  created_by String?
+  updated_by String?
+  m_user     User[]
 }

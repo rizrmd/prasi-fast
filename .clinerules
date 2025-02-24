@@ -1,1 +1,1 @@
-we are using bun. we are using bun serve and do not use express. 
+we are using bun. we are using bun serve and do not use express. do not invoke bun prisma db
