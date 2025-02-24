@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { Logo } from "@/components/Logo";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from '@generated/api';
-import type { User } from '@prisma/client'
+import type { User } from '@prisma/client';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
   user: Partial<User> | null;
@@ -91,13 +93,15 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="flex-1 flex items-center justify-center flex-col w-full h-full space-y-[10px]">
+      <Spinner className="w-[30px] h-[30px] opacity-50" />
+      <Logo />
+    </div>;
   }
 
   if (!user) {
-    // Store current path before redirecting
     storeRedirectPath(window.location.pathname);
-    window.location.href = "/login";
+    window.location.href = "/auth/login";
     return null;
   }
 

@@ -22,7 +22,7 @@ export default function RegisterPage() {
 
     try {
       await register(username, password, email);
-      window.location.href = "/login";
+      window.location.href = "/auth/login";
     } catch (err: any) {
       setError(err.message);
     } finally {
