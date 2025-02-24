@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useAuth, getStoredRedirectPath } from "@/lib/auth";
+import { useAuth, getStoredRedirectPath, AuthRoute } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SideForm } from "@/components/SideForm";
+import { SideForm } from "@/components/ext/side-form";
 import { Link } from "@/lib/router";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -78,5 +78,13 @@ export default function LoginPage() {
         </div>
       </div>
     </SideForm>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <AuthRoute>
+      <LoginPageContent />
+    </AuthRoute>
   );
 }

@@ -1,5 +1,6 @@
 import { FC, ReactNode } from "react"
-import { Logo } from "./Logo"
+import { Logo } from "@/components/app/logo"
+import sideImage from '@/components/img/side-bg.jpeg';
 
 export const SideForm: FC<{ children: ReactNode }> = ({ children }) => {
   return <div className="grid min-h-svh lg:grid-cols-2">
@@ -15,7 +16,7 @@ export const SideForm: FC<{ children: ReactNode }> = ({ children }) => {
     </div>
     <div className="relative hidden bg-muted lg:block">
       <img
-        src={require("./img/side-bg.jpeg")}
+        src={sideImage}
         className="absolute inset-0 h-full w-full object-cover"
       />
     </div>

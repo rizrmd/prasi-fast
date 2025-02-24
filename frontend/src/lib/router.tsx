@@ -1,6 +1,6 @@
-import { api } from "@/generated/api";
-import { pageModules } from "@/generated/routes";
-import { useState, useEffect, createContext, useContext } from "react";
+import { api } from "@/lib/generated/api";
+import { pageModules } from "@/lib/generated/routes";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./auth";
 
 type Params = Record<string, string>;

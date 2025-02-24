@@ -13,3 +13,7 @@ interface ImportMeta {
 module globalThis {
   const config = { backend: { url: string }, frontend: { url: string } };
 }
+
+declare module "*.png";
+declare module "*.jpeg";
+declare module "*.jpg";

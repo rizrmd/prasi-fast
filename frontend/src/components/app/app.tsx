@@ -1,6 +1,6 @@
-import "./index.css";
-import { AuthProvider, useAuth } from "./lib/auth";
-import { Link, useRouter } from "./lib/router";
+import "@/index.css";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { Link, useRouter } from "@/lib/router";
 
 function NavBar() {
   const { user, logout } = useAuth();

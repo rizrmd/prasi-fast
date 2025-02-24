@@ -1,9 +1,8 @@
 const w = window as any;
 w.config = require("root/config.json");
 
-import { StrictMode } from "react";
+import { App } from "@/components/app/app";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
 
 const elem = document.getElementById("root")!;
 const app = (

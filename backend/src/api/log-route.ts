@@ -3,7 +3,7 @@ import { logAction } from "../utils/action-logger";
 
 export default defineAPI({
   path: "/api/log-route",
-  handler: async function (route: string, userId?: number) {
+  handler: async function (route: string, userId?: string) {
     const { req, ip } = apiContext(this);
     const userAgent = req.headers.get("user-agent") || undefined;
 

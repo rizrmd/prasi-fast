@@ -20,7 +20,7 @@
         "./frontend/src/*"
       ],
       "@generated/*": [
-        "./frontend/src/generated/*"
+        "./frontend/src/lib/generated/*"
       ]
     }
   },

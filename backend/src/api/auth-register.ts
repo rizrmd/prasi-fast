@@ -42,7 +42,6 @@ export default defineAPI({
           email,
           username,
           password_hash: hashPassword(password),
-          role: "user",
         },
         select: {
           id: true,

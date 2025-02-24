@@ -2,8 +2,8 @@ import { readdir } from "fs/promises";
 import { join } from "path";
 
 const BACKEND_API_DIR = "backend/src/api";
-const FRONTEND_API_FILE = "frontend/src/generated/api.ts";
-const BACKEND_GENERATED_API = "backend/src/generated/api.ts";
+const FRONTEND_API_FILE = "frontend/src/lib/generated/api.ts";
+const BACKEND_GENERATED_API = "backend/src/lib/generated/api.ts";
 
 async function scanAPIFiles() {
   const apiFiles = await readdir(join(process.cwd(), BACKEND_API_DIR));

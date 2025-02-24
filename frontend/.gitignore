@@ -31,6 +31,6 @@ yarn-error.log*
 # Typescript
 *.tsbuildinfo
 
-src/generated/routes.ts
-src/generated/api.ts
-src/generated/*.ts
+src/lib/generated/routes.ts
+src/lib/generated/api.ts
+src/lib/generated/*.ts

@@ -5,7 +5,7 @@ import { join, parse } from "path";
 const PAGES_DIR = join(import.meta.dir, "../frontend/src/pages");
 const ROUTES_FILE = join(
   import.meta.dir,
-  "../frontend/src/generated/routes.ts"
+  "../frontend/src/lib/generated/routes.ts"
 );
 
 function generateRoutes(dir: string, base = ""): Record<string, string> {

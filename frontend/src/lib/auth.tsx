@@ -1,4 +1,4 @@
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/app/logo";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from '@generated/api';
 import type { User } from '@prisma/client';
@@ -88,6 +88,24 @@ export const getStoredRedirectPath = () => {
   sessionStorage.removeItem('redirectPath'); // Clear it after getting it
   return path;
 };
+
+export function AuthRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex-1 flex items-center justify-center flex-col w-full h-full space-y-[10px]">
+      <Spinner className="w-[30px] h-[30px] opacity-50" />
+      <Logo />
+    </div>;
+  }
+
+  if (user) {
+    window.location.href = "/";
+    return null;
+  }
+
+  return <>{children}</>;
+}
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();

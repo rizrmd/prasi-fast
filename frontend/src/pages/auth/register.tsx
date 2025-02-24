@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, AuthRoute } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SideForm } from "@/components/SideForm";
+import { SideForm } from "@/components/ext/side-form";
 import { Link } from "@/lib/router";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const { register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -88,6 +88,15 @@ export default function RegisterPage() {
             Already have an account? Login
           </Link>
         </div>
-      </div></SideForm>
+      </div>
+    </SideForm>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <AuthRoute>
+      <RegisterPageContent />
+    </AuthRoute>
   );
 }
