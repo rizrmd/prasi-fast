@@ -3,6 +3,7 @@ import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { useEffect } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import * as Models from "shared/models";
 
 export const useModelTable = ({
   model,
@@ -38,6 +39,135 @@ export const useModelTable = ({
   useEffect(() => {
     let isMounted = true;
 
+    const getModelInfo = (relationName: string) => {
+      const modelName = Object.keys(Models).find(
+        (key) => key.toLowerCase() === relationName.toLowerCase()
+      );
+      return modelName ? (Models as any)[modelName] : null;
+    };
+
+    const getAccessorPath = (
+      column: any
+    ): { path: string; models: any[] } => {
+      if (!("rel" in column)) return { path: column.col, models: [] };
+
+      if (typeof column.rel === "string") {
+        const relModel = getModelInfo(column.rel);
+        return {
+          path: `${column.rel}.${column.col}`,
+          models: relModel ? [relModel] : [],
+        };
+      }
+
+      const paths: string[] = [];
+      const models: any[] = [];
+
+      const processRelObject = (obj: any, parentModel: any = null): void => {
+        if ("col" in obj) {
+          paths.push(obj.col);
+          return;
+        }
+
+        const key = Object.keys(obj)[0];
+        const value = obj[key];
+        
+        if (paths.length === 0) {
+          // First level relation
+          paths.push(key);
+          const currentModel = getModelInfo(key);
+          if (currentModel) {
+            models.push(currentModel);
+            if (typeof value === 'object') {
+              processRelObject(value, currentModel);
+            }
+          }
+        } else {
+          // Nested relations - use parent model's relations to get next model
+          if (parentModel) {
+            paths.push(key);
+            const relationConfig = parentModel.config.relations[key];
+            if (relationConfig) {
+              const nextModel = getModelInfo(relationConfig.model);
+              if (nextModel) {
+                models.push(nextModel);
+                if (typeof value === 'object') {
+                  processRelObject(value, nextModel);
+                }
+              }
+            }
+          }
+        }
+      };
+
+      processRelObject(column.rel);
+      return { path: paths.join("."), models };
+    };
+
+    const getNestedValue = (obj: any, path: string[]): any => {
+      let current = obj;
+      for (const key of path) {
+        if (Array.isArray(current)) {
+          // If current is an array, take first element
+          current = current[0];
+        }
+        if (current && typeof current === "object" && key in current) {
+          current = current[key];
+        } else {
+          return undefined;
+        }
+      }
+      // Handle final value being an array
+      if (Array.isArray(current)) {
+        current = current[0];
+      }
+      return current;
+    };
+
+    const buildSelect = (column: any): any => {
+      if (!("rel" in column)) {
+        return true;
+      }
+
+      if (typeof column.rel === "string") {
+        return {
+          [column.rel]: {
+            select: {
+              [column.col]: true,
+            },
+          },
+        };
+      }
+
+      const processRelObject = (obj: any): any => {
+        if ("col" in obj) {
+          return { [obj.col]: true };
+        }
+
+        const key = Object.keys(obj)[0];
+        const value = obj[key];
+
+        if ("col" in value) {
+          return {
+            [key]: {
+              select: {
+                [value.col]: true,
+              },
+            },
+          };
+        }
+
+        const nestedValue = processRelObject(value);
+
+        return {
+          [key]: {
+            select: nestedValue,
+          },
+        };
+      };
+
+      return processRelObject(column.rel);
+    };
+
     const fetchData = async () => {
       if (!table.ready || !model.instance || !layout?.table) return;
 
@@ -47,38 +177,90 @@ export const useModelTable = ({
       try {
         const columns = layout.table.columns;
         const mappedColumns: ColumnDef<any, any>[] = columns.map((column) => {
-          const accessorKey =
-            "rel" in column ? `${column.rel}.${column.col}` : column.col;
-          return {
-            accessorKey,
-            header: accessorKey
-              .split(".")
-              .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-              .join(" "),
-            cell: ({ row }) => {
-              if ("rel" in column) {
-                const relData = row.original[column.rel];
-                return relData ? relData[column.col] ?? "N/A" : "N/A";
+          const { path: accessorPath, models: relatedModels } =
+            getAccessorPath(column);
+
+          // Get field name from the end of the path
+          const pathParts = accessorPath.split(".");
+          const fieldName = pathParts[pathParts.length - 1];
+          const hasRelation = pathParts.length > 1;
+
+          // Get label from the model config
+          let headerText;
+
+          if (!hasRelation) {
+            // For direct columns, get label from current model
+            const columnLabel =
+              model.instance?.config.columns[fieldName]?.label;
+            headerText =
+              columnLabel ||
+              fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+          } else {
+            // For related path, get the last model in the chain (deepest relation)
+            const lastModel = relatedModels[relatedModels.length - 1];
+            
+            if (lastModel) {
+              // Get the column label from the last model if it exists
+              const columnLabel = lastModel?.config.columns[fieldName]?.label;
+              if (columnLabel) {
+                headerText = columnLabel;
+              } else {
+                // Fallback: Use last model's name + field
+                const modelLabel = lastModel.config.tableName || lastModel.config.modelName;
+                headerText = `${modelLabel} ${
+                  fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+                }`;
               }
-              return row.getValue(accessorKey) ?? "N/A";
+            } else {
+              // Ultimate fallback if no model found
+              headerText =
+                fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+            }
+          }
+
+          return {
+            accessorKey: accessorPath,
+            header: headerText,
+            cell: ({ row }) => {
+              const path = accessorPath.split(".");
+              const value = getNestedValue(row.original, path);
+              if (value === null || value === undefined || value === "") {
+                return "N/A";
+              }
+              return value;
             },
           };
         });
 
         const select: Record<string, any> = {};
-
         columns.forEach((column) => {
           if ("rel" in column) {
-            select[column.rel] = {
-              select: {
-                [column.col]: true,
-              },
-            };
+            if (typeof column.rel === "string") {
+              select[column.rel] = {
+                select: {
+                  [column.col]: true,
+                },
+              };
+            } else {
+              const nestedSelect = buildSelect(column);
+              // Merge nested selections at the same level
+              for (const [key, value] of Object.entries(nestedSelect)) {
+                if (select[key] && select[key].select) {
+                  select[key].select = {
+                    ...select[key].select,
+                    ...(value as any).select,
+                  };
+                } else {
+                  select[key] = value;
+                }
+              }
+            }
           } else {
             select[column.col] = true;
           }
         });
 
+        // Log the final select object
         const result = await model.instance.findMany({
           select,
         });

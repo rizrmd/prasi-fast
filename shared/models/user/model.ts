@@ -103,6 +103,6 @@ const relations = {
     model: "Role",
     type: "belongsTo",
     prismaField: "roleDetail",
-    label: "RoleDetail",
+    label: "Role",
   } as RelationConfig,
 };

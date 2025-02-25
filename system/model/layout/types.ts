@@ -1,16 +1,28 @@
 import { ModelName, Models } from "shared/types";
 
-export type LayoutTable<Name extends ModelName> = {
-  columns: (
-    | { col: Models[Name]["columns"][number] }
-    | Rel<Name, Models[Name]["relations"][number]>
-  )[];
+type GetModelFromRel<
+  Name extends ModelName,
+  Rel extends Models[Name]["relations"][number]
+> = Models[Name]["config"]["relations"][Rel]["model"];
+
+type GetColumnsFromModel<M extends ModelName> = Models[M]["columns"][number];
+
+type RelValue<M extends ModelName> =
+  | { col: GetColumnsFromModel<M> }
+  | { [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>> };
+
+type RelObject<M extends ModelName> = {
+  [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>>;
 };
 
-type Rel<
-  Name extends ModelName,
-  Field extends Models[Name]["relations"][number]
-> = {
-  rel: Field;
-  col: Models[Models[Name]["config"]["relations"][Field]["model"]]["columns"][number];
+type Column<Name extends ModelName> = 
+  | { col: GetColumnsFromModel<Name> }
+  | { 
+      rel: Models[Name]["relations"][number];
+      col: GetColumnsFromModel<GetModelFromRel<Name, Models[Name]["relations"][number]>>;
+    }
+  | { rel: RelObject<Name> };
+
+export type LayoutTable<Name extends ModelName> = {
+  columns: Column<Name>[];
 };

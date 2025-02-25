@@ -12,6 +12,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { isValidElement } from "react";
 import { Spinner } from "../ui/spinner";
 import { WarnFull } from "../app/warn-full";
 
@@ -60,7 +61,28 @@ export function DataTable<TData, TValue>({
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {(() => {
+                      const content = flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      );
+                      if (Array.isArray(content)) {
+                        return content.join(", ");
+                      }
+                      if (content !== null && typeof content === "object") {
+                        // Check if it's a React element using isValidElement
+                        if (isValidElement(content)) {
+                          return content;
+                        }
+                        // For plain objects, try to stringify or return a fallback
+                        try {
+                          return JSON.stringify(content);
+                        } catch (e) {
+                          return "[Complex Object]";
+                        }
+                      }
+                      return content;
+                    })()}
                   </TableCell>
                 ))}
               </TableRow>
