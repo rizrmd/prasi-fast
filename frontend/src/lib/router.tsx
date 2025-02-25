@@ -15,17 +15,17 @@ const ParamsContext = createContext<Params>({});
 
 function parsePattern(pattern: string): RoutePattern {
   const paramNames: string[] = [];
-  const patternParts = pattern.split('/');
-  const regexParts = patternParts.map(part => {
+  const patternParts = pattern.split("/");
+  const regexParts = patternParts.map((part) => {
     // Find all parameter patterns like [id] in the part
     const matches = part.match(/\[([^\]]+)\]/g);
     if (matches) {
       let processedPart = part;
-      matches.forEach(match => {
+      matches.forEach((match) => {
         const paramName = match.slice(1, -1);
         paramNames.push(paramName);
         // Replace [param] with capture group, preserve surrounding text
-        processedPart = processedPart.replace(match, '([^/]+)');
+        processedPart = processedPart.replace(match, "([^/]+)");
       });
       return processedPart;
     }
@@ -34,8 +34,8 @@ function parsePattern(pattern: string): RoutePattern {
 
   return {
     pattern,
-    regex: new RegExp(`^${regexParts.join('/')}$`),
-    paramNames
+    regex: new RegExp(`^${regexParts.join("/")}$`),
+    paramNames,
   };
 }
 
@@ -55,25 +55,26 @@ export function useRouter() {
   const local = useLocal({
     currentPath: window.location.pathname,
     Page: null as React.ComponentType | null,
-    params: {} as Params
+    params: {} as Params,
   });
 
   useEffect(() => {
     const handlePathChange = () => {
       local.currentPath = window.location.pathname;
+      local.render();
     };
 
-    window.addEventListener('popstate', handlePathChange);
-    return () => window.removeEventListener('popstate', handlePathChange);
+    window.addEventListener("popstate", handlePathChange);
+    return () => window.removeEventListener("popstate", handlePathChange);
   }, []);
 
   useEffect(() => {
     const logRouteChange = async (path: string) => {
-      api.logRoute(path, user?.id)
+      api.logRoute(path, user?.id);
     };
 
     const loadPage = async () => {
-      const path = local.currentPath.replace(/\/$/, '') || "/";
+      const path = local.currentPath.replace(/\/$/, "") || "/";
 
       // Log the route change
       await logRouteChange(path);
@@ -101,7 +102,7 @@ export function useRouter() {
           local.Page = module.default;
           local.params = matchedParams;
         } catch (err) {
-          console.error('Failed to load page:', err);
+          console.error("Failed to load page:", err);
           local.Page = null;
           local.params = {};
         }
@@ -116,27 +117,28 @@ export function useRouter() {
           local.params = {};
         }
       }
+      local.render();
     };
 
     loadPage();
   }, [local.currentPath]);
 
   const navigate = (to: string) => {
-    window.history.pushState({}, '', to);
+    window.history.pushState({}, "", to);
     local.currentPath = to;
   };
 
   return {
-    Page: local.params ?
-      (props: any) => (
-        <ParamsContext.Provider value={local.params}>
-          {local.Page && <local.Page {...props} />}
-        </ParamsContext.Provider>
-      ) :
-      null,
+    Page: local.params
+      ? (props: any) => (
+          <ParamsContext.Provider value={local.params}>
+            {local.Page && <local.Page {...props} />}
+          </ParamsContext.Provider>
+        )
+      : null,
     currentPath: local.currentPath,
     navigate,
-    params: local.params
+    params: local.params,
   };
 }
 
@@ -144,11 +146,18 @@ export function useParams<T extends Record<string, string>>(): T {
   return useContext(ParamsContext) as T;
 }
 
-export function Link({ to, children, ...props }: { to: string; children: React.ReactNode;[key: string]: any }) {
+export function Link({
+  to,
+  children,
+  ...props
+}: {
+  to: string;
+  children: React.ReactNode;
+  [key: string]: any;
+}) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    window.history.pushState({}, '', to);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigate(to);
   };
 
   return (
@@ -157,3 +166,8 @@ export function Link({ to, children, ...props }: { to: string; children: React.R
     </a>
   );
 }
+
+export const navigate = (to: string) => {
+  window.history.pushState({}, "", to);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+};

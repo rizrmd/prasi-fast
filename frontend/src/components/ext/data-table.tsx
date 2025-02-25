@@ -33,11 +33,13 @@ export type ColumnMetaData = {
 
 interface DataTableProps<TData extends { type: ModelName }, TValue> {
   columns: ColumnDef<TData, TValue>[];
+  onRowClick: (row: any) => void;
 }
 export function DataTable<TData extends { type: ModelName }, TValue>({
   columns,
   status,
   result,
+  onRowClick,
   checkbox,
 }: DataTableProps<TData, TValue> & {
   status: "init" | "loading" | "ready";
@@ -132,6 +134,9 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                     }
                   `
                 )}
+                onClick={() => {
+                  onRowClick(row.original);
+                }}
               >
                 {row.getVisibleCells().map((cell, idx) => {
                   if (idx === 0 && checkbox?.enabled) {
@@ -162,7 +167,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                             colIdx={idx}
                             modelName={meta.modelName ?? row.original.type}
                             columnName={meta.columnName ?? cell.column.id}
-                            type={meta.type ?? ''}
+                            type={meta.type ?? ""}
                             value={value}
                             rowId={row.id}
                           />

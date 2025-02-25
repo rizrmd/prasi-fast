@@ -3,6 +3,7 @@ import { DataTable } from "@/components/ext/data-table";
 import { Spinner } from "@/components/ui/spinner";
 import { useModel } from "@/hooks/use-model";
 import { useModelTable } from "@/hooks/use-model-table";
+import { navigate } from "@/lib/router";
 import { FC } from "react";
 import { ModelName } from "shared/types";
 
@@ -30,6 +31,9 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
       columns={table.columns}
       status={table.loading ? "loading" : "ready"}
       result={table.result}
+      onRowClick={(row) => {
+        navigate("/model/" + modelName.toLowerCase() + "/detail/" + row.id);
+      }}
     />
   );
 };
