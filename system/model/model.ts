@@ -71,6 +71,41 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return "";
   }
 
+  private ensurePrimaryKeys(select: Record<string, any>): Record<string, any> {
+    const enhancedSelect = { ...select };
+    
+    // Ensure model's primary key is selected
+    enhancedSelect[this.config.primaryKey] = true;
+
+    // Ensure relation primary keys are selected
+    if (this.config.relations) {
+      for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+        // If relation is selected
+        if (select[relationName]) {
+          if (typeof select[relationName] === 'object') {
+            // Ensure relation's primary key is selected
+            enhancedSelect[relationName] = {
+              ...select[relationName],
+              select: {
+                ...select[relationName].select,
+                [relationConfig.targetPK]: true,
+              },
+            };
+          } else {
+            // If relation is just true, create proper select with primary key
+            enhancedSelect[relationName] = {
+              select: {
+                [relationConfig.targetPK]: true,
+              },
+            };
+          }
+        }
+      }
+    }
+
+    return enhancedSelect;
+  }
+
   private getSelectFields(select?: Record<string, any>): string[] {
     if (!select) return [...this.columns];
 
@@ -78,6 +113,12 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     for (const [key, value] of Object.entries(select)) {
       if (typeof value === 'boolean' && value) {
         fields.push(key);
+      } else if (typeof value === 'object' && this.config.relations?.[key]) {
+        // For relations, we need their foreign keys
+        const relationConfig = this.config.relations[key];
+        if (relationConfig.type === "belongsTo") {
+          fields.push(relationConfig.prismaField);
+        }
       }
     }
     // Always include primary key
@@ -248,7 +289,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         orderBy: {
           [normalizedParams.orderBy]: normalizedParams.orderDirection,
         },
-        ...(params.select ? { select: params.select } : {}),
+        ...(params.select ? { select: this.ensurePrimaryKeys(params.select) } : {}),
       }),
     ]);
 
