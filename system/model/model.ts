@@ -73,16 +73,18 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
   private ensurePrimaryKeys(select: Record<string, any>): Record<string, any> {
     const enhancedSelect = { ...select };
-    
+
     // Ensure model's primary key is selected
     enhancedSelect[this.config.primaryKey] = true;
 
     // Ensure relation primary keys are selected
     if (this.config.relations) {
-      for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+      for (const [relationName, relationConfig] of Object.entries(
+        this.config.relations
+      )) {
         // If relation is selected
         if (select[relationName]) {
-          if (typeof select[relationName] === 'object') {
+          if (typeof select[relationName] === "object") {
             // Ensure relation's primary key is selected
             enhancedSelect[relationName] = {
               ...select[relationName],
@@ -111,9 +113,9 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
     const fields: string[] = [];
     for (const [key, value] of Object.entries(select)) {
-      if (typeof value === 'boolean' && value) {
+      if (typeof value === "boolean" && value) {
         fields.push(key);
-      } else if (typeof value === 'object' && this.config.relations?.[key]) {
+      } else if (typeof value === "object" && this.config.relations?.[key]) {
         // For relations, we need their foreign keys
         const relationConfig = this.config.relations[key];
         if (relationConfig.type === "belongsTo") {
@@ -178,21 +180,21 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   }
 
   async findFirst(
-    idOrParams: number | Partial<PaginationParams>
+    idOrParams: string | Partial<PaginationParams>
   ): Promise<T | null> {
-    const params = typeof idOrParams === "number" ? {} : idOrParams;
+    const params = typeof idOrParams === "string" ? {} : idOrParams;
     const where = {
       ...this.getDefaultConditions(),
-      ...(typeof idOrParams === "number"
+      ...(typeof idOrParams === "string"
         ? { id: idOrParams }
         : params.where || {}),
       deleted_at: null,
-      ...(typeof idOrParams !== "number" && params.search
+      ...(typeof idOrParams !== "string" && params.search
         ? this.buildSearchQuery(params.search)
         : {}),
     };
 
-    const id = typeof idOrParams === "number" ? idOrParams : undefined;
+    const id = typeof idOrParams === "string" ? idOrParams : undefined;
     if (
       id !== undefined &&
       this.config.cache &&
@@ -289,7 +291,9 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         orderBy: {
           [normalizedParams.orderBy]: normalizedParams.orderDirection,
         },
-        ...(params.select ? { select: this.ensurePrimaryKeys(params.select) } : {}),
+        ...(params.select
+          ? { select: this.ensurePrimaryKeys(params.select) }
+          : {}),
       }),
     ]);
 

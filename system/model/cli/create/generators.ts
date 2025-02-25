@@ -99,6 +99,9 @@ export class ${className} extends BaseModel<Prisma${className}, Prisma.${classNa
   title(data: Partial<Prisma${className}>) {
     return \`\${data.${titleColumn}}\`;
   }
+  formatCount(count: number) {
+    return \`\${count} item\$\{count > 1 ? 's' : ''}\`; 
+  }
   config: ModelConfig = {
     modelName: "${className}",
     tableName: "${tableName}",

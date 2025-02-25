@@ -1,22 +1,21 @@
 import {
   Command,
+  CommandGroup,
   CommandItem,
   CommandList,
-  CommandGroup,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { PopoverTrigger } from "@radix-ui/react-popover";
 import {
   ArrowRight,
-  ChevronRight,
   ExternalLink,
   Filter,
-  Pencil,
+  Pencil
 } from "lucide-react";
 import { FC, Fragment, useState } from "react";
+import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { Popover, PopoverContent } from "../ui/popover";
-import * as models from "shared/models";
 
 const cell = { popover: "" };
 
@@ -49,7 +48,8 @@ export const DataCell: FC<{
         }}
       >
         <PopoverTrigger
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             cell.popover = cell.popover === cellId ? "" : cellId;
             render({});
           }}
@@ -92,7 +92,11 @@ const CellAction: FC<{
   const parts = columnName.split(".");
   let lastModel = null as typeof model | null;
   return (
-    <Command>
+    <Command
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
+    >
       <CommandList>
         <CommandGroup
           heading={

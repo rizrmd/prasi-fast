@@ -90,7 +90,6 @@ export async function createModel(tableName: string) {
     await updateModelsRegistry();
     // Create layout files
     await createLayout(modelName);
-    process.exit(0);
   } catch (error) {
     console.error("Error creating model:", error);
     process.exit(1);

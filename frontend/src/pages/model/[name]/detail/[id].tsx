@@ -1,5 +1,4 @@
-import { ModelNavTabs } from "@/components/model/nav-tabs";
-import { MTable } from "@/components/model/table";
+import { ModelContainer } from "@/components/model/container";
 import { useParams } from "@/lib/router";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
@@ -12,12 +11,5 @@ export default () => {
   }) as ModelName;
   if (!modelName) modelName = params.name as any;
 
-  return (
-    <div className="flex flex-col flex-1">
-      {/* <ModelNavTabs /> */}
-      <div className="p-2 bg-slate-100 flex flex-1 items-stretch flex-col">
-        aoisndas
-      </div>
-    </div>
-  );
+  return <ModelContainer>asdas</ModelContainer>;
 };
