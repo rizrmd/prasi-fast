@@ -6,8 +6,14 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { PopoverTrigger } from "@radix-ui/react-popover";
-import { ExternalLink, Filter, Pencil } from "lucide-react";
-import { FC, useState } from "react";
+import {
+  ArrowRight,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Pencil,
+} from "lucide-react";
+import { FC, Fragment, useState } from "react";
 import { ModelName } from "shared/types";
 import { Popover, PopoverContent } from "../ui/popover";
 import * as models from "shared/models";
@@ -17,11 +23,12 @@ const cell = { popover: "" };
 export const DataCell: FC<{
   modelName: ModelName;
   columnName: string;
+  type: string;
   value?: any;
   rowId: string;
   colIdx?: number;
 }> = (props) => {
-  const { value, modelName, columnName, rowId, colIdx } = props;
+  const { value, modelName, columnName, rowId, colIdx, type } = props;
   const render = useState({})[1];
   const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
 
@@ -29,6 +36,7 @@ export const DataCell: FC<{
     cell.popover = "";
     render({});
   };
+
   return (
     <div className="flex flex-1">
       <Popover
@@ -54,7 +62,11 @@ export const DataCell: FC<{
                 : "hover:border-slate-300 hover:bg-white border-transparent "
             )}
           >
-            {value}
+            {type === "hasMany" ? (
+              <>{Array.isArray(value) ? value?.length : "0 items"}</>
+            ) : (
+              value
+            )}
           </div>
         </PopoverTrigger>
         <PopoverContent className="text-sm p-0 min-w-[100px]">
@@ -77,14 +89,53 @@ const CellAction: FC<{
   columnName: string;
 }> = ({ select, columnName, modelName }) => {
   const model = models[modelName];
+  const parts = columnName.split(".");
+  let lastModel = null as typeof model | null;
   return (
     <Command>
       <CommandList>
         <CommandGroup
           heading={
-            <>
-              {modelName} &bull; {model.config.columns[columnName].label}
-            </>
+            <div className="flex items-center space-x-1">
+              <div>{modelName}</div>
+              {parts.length > 1 ? (
+                <>
+                  {parts.map((e, idx) => {
+                    let label = e;
+
+                    if (idx === parts.length - 1 && lastModel) {
+                      label = lastModel?.config.columns[e]?.label || label;
+                    } else {
+                      if (idx === 0) {
+                        const rel = model.config.relations[e];
+                        if (rel) {
+                          label = rel.label || label;
+                          lastModel = models[rel.model];
+                        }
+                      } else if (lastModel) {
+                        const rel = lastModel?.config.relations[e];
+                        if (rel) {
+                          label = rel.label || label;
+                          lastModel = lastModel[rel.model];
+                        }
+                      }
+                    }
+                    return (
+                      <Fragment key={idx}>
+                        {idx < parts.length - 1 ? (
+                          <ArrowRight size={12} />
+                        ) : (
+                          <>{idx > 0 && <>&bull;&nbsp;</>} </>
+                        )}
+                        <div>{label}</div>
+                      </Fragment>
+                    );
+                  })}
+                </>
+              ) : (
+                <>&nbsp;&bull; {model.config.columns[columnName].label}</>
+              )}
+            </div>
           }
         >
           <CommandItem value="filter" onSelect={select}>

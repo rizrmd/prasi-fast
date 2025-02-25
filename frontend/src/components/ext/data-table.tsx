@@ -28,6 +28,7 @@ export type ColumnMetaData = {
   modelName: ModelName;
   columnName: string;
   accessorPath: string;
+  type: string;
 };
 
 interface DataTableProps<TData extends { type: ModelName }, TValue> {
@@ -161,6 +162,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                             colIdx={idx}
                             modelName={meta.modelName ?? row.original.type}
                             columnName={meta.columnName ?? cell.column.id}
+                            type={meta.type ?? ''}
                             value={value}
                             rowId={row.id}
                           />
@@ -179,7 +181,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
           ) : (
             <TableRow>
               <TableCell
-                colSpan={columns.length}
+                colSpan={columns.length + 1}
                 className="h-24 opacity-50 text-center select-none"
               >
                 {status === "loading" ? (
@@ -188,11 +190,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                     <div>Loading...</div>
                   </div>
                 ) : (
-                  <WarnFull size={35}>
-                    Data di tampilan ini
-                    <br />
-                    tidak tersedia
-                  </WarnFull>
+                  <WarnFull size={35}>Data Kosong</WarnFull>
                 )}
               </TableCell>
             </TableRow>

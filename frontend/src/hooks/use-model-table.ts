@@ -47,14 +47,29 @@ export const useModelTable = ({
       return modelName ? (Models as any)[modelName] : null;
     };
 
-    const getAccessorPath = (column: any): { path: string; models: any[] } => {
+    const getAccessorPath = (
+      column: any
+    ): {
+      path: string;
+      models: {
+        model: any;
+        type: "hasMany" | "belongsTo" | "hasOne" | undefined;
+      }[];
+    } => {
       if (!("rel" in column)) return { path: column.col, models: [] };
 
       if (typeof column.rel === "string") {
         const relModel = getModelInfo(column.rel);
         return {
           path: `${column.rel}.${column.col}`,
-          models: relModel ? [relModel] : [],
+          models: relModel
+            ? [
+                {
+                  model: relModel,
+                  type: model.instance?.config.relations[column.rel].type,
+                },
+              ]
+            : [],
         };
       }
 
@@ -176,17 +191,17 @@ export const useModelTable = ({
               fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
           } else {
             // For related path, get the last model in the chain (deepest relation)
-            const lastModel = relatedModels[relatedModels.length - 1];
+            const last = relatedModels[relatedModels.length - 1];
 
-            if (lastModel) {
+            if (last) {
               // Get the column label from the last model if it exists
-              const columnLabel = lastModel?.config.columns[fieldName]?.label;
+              const columnLabel = last?.model.config.columns[fieldName]?.label;
               if (columnLabel) {
                 headerText = columnLabel;
               } else {
                 // Fallback: Use last model's name + field
                 const modelLabel =
-                  lastModel.config.tableName || lastModel.config.modelName;
+                  last.model.config.tableName || last.model.config.modelName;
                 headerText = `${modelLabel} ${
                   fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
                 }`;
@@ -203,10 +218,11 @@ export const useModelTable = ({
             header: headerText,
             meta: {
               accessorPath,
-              modelName: !hasRelation
-                ? model.name
-                : relatedModels[relatedModels.length - 1]?.config.modelName,
-              columnName: fieldName,
+              modelName: model.name,
+              columnName: accessorPath,
+              type: !hasRelation
+                ? model.instance?.config.columns[fieldName]?.type
+                : relatedModels[relatedModels.length - 1]?.type,
             },
           };
         });
