@@ -1,58 +1,54 @@
 import type { Prisma, Role as PrismaRole } from "@prisma/client";
-import { BaseModel } from "system/model/model";
-import { ModelConfig } from "system/types";
+import { BaseModel, DefaultColumns } from "system/model/model";
+import {
+  ModelRelations,
+  RelationConfig,
+  ColumnConfig,
+  ModelConfig,
+  ModelColumns,
+} from "system/types";
 
 export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
   title(data: Partial<PrismaRole>) {
     return `${data.name}`;
   }
-  protected config: ModelConfig = {
+  config: ModelConfig = {
     modelName: "Role",
     tableName: "role",
-    relations: {
-  "user": {
-    "model": "User",
-    "type": "hasMany",
-    "foreignKey": "user",
-    "label": "User"
-  }
-},
-    columns: {
-  "id": {
-    "type": "string",
-    "label": "Id",
-    "required": true
-  },
-  "name": {
-    "type": "string",
-    "label": "Name",
-    "required": true
-  },
-  "created_at": {
-    "type": "date",
-    "label": "Created_at",
-    "required": true
-  },
-  "updated_at": {
-    "type": "date",
-    "label": "Updated_at",
-    "required": false
-  },
-  "deleted_at": {
-    "type": "date",
-    "label": "Deleted_at",
-    "required": false
-  },
-  "created_by": {
-    "type": "string",
-    "label": "Created_by",
-    "required": false
-  },
-  "updated_by": {
-    "type": "string",
-    "label": "Updated_by",
-    "required": false
-  }
-}
+    relations: relations as ModelRelations,
+    columns: columns as ModelColumns,
   };
+  get columns() {
+    return Object.keys(this.config.columns) as (
+      | keyof typeof columns
+      | DefaultColumns
+    )[];
+  }
+  get relations() {
+    return Object.keys(this.config.relations) as (keyof typeof relations)[];
+  }
 }
+
+/** Columns **/
+const columns = {
+  id: {
+    type: "string",
+    label: "Id",
+    required: true,
+  } as ColumnConfig,
+  name: {
+    type: "string",
+    label: "Name",
+    required: true,
+  } as ColumnConfig,
+};
+
+/** Relations **/
+const relations = {
+  user: {
+    model: "User",
+    type: "hasMany",
+    prismaField: "user",
+    label: "User",
+  } as RelationConfig,
+};

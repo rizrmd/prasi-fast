@@ -1,15 +1,13 @@
-import { execSync } from "child_process";
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
-import { join } from "path";
 import {
+  Attribute,
   getSchema,
   Model,
   printSchema,
-  Schema,
-  Property,
-  Attribute,
-  AttributeArgument,
+  Property
 } from "@mrleebo/prisma-ast";
+import { execSync } from "child_process";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { join } from "path";
 import { capitalize } from "./utils";
 
 const MODELS_DIR = "shared/models";

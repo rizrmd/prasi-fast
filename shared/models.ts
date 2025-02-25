@@ -1,6 +1,6 @@
-import { Role } from "./models/role/model";
+import { Role as ModelRole } from "./models/role/model";
+import { User as ModelUser} from "./models/user/model";
 import { ModelRegistry } from "system/model/model-registry";
-import { User } from "./models/user/model";
 
-export const role: Role = ModelRegistry.getInstance("Role", Role);
-export const user: User = ModelRegistry.getInstance("User", User);
+export const Role: ModelRole = ModelRegistry.getInstance("Role", ModelRole);
+export const User: ModelUser = ModelRegistry.getInstance("User", ModelUser);

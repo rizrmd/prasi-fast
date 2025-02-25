@@ -1,3 +1,5 @@
+import { ModelName } from "shared/types";
+
 export type ColumnType =
   | "string"
   | "number"
@@ -24,23 +26,23 @@ export interface ColumnConfig {
     multiple?: boolean;
   };
 }
-
-export interface ModelConfig {
+export interface RelationConfig {
+  model: ModelName;
+  type: "hasMany" | "belongsTo" | "hasOne";
+  prismaField: string;
+  label?: string;
+}
+export type ModelRelations = Record<string, RelationConfig>;
+export type ModelColumns = Record<string, ColumnConfig>;
+export type ModelConfig = {
   modelName: string;
   tableName: string;
-  relations?: {
-    [key: string]: {
-      model: string;
-      type: "hasMany" | "belongsTo" | "hasOne";
-      foreignKey: string;
-      label?: string;
-    };
-  };
-  columns: Record<string, ColumnConfig>;
+  relations: ModelRelations;
+  columns: ModelColumns;
   cache?: {
     ttl: number;
   };
-}
+};
 
 export interface PaginationParams {
   page?: number;

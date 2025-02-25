@@ -1,11 +1,21 @@
 import type { PrismaClient, User } from "@prisma/client";
 import { cache } from "../cache";
-import { prismaFrontendProxy } from "./model-client";
 import { ModelConfig, PaginationParams, PaginationResult } from "../types";
+import { prismaFrontendProxy } from "./model-client";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
   prisma: PrismaClient;
 };
+
+export const defaultColumns = [
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "created_by",
+  "updated_by",
+] as const;
+
+export type DefaultColumns = typeof defaultColumns[number];
 
 interface BaseRecord {
   id: string;
@@ -19,10 +29,6 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   protected data: T | null = null;
   protected _mode: "client" | "server" = "server";
   [key: string]: any;
-
-  public columns() {
-    return this.config.columns;
-  }
 
   protected async initializePrisma() {
     if (typeof window !== "undefined") {
@@ -160,7 +166,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       this.config.relations
     )) {
       try {
-        const foreignKey = relationConfig.foreignKey;
+        const foreignKey = relationConfig.prismaField;
 
         if (relationConfig.type === "hasMany") {
           // For hasMany relations, find all related records where foreignKey matches this record's id

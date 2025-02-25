@@ -1,74 +1,107 @@
 import type { Prisma, User as PrismaUser } from "@prisma/client";
-import { BaseModel } from "system/model/model";
-import { ModelConfig } from "system/types";
+import { BaseModel, DefaultColumns } from "system/model/model";
+import {
+  ColumnConfig,
+  ModelColumns,
+  ModelConfig,
+  ModelRelations,
+  RelationConfig,
+} from "system/types";
 
 export class User extends BaseModel<PrismaUser, Prisma.UserWhereInput> {
   title(data: Partial<PrismaUser>) {
     return `${data.username}`;
   }
-  
-  protected config: ModelConfig = {
+  config: ModelConfig = {
     modelName: "User",
     tableName: "user",
-    relations: {
-      creator: {
-        model: "User",
-        type: "belongsTo",
-        foreignKey: "created_by",
-        label: "Created By",
-      },
-      updater: {
-        model: "User",
-        type: "belongsTo",
-        foreignKey: "updated_by",
-        label: "Updated By",
-      },
-      createdUsers: {
-        model: "User",
-        type: "hasMany",
-        foreignKey: "created_by",
-        label: "Created Users",
-      },
-      updatedUsers: {
-        model: "User",
-        type: "hasMany",
-        foreignKey: "updated_by",
-        label: "Updated Users",
-      },
-      changelogs: {
-        model: "Changelog",
-        type: "hasMany",
-        foreignKey: "userId",
-        label: "Change Logs",
-      },
-    },
-    columns: {
-      email: {
-        type: "string",
-        label: "Email",
-        required: true,
-        validate: (value) =>
-          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || "Invalid email format",
-      },
-      username: {
-        type: "string",
-        label: "Username",
-        required: true,
-      },
-      role: {
-        type: "enum",
-        label: "Role",
-        enum: ["admin", "user", "guest"],
-        required: true,
-        format: (value: string) => {
-          const roleMap: { [key: string]: string } = {
-            admin: "🔑 Admin",
-            user: "👤 User",
-            guest: "👻 Guest",
-          };
-          return roleMap[value] || value;
-        },
-      },
-    },
+    relations: relations as ModelRelations,
+    columns: columns as ModelColumns,
   };
+  get columns() {
+    return Object.keys(this.config.columns) as (
+      | keyof typeof columns
+      | DefaultColumns
+    )[];
+  }
+  get relations() {
+    return Object.keys(this.config.relations) as (keyof typeof relations)[];
+  }
 }
+
+/** Columns **/
+const columns = {
+  id: {
+    type: "string",
+    label: "Id",
+    required: true,
+  } as ColumnConfig,
+  username: {
+    type: "string",
+    label: "Username",
+    required: true,
+  } as ColumnConfig,
+  email: {
+    type: "string",
+    label: "Email",
+    required: true,
+  } as ColumnConfig,
+  password_hash: {
+    type: "string",
+    label: "Password_hash",
+    required: true,
+  } as ColumnConfig,
+  role: {
+    type: "string",
+    label: "Role",
+    required: false,
+  } as ColumnConfig,
+  verification_token: {
+    type: "string",
+    label: "Verification_token",
+    required: false,
+  } as ColumnConfig,
+  email_verified_at: {
+    type: "date",
+    label: "Email_verified_at",
+    required: false,
+  } as ColumnConfig,
+  reset_token: {
+    type: "string",
+    label: "Reset_token",
+    required: false,
+  } as ColumnConfig,
+  reset_token_expires: {
+    type: "date",
+    label: "Reset_token_expires",
+    required: false,
+  } as ColumnConfig,
+};
+
+/** Relations **/
+const relations = {
+  actionlogs: {
+    model: "ActionLog",
+    type: "hasMany",
+    prismaField: "actionlogs",
+    label: "Actionlogs",
+  } as any,
+  changelogs: {
+    model: "ChangeLog",
+    type: "hasMany",
+    prismaField: "changelogs",
+    label: "Changelogs",
+  } as any,
+  sessions: {
+    model: "Session",
+    type: "hasMany",
+    prismaField: "sessions",
+    label: "Sessions",
+  } as any,
+  roleDetail: {
+    model: "Role",
+    type: "belongsTo",
+    prismaField: "roleDetail",
+    label: "RoleDetail",
+  } as RelationConfig,
+};

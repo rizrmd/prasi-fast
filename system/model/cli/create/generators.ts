@@ -1,7 +1,9 @@
 import { Model, produceSchema } from "@mrleebo/prisma-ast";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { sortByEstimatedImportance } from "./utils";
+import { sortByEstimatedImportance } from "../utils";
+import { RelationConfig } from "system/types";
+import { defaultColumns } from "system/model/model";
 
 const MODELS_DIR = "shared/models";
 const MODELS_FILE = "shared/models.ts";
@@ -48,10 +50,12 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
         relations[field.name] = {
           model: field.fieldType,
           type: relationType,
-          foreignKey: field.name,
+          prismaField: field.name,
           label: capitalize(field.name),
-        };
+        } as RelationConfig;
       } else {
+        if (defaultColumns.includes(field.name)) return false;
+
         // Regular field - add as column
         columns[field.name] = {
           type: getFieldType(field.fieldType),
@@ -65,20 +69,51 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
   // Prepare the model file content using the shared model sample as reference
   const className = capitalize(modelName);
   const fileContent = `import type { Prisma, ${className} as Prisma${className} } from "@prisma/client";
-import { BaseModel } from "system/model/model";
-import { ModelConfig } from "system/types";
+import { BaseModel, DefaultColumns } from "system/model/model";
+import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
 
 export class ${className} extends BaseModel<Prisma${className}, Prisma.${className}WhereInput> {
   title(data: Partial<Prisma${className}>) {
     return \`\${data.${titleColumn}}\`;
   }
-  protected config: ModelConfig = {
+  config: ModelConfig = {
     modelName: "${className}",
     tableName: "${tableName}",
-    relations: ${JSON.stringify(relations, null, 2)},
-    columns: ${JSON.stringify(columns, null, 2)}
+    relations: relations as ModelRelations,
+    columns: columns as ModelColumns
   };
+  get columns() {
+    return Object.keys(this.config.columns) as (
+      | keyof typeof columns
+      | DefaultColumns
+    )[];
+  }
+  get relations() {
+    return Object.keys(this.config.relations) as (keyof typeof relations)[];
+  }
 }
+
+/** Columns **/
+const columns = {
+${Object.entries(columns)
+  .map(([key, value]) => {
+    return `  ${key}: ${JSON.stringify(value, null, 2)
+      .split("\n")
+      .join("\n  ")} as ColumnConfig`;
+  })
+  .join(",\n")}
+};
+
+/** Relations **/
+const relations = {
+  ${Object.entries(relations)
+    .map(([key, value]) => {
+      return `  ${key}: ${JSON.stringify(value, null, 2)
+        .split("\n")
+        .join("\n  ")} as RelationConfig`;
+    })
+    .join(",\n")}
+  };
 `;
 
   // Write the model file to the appropriate directory
@@ -109,14 +144,9 @@ function getFieldType(prismaType: string): string {
 
 export async function updateModelsRegistry(modelName: string) {
   const content = readFileSync(MODELS_FILE, "utf-8");
-  const importStatement = `import { ${capitalize(
-    modelName
-  )} } from "./models/${modelName.toLowerCase()}/model";\n`;
-  const exportStatement = `export const ${modelName.toLowerCase()}: ${capitalize(
-    modelName
-  )} = ModelRegistry.getInstance("${capitalize(modelName)}", ${capitalize(
-    modelName
-  )});\n`;
+  const mName = capitalize(modelName);
+  const importStatement = `import { ${mName} as Model${mName} } from "./models/${modelName.toLowerCase()}/model";\n`;
+  const exportStatement = `export const ${mName}: Model${mName} = ModelRegistry.getInstance("${mName}", Model${mName});\n`;
 
   const updatedContent = content.includes(importStatement)
     ? content

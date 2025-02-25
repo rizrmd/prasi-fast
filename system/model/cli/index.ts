@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { listModels, repairModels } from "./commands";
-import { createModel } from "./createModel";
+import { listModels } from "./commands";
+import { createModel } from "./create/createModel";
 import { removeModel } from "./removeModel";
+import { repairModels } from "./repairModels";
 
 const command = process.argv[2];
 const modelName = process.argv[3];

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useLocal } from "./use-local";
 import * as models from "shared/models";
+import { ModelName } from "shared/types";
 
-export type ModelName = keyof typeof models;
 export const useModel = <M extends ModelName>({
   modelName,
   onInit,

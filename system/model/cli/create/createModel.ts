@@ -1,12 +1,12 @@
 import { execSync } from "child_process";
 import { readFileSync, unlinkSync, writeFileSync } from "fs";
-import { suggestModels } from "./commands"; // Import suggestModels
+import { suggestModels } from "../commands"; // Import suggestModels
 import {
   addModelToPrisma,
   generateModelFile,
   updateModelsRegistry,
 } from "./generators";
-import { capitalize, ensureRequiredColumns } from "./utils";
+import { capitalize, ensureRequiredColumns } from "../utils";
 import { getSchema, Model } from "@mrleebo/prisma-ast";
 
 export async function createModel(tableName: string) {
@@ -87,6 +87,7 @@ export async function createModel(tableName: string) {
     generateModelFile(modelName, schemaFile);
     // Update the models registry
     updateModelsRegistry(modelName);
+    process.exit(0);
   } catch (error) {
     console.error("Error creating model:", error);
     process.exit(1);
