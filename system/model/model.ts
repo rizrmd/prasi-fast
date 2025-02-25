@@ -34,6 +34,12 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   protected _mode: "client" | "server" = "server";
   protected modelCache: ModelCache;
   [key: string]: any;
+  protected get prismaTable() {
+    if (!this.config?.tableName) {
+      throw new Error("Table name not configured");
+    }
+    return this.prisma[this.config.tableName as keyof PrismaClient] as any;
+  }
 
   protected async initializePrisma() {
     if (typeof window !== "undefined") {
@@ -65,6 +71,22 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return "";
   }
 
+  private getSelectFields(select?: Record<string, any>): string[] {
+    if (!select) return [...this.columns];
+
+    const fields: string[] = [];
+    for (const [key, value] of Object.entries(select)) {
+      if (typeof value === 'boolean' && value) {
+        fields.push(key);
+      }
+    }
+    // Always include primary key
+    if (!fields.includes(this.config.primaryKey)) {
+      fields.push(this.config.primaryKey);
+    }
+    return fields;
+  }
+
   // Core CRUD operations
   async getRelation<RelatedModel>(
     relationName: string
@@ -93,7 +115,10 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
       const relatedRecords = await Promise.all(
         relatedIds.map(async (id) => {
-          const record = await this.modelCache.getCachedRecord(relationConfig.model, id.toString());
+          const record = await this.modelCache.getCachedRecord(
+            relationConfig.model,
+            id.toString()
+          );
           return record as RelatedModel;
         })
       );
@@ -103,23 +128,39 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       // For hasOne and belongsTo
       if (typeof relatedIds !== "number") return null;
 
-      const record = await this.modelCache.getCachedRecord(relationConfig.model, relatedIds.toString());
+      const record = this.modelCache.getCachedRecord(
+        relationConfig.model,
+        relatedIds.toString()
+      );
       return record as RelatedModel;
     }
   }
 
-  async findFirst(idOrParams: number | Partial<PaginationParams>): Promise<T | null> {
+  async findFirst(
+    idOrParams: number | Partial<PaginationParams>
+  ): Promise<T | null> {
     const params = typeof idOrParams === "number" ? {} : idOrParams;
     const where = {
       ...this.getDefaultConditions(),
-      ...(typeof idOrParams === "number" ? { id: idOrParams } : params.where || {}),
+      ...(typeof idOrParams === "number"
+        ? { id: idOrParams }
+        : params.where || {}),
       deleted_at: null,
-      ...(typeof idOrParams !== "number" && params.search ? this.buildSearchQuery(params.search) : {})
+      ...(typeof idOrParams !== "number" && params.search
+        ? this.buildSearchQuery(params.search)
+        : {}),
     };
 
     const id = typeof idOrParams === "number" ? idOrParams : undefined;
-    if (id !== undefined && this.config.cache && (params.useCache === undefined || params.useCache)) {
-      const cached = this.modelCache.getCachedRecord(this.config.tableName, id.toString());
+    if (
+      id !== undefined &&
+      this.config.cache &&
+      (params.useCache === undefined || params.useCache)
+    ) {
+      const cached = this.modelCache.getCachedRecord(
+        this.config.tableName,
+        id.toString()
+      );
       if (cached) {
         this.data = cached as T;
         return this.data;
@@ -128,14 +169,20 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
     this.data = await this.prismaTable.findFirst({ where: where || {} });
 
-    if (this.config.cache && this.data && (params.useCache === undefined || params.useCache)) {
+    if (
+      this.config.cache &&
+      this.data &&
+      (params.useCache === undefined || params.useCache)
+    ) {
       await this.cacheRecordAndRelations(this.data);
     }
 
     return this.data;
   }
 
-  async findMany(params: Partial<PaginationParams> = {}): Promise<PaginationResult<T>> {
+  async findMany(
+    params: Partial<PaginationParams & { select?: Record<string, any> }> = {}
+  ): Promise<PaginationResult<T>> {
     const normalizedParams = {
       page: params.page || 1,
       perPage: params.perPage || 10,
@@ -145,20 +192,33 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         ...this.getDefaultConditions(),
         ...params.where,
         deleted_at: null,
-        ...(params.search ? this.buildSearchQuery(params.search) : {})
+        ...(params.search ? this.buildSearchQuery(params.search) : {}),
       },
-      search: params.search || ''
+      search: params.search || "",
+      select: params.select,
     };
 
+    const requiredFields = this.getSelectFields(params.select);
+
     // Try cache first if enabled
-    if (this.config.cache && (params.useCache === undefined || params.useCache)) {
-      const cached = this.modelCache.getCachedList(this.config.tableName, normalizedParams);
+    if (
+      this.config.cache &&
+      (params.useCache === undefined || params.useCache)
+    ) {
+      const cached = this.modelCache.getCachedList(
+        this.config.tableName,
+        normalizedParams
+      );
       if (cached) {
         const records = await Promise.all(
-          cached.ids.map(async id => {
-            const record = this.modelCache.getCachedRecord(this.config.tableName, id);
+          cached.ids.map(async (id) => {
+            const record = this.modelCache.getCachedRecord(
+              this.config.tableName,
+              id,
+              requiredFields
+            );
             if (!record) return null;
-            
+
             if (this.config.relations) {
               return await this.attachCachedRelations(record);
             }
@@ -166,13 +226,16 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
           })
         );
 
-        return {
-          data: records.filter(Boolean) as T[],
-          total: cached.total,
-          page: cached.page,
-          perPage: cached.perPage,
-          totalPages: cached.totalPages
-        };
+        // If all required fields are cached for all records
+        if (!records.includes(null)) {
+          return {
+            data: records.filter(Boolean) as T[],
+            total: cached.total,
+            page: cached.page,
+            perPage: cached.perPage,
+            totalPages: cached.totalPages,
+          };
+        }
       }
     }
 
@@ -182,24 +245,33 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         where: normalizedParams.where,
         skip: (normalizedParams.page - 1) * normalizedParams.perPage,
         take: normalizedParams.perPage,
-        orderBy: { [normalizedParams.orderBy]: normalizedParams.orderDirection }
-      })
+        orderBy: {
+          [normalizedParams.orderBy]: normalizedParams.orderDirection,
+        },
+        ...(params.select ? { select: params.select } : {}),
+      }),
     ]);
 
-    if (this.config.cache && data.length > 0 && (params.useCache === undefined || params.useCache)) {
+    if (
+      this.config.cache &&
+      data.length > 0 &&
+      (params.useCache === undefined || params.useCache)
+    ) {
       for (const record of data) {
-        await this.cacheRecordAndRelations(record);
+        await this.cacheRecordAndRelations(record, params.select);
       }
 
       this.modelCache.cacheList(
         this.config.tableName,
         normalizedParams,
         {
-          ids: data.map((r: Record<string, any>) => r[this.config.primaryKey].toString()),
+          ids: data.map((r: Record<string, any>) =>
+            r[this.config.primaryKey].toString()
+          ),
           total,
           page: normalizedParams.page,
           perPage: normalizedParams.perPage,
-          totalPages: Math.ceil(total / normalizedParams.perPage)
+          totalPages: Math.ceil(total / normalizedParams.perPage),
         },
         this.config.cache.ttl
       );
@@ -210,13 +282,13 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       total,
       page: normalizedParams.page,
       perPage: normalizedParams.perPage,
-      totalPages: Math.ceil(total / normalizedParams.perPage)
+      totalPages: Math.ceil(total / normalizedParams.perPage),
     };
   }
 
   protected invalidateCache(): void {
     if (!this.config.cache) return;
-    
+
     this.modelCache.invalidateModel(this.config.tableName);
 
     if (this.config.relations) {
@@ -226,12 +298,16 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     }
   }
 
-  private async cacheRecordAndRelations(record: Record<string, any>): Promise<void> {
+  private async cacheRecordAndRelations(
+    record: Record<string, any>,
+    select?: Record<string, any>
+  ): Promise<void> {
     if (!this.config.cache) return;
 
     const id = record[this.config.primaryKey].toString();
     const recordWithoutRelations = { ...record };
-    
+    const fields = this.getSelectFields(select);
+
     if (this.config.relations) {
       for (const relationName of Object.keys(this.config.relations)) {
         if (recordWithoutRelations[relationName]) {
@@ -244,19 +320,26 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       this.config.tableName,
       id,
       recordWithoutRelations,
+      fields,
       this.config.cache.ttl
     );
 
     if (this.config.relations) {
-      for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+      for (const [relationName, relationConfig] of Object.entries(
+        this.config.relations
+      )) {
         let relationIds: number[] | number | null = null;
 
         if (relationConfig.type === "belongsTo") {
           const foreignKey = relationConfig.prismaField;
           relationIds = record[foreignKey] || null;
         } else if (relationConfig.type === "hasMany" && record[relationName]) {
-          const relatedRecords = record[relationName] as Array<Record<string, any>>;
-          relationIds = relatedRecords.map((r: Record<string, any>) => r[relationConfig.targetPK]);
+          const relatedRecords = record[relationName] as Array<
+            Record<string, any>
+          >;
+          relationIds = relatedRecords.map(
+            (r: Record<string, any>) => r[relationConfig.targetPK]
+          );
         } else if (relationConfig.type === "hasOne" && record[relationName]) {
           const relatedRecord = record[relationName] as Record<string, any>;
           relationIds = relatedRecord[relationConfig.targetPK] || null;
@@ -275,13 +358,23 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     }
   }
 
+  protected getDefaultConditions() {
+    return {};
+  }
+
+  protected buildSearchQuery(search: string) {
+    return {};
+  }
+
   private async attachCachedRelations(record: Record<string, any>): Promise<T> {
     if (!this.config.relations) return record as T;
 
     const result = { ...record };
     const id = record[this.config.primaryKey].toString();
 
-    for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+    for (const [relationName, relationConfig] of Object.entries(
+      this.config.relations
+    )) {
       const relationIds = this.modelCache.getCachedRelationIds(
         this.config.tableName,
         id,
@@ -291,14 +384,17 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       if (relationIds) {
         if (Array.isArray(relationIds)) {
           const relations = await Promise.all(
-            relationIds.map(rid => 
-              this.modelCache.getCachedRecord(relationConfig.model, rid.toString())
+            relationIds.map((rid) =>
+              this.modelCache.getCachedRecord(
+                relationConfig.model,
+                rid.toString()
+              )
             )
           );
           result[relationName] = relations.filter(Boolean);
         } else {
           const relation = await this.modelCache.getCachedRecord(
-            relationConfig.model, 
+            relationConfig.model,
             relationIds.toString()
           );
           if (relation) {
@@ -310,6 +406,4 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
     return result as T;
   }
-
-  // Utility methods remain unchanged...
 }

@@ -17,6 +17,11 @@ interface ListCacheResult {
   totalPages: number;
 }
 
+interface CachedRecord {
+  fields: Set<string>;
+  data: Record<string, any>;
+}
+
 interface RelationCache {
   [relationName: string]: number[] | number | null;
 }
@@ -29,14 +34,32 @@ export class ModelCache {
   }
 
   // Record operations
-  cacheRecord(tableName: string, id: string, record: Record<string, any>, ttl: number): void {
+  cacheRecord(tableName: string, id: string, record: Record<string, any>, fields: string[], ttl: number): void {
     const recordData = this.stripRelations(record);
     const key = this.getRecordKey(tableName, id);
-    this.cache.set(key, recordData, ttl);
+    const existing = this.cache.get<CachedRecord>(key);
+    
+    if (existing) {
+      // Merge new data while preserving existing fields
+      const mergedFields = new Set([...existing.fields, ...fields]);
+      const mergedData = { ...existing.data, ...recordData };
+      this.cache.set(key, { fields: mergedFields, data: mergedData }, ttl);
+    } else {
+      // New record
+      this.cache.set(key, { fields: new Set(fields), data: recordData }, ttl);
+    }
   }
 
-  getCachedRecord(tableName: string, id: string): Record<string, any> | null {
-    return this.cache.get(this.getRecordKey(tableName, id));
+  getCachedRecord(tableName: string, id: string, requiredFields?: string[]): Record<string, any> | null {
+    const cached = this.cache.get<CachedRecord>(this.getRecordKey(tableName, id));
+    if (!cached) return null;
+    
+    // If no specific fields required, return all cached data
+    if (!requiredFields) return cached.data;
+    
+    // Check if all required fields are cached
+    const hasAllFields = requiredFields.every(field => cached.fields.has(field));
+    return hasAllFields ? cached.data : null;
   }
 
   // Relation operations  
