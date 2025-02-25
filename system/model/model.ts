@@ -81,7 +81,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
     await this.logChange({
       table_name: this.config.tableName,
-      record_id: result.id,
+      record_id: result[this.config.primaryKey],
       action: "create",
       new_data: result,
       created_by: this.currentUser?.id,
@@ -153,6 +153,8 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return result;
   }
 
+  // Note: This method is only used by findFirst. For findMany, relation IDs are obtained directly
+  // from the selected data to avoid N+1 query issues
   protected async getRelatedRecordIds(
     record: T
   ): Promise<Record<string, number[] | number | null>> {
@@ -173,7 +175,10 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
           const relatedRecords = await (this.prisma as any)[
             relationConfig.model
           ].findMany({
-            where: { [foreignKey]: record.id, deleted_at: null },
+            where: {
+              [foreignKey]: record[this.config.primaryKey],
+              deleted_at: null,
+            },
             select: { id: true },
           });
           relatedIds[relationName] = relatedRecords.map(
@@ -187,7 +192,10 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
           const relatedRecord = await (this.prisma as any)[
             relationConfig.model
           ].findFirst({
-            where: { [foreignKey]: record.id, deleted_at: null },
+            where: {
+              [foreignKey]: record[this.config.primaryKey],
+              deleted_at: null,
+            },
             select: { id: true },
           });
           relatedIds[relationName] = relatedRecord?.id || null;
@@ -347,10 +355,30 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       }
     }
 
+    // Prepare select with relation primary keys included
+    let finalSelect = select
+      ? { ...select, [this.config.primaryKey]: true }
+      : undefined;
+    if (finalSelect && this.config.relations) {
+      // For each relation in select, ensure its primary key is also selected
+      Object.entries(this.config.relations).forEach(
+        ([relationName, relationConfig]) => {
+          const foreignKey = relationConfig.targetPK;
+          if (
+            finalSelect![relationName] &&
+            finalSelect![relationName]["select"] &&
+            !finalSelect![relationName]["select"][foreignKey]
+          ) {
+            finalSelect[relationName]["select"][foreignKey] = true;
+          }
+        }
+      );
+    }
+
     const [total, data] = await Promise.all([
       this.prismaTable.count({ where }),
       this.prismaTable.findMany({
-        select,
+        select: finalSelect,
         where,
         skip: (page - 1) * perPage,
         take: perPage,
@@ -358,31 +386,60 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       }),
     ]);
 
-    // Cache individual records and their relations if caching is enabled
+    // Cache individual records if caching is enabled
     if (
       this.config.cache &&
       data.length > 0 &&
       (params.useCache === undefined || params.useCache)
     ) {
-      await Promise.all(
-        data.map(async (record: T) => {
-          try {
-            const recordCacheKey = `${this.config.tableName}:${record.id}`;
+      // Cache each record
+      data.forEach((record: T) => {
+        try {
+          const recordCacheKey = `${this.config.tableName}:${
+            record[this.config.primaryKey]
+          }`;
+          cache.set(recordCacheKey, record, this.config.cache!.ttl);
 
-            // Cache the record
-            cache.set(recordCacheKey, record, this.config.cache!.ttl);
+          // If the record has relation IDs in the select result, cache them directly
+          if (this.config.relations) {
+            const relationsCacheKey = `${this.config.tableName}:${
+              record[this.config.primaryKey]
+            }:relations`;
+            const relatedIds: Record<string, number[] | number | null> = {};
 
-            // Get and cache related record IDs if relations exist
-            if (this.config.relations) {
-              const relatedIds = await this.getRelatedRecordIds(record);
-              const relationsCacheKey = `${this.config.tableName}:${record.id}:relations`;
+            // Extract relation IDs from the selected data based on relation type
+            Object.entries(this.config.relations).forEach(
+              ([relationName, relationConfig]) => {
+                if (relationConfig.type === "belongsTo") {
+                  // For belongsTo, the foreign key is on this record
+                  const foreignKey = relationConfig.prismaField;
+                  if (record[foreignKey] !== undefined) {
+                    relatedIds[relationName] = record[foreignKey];
+                  }
+                } else if (relationConfig.type === "hasMany" || relationConfig.type === "hasOne") {
+                  // For hasMany/hasOne, check if the relation data was selected and extract IDs
+                  if (record[relationName] && Array.isArray(record[relationName])) {
+                    // Handle hasMany
+                    relatedIds[relationName] = record[relationName].map((r: any) => r[relationConfig.targetPK]);
+                  } else if (record[relationName] && record[relationName][relationConfig.targetPK]) {
+                    // Handle hasOne
+                    relatedIds[relationName] = record[relationName][relationConfig.targetPK];
+                  }
+                }
+              }
+            );
+
+            if (Object.keys(relatedIds).length > 0) {
               cache.set(relationsCacheKey, relatedIds, this.config.cache!.ttl);
             }
-          } catch (e) {
-            console.error(`Error caching record ${record.id}:`, e);
           }
-        })
-      );
+        } catch (e) {
+          console.error(
+            `Error caching record ${record[this.config.primaryKey]}:`,
+            e
+          );
+        }
+      });
     }
 
     const result = {

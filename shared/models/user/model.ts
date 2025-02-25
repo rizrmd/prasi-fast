@@ -15,6 +15,7 @@ export class User extends BaseModel<PrismaUser, Prisma.UserWhereInput> {
   config: ModelConfig = {
     modelName: "User",
     tableName: "user",
+    primaryKey: "id",
     relations: relations as ModelRelations,
     columns: columns as ModelColumns,
   };

@@ -1,11 +1,11 @@
 import type { Prisma, Role as PrismaRole } from "@prisma/client";
 import { BaseModel, DefaultColumns } from "system/model/model";
 import {
-  ColumnConfig,
-  ModelColumns,
-  ModelConfig,
   ModelRelations,
   RelationConfig,
+  ColumnConfig,
+  ModelConfig,
+  ModelColumns,
 } from "system/types";
 
 export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
@@ -15,6 +15,7 @@ export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
   config: ModelConfig = {
     modelName: "Role",
     tableName: "role",
+    primaryKey: "id",
     relations: relations as ModelRelations,
     columns: columns as ModelColumns,
   };
@@ -49,6 +50,7 @@ const relations = {
     model: "User",
     type: "hasMany",
     prismaField: "user",
+    targetPK: "id",
     label: "User",
   } as RelationConfig,
 };

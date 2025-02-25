@@ -9,14 +9,15 @@ import { execSync } from "child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { capitalize } from "./utils";
+import { removeLayout } from "./create/removeLayout";
 
 const MODELS_DIR = "shared/models";
 const MODELS_FILE = "shared/models.ts";
 
-export function removeModel(tableName: string) {
+export async function removeModel(tableName: string) {
   if (!tableName) {
     console.error("Table name is required");
-    process.exit(1);
+    return process.exit(1);
   }
 
   const schemaFile = "backend/prisma/schema.prisma";
@@ -101,7 +102,7 @@ export function removeModel(tableName: string) {
         .filter((value): value is string => !!value);
       console.error(`Available tables: ${tables.join(", ")}`);
     }
-    return;
+    return process.exit(1);
   }
 
   const modelName = modelToRemove.name;
@@ -170,6 +171,14 @@ export function removeModel(tableName: string) {
         execSync(`rm -rf ${modelDir}`);
       }
       console.log(`Removed model directory: ${modelDir}`);
+    }
+
+    // Remove layout
+    const layoutRemoved = await removeLayout(modelName);
+    if (layoutRemoved) {
+      console.log(`Removed layout files for model: ${modelName}`);
+    } else {
+      console.error(`Failed to remove layout files for model: ${modelName}`);
     }
 
     // Update models registry
@@ -246,6 +255,6 @@ export function removeModel(tableName: string) {
     console.log(`Successfully removed model for table: ${tableName}`);
   } catch (error) {
     console.error("Error removing model:", error);
-    process.exit(1);
+    return process.exit(1);
   }
 }

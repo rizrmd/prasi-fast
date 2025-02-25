@@ -30,6 +30,7 @@ export interface RelationConfig {
   model: ModelName;
   type: "hasMany" | "belongsTo" | "hasOne";
   prismaField: string;
+  targetPK: string;
   label?: string;
 }
 export type ModelRelations = Record<string, RelationConfig>;
@@ -37,6 +38,7 @@ export type ModelColumns = Record<string, ColumnConfig>;
 export type ModelConfig = {
   modelName: string;
   tableName: string;
+  primaryKey: string;
   relations: ModelRelations;
   columns: ModelColumns;
   cache?: {

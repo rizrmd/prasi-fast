@@ -6,6 +6,7 @@ import {
   generateModelFile,
   updateModelsRegistry,
 } from "./generators";
+import { createLayout } from "./createLayout";
 import { capitalize, ensureRequiredColumns } from "../utils";
 import { getSchema, Model } from "@mrleebo/prisma-ast";
 
@@ -87,6 +88,8 @@ export async function createModel(tableName: string) {
     generateModelFile(modelName, schemaFile);
     // Update the models registry
     updateModelsRegistry(modelName);
+    // Create layout files
+    await createLayout(modelName);
     process.exit(0);
   } catch (error) {
     console.error("Error creating model:", error);

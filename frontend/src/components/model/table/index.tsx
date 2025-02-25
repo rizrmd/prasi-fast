@@ -29,7 +29,7 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
     <DataTable
       columns={table.columns}
       data={Array.isArray(table.result?.data) ? table.result.data : []}
-      status={table.loading ? 'loading' : 'ready'}
+      status={table.loading ? "loading" : "ready"}
     />
   );
 };
