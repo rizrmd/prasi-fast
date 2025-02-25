@@ -3,13 +3,14 @@ import {
   getSchema,
   Model,
   printSchema,
-  Property
+  Property,
 } from "@mrleebo/prisma-ast";
 import { execSync } from "child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { capitalize } from "./utils";
 import { removeLayout } from "./create/removeLayout";
+import { updateModelsRegistry } from "./create/generators";
 
 const MODELS_DIR = "shared/models";
 const MODELS_FILE = "shared/models.ts";
@@ -107,7 +108,7 @@ export async function removeModel(tableName: string) {
 
   const modelName = modelToRemove.name;
   const modelDir = join(MODELS_DIR, modelName.toLowerCase());
-  const modelFile = join(modelDir, 'model.ts');
+  const modelFile = join(modelDir, "model.ts");
 
   try {
     // First check for relations referencing this model
@@ -252,7 +253,10 @@ export async function removeModel(tableName: string) {
     execSync("bun prisma format", { stdio: "ignore" });
     execSync("bun prisma generate", { stdio: "ignore" });
 
+    await updateModelsRegistry();
+
     console.log(`Successfully removed model for table: ${tableName}`);
+    return process.exit(0);
   } catch (error) {
     console.error("Error removing model:", error);
     return process.exit(1);

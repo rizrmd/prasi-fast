@@ -25,7 +25,9 @@ model User {
   actionlogs          ActionLog[]
   changelogs          ChangeLog[]
   sessions            Session[]
-  roleDetail          Role?       @relation(fields: [role], references: [id])
+  m_roleId            String?
+  Role                Role?       @relation(fields: [roleId], references: [id])
+  roleId              String?
 
   @@map("m_user")
 }

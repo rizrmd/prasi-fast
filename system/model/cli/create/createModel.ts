@@ -77,17 +77,17 @@ export async function createModel(tableName: string) {
         console.warn(`Model for table ${tableName} not found in schema`);
       }
     } else {
-      addModelToPrisma(model, tableName, schemaFile);
       model.name = modelName;
+      addModelToPrisma(model, tableName, schemaFile);
     }
 
     execSync("cd backend && bun prisma format", { stdio: "ignore" });
     execSync("cd backend && bun prisma generate", { stdio: "ignore" });
 
     // Generate the model file
-    generateModelFile(modelName, schemaFile);
+    await generateModelFile(modelName, schemaFile);
     // Update the models registry
-    updateModelsRegistry(modelName);
+    await updateModelsRegistry();
     // Create layout files
     await createLayout(modelName);
     process.exit(0);
