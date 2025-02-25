@@ -39,7 +39,7 @@ export default defineAPI({
       if (session) {
         // Log the logout action
         await logAction({
-          userId: session.user_id,
+          userId: session.id_user,
           action: 'logout',
           ipAddress: session.ip_address || undefined,
           userAgent: session.user_agent || undefined,

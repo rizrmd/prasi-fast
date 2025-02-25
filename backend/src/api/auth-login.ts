@@ -40,7 +40,7 @@ export default defineAPI({
       // Create new session
       const session = await prisma.session.create({
         data: {
-          user_id: user.id,
+          id_user: user.id,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
           ip_address: ip,
           user_agent: req.headers.get("user-agent") || undefined,

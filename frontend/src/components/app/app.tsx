@@ -46,6 +46,7 @@ function AppContent() {
 }
 
 export function App() {
+
   return (
     <AuthProvider>
       <AppContent />

@@ -1,11 +1,7 @@
 import type { PrismaClient, User } from "@prisma/client";
 import { cache } from "../cache";
 import { prismaFrontendProxy } from "./model-client";
-import {
-  ModelConfig,
-  PaginationParams,
-  PaginationResult,
-} from "../types";
+import { ModelConfig, PaginationParams, PaginationResult } from "../types";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
   prisma: PrismaClient;
@@ -24,11 +20,15 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   protected _mode: "client" | "server" = "server";
   [key: string]: any;
 
+  public columns() {
+    return this.config.columns;
+  }
+
   protected async initializePrisma() {
     if (typeof window !== "undefined") {
       this._mode = "client";
       if (!this.config.cache) this.config.cache = { ttl: 60 };
-      this.prisma = prismaFrontendProxy(this.config.modelName) as PrismaClient;
+      this.prisma = prismaFrontendProxy() as PrismaClient;
     } else {
       this.mode = "server";
       delete this.config.cache;
@@ -147,32 +147,42 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return result;
   }
 
-  protected async getRelatedRecordIds(record: T): Promise<Record<string, number[] | number | null>> {
+  protected async getRelatedRecordIds(
+    record: T
+  ): Promise<Record<string, number[] | number | null>> {
     const relatedIds: Record<string, number[] | number | null> = {};
 
     if (!this.config.relations) {
       return relatedIds;
     }
 
-    for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+    for (const [relationName, relationConfig] of Object.entries(
+      this.config.relations
+    )) {
       try {
         const foreignKey = relationConfig.foreignKey;
 
-        if (relationConfig.type === 'hasMany') {
+        if (relationConfig.type === "hasMany") {
           // For hasMany relations, find all related records where foreignKey matches this record's id
-          const relatedRecords = await (this.prisma as any)[relationConfig.model].findMany({
+          const relatedRecords = await (this.prisma as any)[
+            relationConfig.model
+          ].findMany({
             where: { [foreignKey]: record.id, deleted_at: null },
-            select: { id: true }
+            select: { id: true },
           });
-          relatedIds[relationName] = relatedRecords.map((r: { id: number }) => r.id);
-        } else if (relationConfig.type === 'belongsTo') {
+          relatedIds[relationName] = relatedRecords.map(
+            (r: { id: number }) => r.id
+          );
+        } else if (relationConfig.type === "belongsTo") {
           // For belongsTo relations, the foreign key is on this record
           relatedIds[relationName] = record[foreignKey] || null;
-        } else if (relationConfig.type === 'hasOne') {
+        } else if (relationConfig.type === "hasOne") {
           // For hasOne relations, find the single related record where foreignKey matches this record's id
-          const relatedRecord = await (this.prisma as any)[relationConfig.model].findFirst({
+          const relatedRecord = await (this.prisma as any)[
+            relationConfig.model
+          ].findFirst({
             where: { [foreignKey]: record.id, deleted_at: null },
-            select: { id: true }
+            select: { id: true },
           });
           relatedIds[relationName] = relatedRecord?.id || null;
         }
@@ -185,34 +195,43 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return relatedIds;
   }
 
-  async getRelation<RelatedModel>(relationName: string): Promise<RelatedModel[] | RelatedModel | null> {
-    if (!this.data || !this.config.relations?.[relationName] || !this.config.cache) {
+  async getRelation<RelatedModel>(
+    relationName: string
+  ): Promise<RelatedModel[] | RelatedModel | null> {
+    if (
+      !this.data ||
+      !this.config.relations?.[relationName] ||
+      !this.config.cache
+    ) {
       return null;
     }
 
     const relationConfig = this.config.relations[relationName];
     const cacheKey = `${this.config.tableName}:${this.data.id}:relations`;
-    const relatedIds = cache.get<Record<string, number[] | number | null>>(cacheKey)?.[relationName];
+    const relatedIds =
+      cache.get<Record<string, number[] | number | null>>(cacheKey)?.[
+        relationName
+      ];
 
     if (!relatedIds) {
       return null;
     }
 
-    if (relationConfig.type === 'hasMany') {
+    if (relationConfig.type === "hasMany") {
       if (!Array.isArray(relatedIds)) return [];
-      
+
       const relatedRecords = await Promise.all(
         relatedIds.map(async (id) => {
           const relatedCacheKey = `${relationConfig.model}:${id}`;
           return cache.get<RelatedModel>(relatedCacheKey);
         })
       );
-      
+
       return relatedRecords.filter(Boolean) as RelatedModel[];
     } else {
       // For hasOne and belongsTo
-      if (typeof relatedIds !== 'number') return null;
-      
+      if (typeof relatedIds !== "number") return null;
+
       const relatedCacheKey = `${relationConfig.model}:${relatedIds}`;
       return cache.get<RelatedModel>(relatedCacheKey);
     }
@@ -264,7 +283,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         // Cache the main record
         const cacheKey = `${this.config.tableName}:${JSON.stringify(where)}`;
         const recordCacheKey = `${this.config.tableName}:${this.data.id}`;
-        
+
         cache.set(cacheKey, this.data, this.config.cache.ttl);
         cache.set(recordCacheKey, this.data, this.config.cache.ttl);
 
@@ -308,7 +327,10 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     })}`;
 
     // Try cache first if enabled
-    if (this.config.cache && (params.useCache === undefined || params.useCache)) {
+    if (
+      this.config.cache &&
+      (params.useCache === undefined || params.useCache)
+    ) {
       try {
         const cached = cache.get<PaginationResult<T>>(cacheKey);
         if (cached) return cached;
@@ -328,24 +350,30 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     ]);
 
     // Cache individual records and their relations if caching is enabled
-    if (this.config.cache && data.length > 0 && (params.useCache === undefined || params.useCache)) {
-      await Promise.all(data.map(async (record: T) => {
-        try {
-          const recordCacheKey = `${this.config.tableName}:${record.id}`;
-          
-          // Cache the record
-          cache.set(recordCacheKey, record, this.config.cache!.ttl);
+    if (
+      this.config.cache &&
+      data.length > 0 &&
+      (params.useCache === undefined || params.useCache)
+    ) {
+      await Promise.all(
+        data.map(async (record: T) => {
+          try {
+            const recordCacheKey = `${this.config.tableName}:${record.id}`;
 
-          // Get and cache related record IDs if relations exist
-          if (this.config.relations) {
-            const relatedIds = await this.getRelatedRecordIds(record);
-            const relationsCacheKey = `${this.config.tableName}:${record.id}:relations`;
-            cache.set(relationsCacheKey, relatedIds, this.config.cache!.ttl);
+            // Cache the record
+            cache.set(recordCacheKey, record, this.config.cache!.ttl);
+
+            // Get and cache related record IDs if relations exist
+            if (this.config.relations) {
+              const relatedIds = await this.getRelatedRecordIds(record);
+              const relationsCacheKey = `${this.config.tableName}:${record.id}:relations`;
+              cache.set(relationsCacheKey, relatedIds, this.config.cache!.ttl);
+            }
+          } catch (e) {
+            console.error(`Error caching record ${record.id}:`, e);
           }
-        } catch (e) {
-          console.error(`Error caching record ${record.id}:`, e);
-        }
-      }));
+        })
+      );
     }
 
     const result = {
@@ -357,7 +385,10 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     };
 
     // Cache the results if enabled
-    if (this.config.cache && (params.useCache === undefined || params.useCache)) {
+    if (
+      this.config.cache &&
+      (params.useCache === undefined || params.useCache)
+    ) {
       try {
         cache.set(cacheKey, result, this.config.cache.ttl);
       } catch (e) {

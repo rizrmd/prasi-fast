@@ -3,6 +3,7 @@ import { statSync } from "fs";
 import { join } from "path";
 import { modelRoute } from "system/model/model-route";
 import * as api from "./generated/api";
+import * as systemAPI from "system/api";
 import config from "../../config.json";
 import { parseServerUrl } from "../../shared/types/config";
 
@@ -48,9 +49,9 @@ for (const [_, value] of Object.entries(api)) {
 
       // Create response and preserve headers from API result
       const response = Response.json(result);
-      
+
       // If the handler returned headers, add them to the response
-      if (result && typeof result === 'object' && 'headers' in result) {
+      if (result && typeof result === "object" && "headers" in result) {
         const headerEntries = Object.entries(result.headers);
         for (const [key, value] of headerEntries) {
           response.headers.set(key, value as string);
@@ -58,7 +59,7 @@ for (const [_, value] of Object.entries(api)) {
         // Remove headers from the JSON response
         delete (result as any).headers;
       }
-      
+
       addCorsHeaders(response.headers);
       return response;
     } else {
@@ -86,12 +87,10 @@ const server = serve({
   hostname: HOST,
   routes: {
     ...routes,
-    "/_system/models/:model": {
-      POST: async (req) => {
-        const response = await modelRoute(req);
-        addCorsHeaders(response.headers);
-        return response;
-      },
+    "/_system/models/:model": async (req) => {
+      const response = await modelRoute(req);
+      addCorsHeaders(response.headers);
+      return response;
     },
   },
   async fetch(req) {

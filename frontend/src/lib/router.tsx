@@ -1,7 +1,8 @@
 import { api } from "@/lib/generated/api";
 import { pageModules } from "@/lib/generated/routes";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { useAuth } from "./auth";
+import { useLocal } from "./hooks/use-local";
 
 type Params = Record<string, string>;
 type RoutePattern = {
@@ -51,13 +52,15 @@ function matchRoute(path: string, routePattern: RoutePattern): Params | null {
 
 export function useRouter() {
   const { user } = useAuth();
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-  const [Page, setPage] = useState<React.ComponentType | null>(null);
-  const [params, setParams] = useState<Params>({});
+  const local = useLocal({
+    currentPath: window.location.pathname,
+    Page: null as React.ComponentType | null,
+    params: {} as Params
+  });
 
   useEffect(() => {
     const handlePathChange = () => {
-      setCurrentPath(window.location.pathname);
+      local.currentPath = window.location.pathname;
     };
 
     window.addEventListener('popstate', handlePathChange);
@@ -70,7 +73,7 @@ export function useRouter() {
     };
 
     const loadPage = async () => {
-      const path = currentPath.replace(/\/$/, '') || "/";
+      const path = local.currentPath.replace(/\/$/, '') || "/";
 
       // Log the route change
       await logRouteChange(path);
@@ -95,45 +98,45 @@ export function useRouter() {
       if (pageLoader) {
         try {
           const module = await pageLoader();
-          setPage(() => module.default);
-          setParams(matchedParams);
+          local.Page = module.default;
+          local.params = matchedParams;
         } catch (err) {
           console.error('Failed to load page:', err);
-          setPage(null);
-          setParams({});
+          local.Page = null;
+          local.params = {};
         }
       } else {
         // Load 404 page
         try {
           const module = await pageModules["/404"]();
-          setPage(() => module.default);
-          setParams({});
+          local.Page = module.default;
+          local.params = {};
         } catch {
-          setPage(null);
-          setParams({});
+          local.Page = null;
+          local.params = {};
         }
       }
     };
 
     loadPage();
-  }, [currentPath]);
+  }, [local.currentPath]);
 
   const navigate = (to: string) => {
     window.history.pushState({}, '', to);
-    setCurrentPath(to);
+    local.currentPath = to;
   };
 
   return {
-    Page: params ?
+    Page: local.params ?
       (props: any) => (
-        <ParamsContext.Provider value={params}>
-          {Page && <Page {...props} />}
+        <ParamsContext.Provider value={local.params}>
+          {local.Page && <local.Page {...props} />}
         </ParamsContext.Provider>
       ) :
       null,
-    currentPath,
+    currentPath: local.currentPath,
     navigate,
-    params
+    params: local.params
   };
 }
 

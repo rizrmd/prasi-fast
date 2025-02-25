@@ -20,7 +20,7 @@ export async function logAction({
   try {
     await prisma.actionLog.create({
       data: {
-        user_id: userId,
+        id_user: userId,
         action,
         ip_address: ipAddress,
         user_agent: userAgent,
