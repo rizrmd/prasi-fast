@@ -117,29 +117,3 @@ export const ensureRequiredColumns = async (tableName: string) => {
     return false;
   }
 };
-
-const firstImportant = ["name", "nama", "desc", "title"];
-const secondImportant = ["date", "summary", "detail", "note", "comment"];
-
-export function sortByEstimatedImportance(columns: string[]): string[] {
-  // This is a simple heuristic that could be improved
-  return columns.sort((a, b) => {
-    const aLower = a.toLowerCase();
-    const bLower = b.toLowerCase();
-
-    // Put "description" and similar important fields first
-    for (const term of firstImportant) {
-      if (aLower.includes(term) && !bLower.includes(term)) return -1;
-      if (!aLower.includes(term) && bLower.includes(term)) return 1;
-    }
-
-    // Then other common important fields
-    for (const term of secondImportant) {
-      if (aLower.includes(term) && !bLower.includes(term)) return -1;
-      if (!aLower.includes(term) && bLower.includes(term)) return 1;
-    }
-
-    // Otherwise sort by name length (shorter names often represent more fundamental concepts)
-    return aLower.length - bLower.length;
-  });
-}

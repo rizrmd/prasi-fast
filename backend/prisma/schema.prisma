@@ -8,11 +8,10 @@ datasource db {
 }
 
 model User {
-  id                  String      @id @default(uuid())
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   username            String      @unique
   email               String
   password_hash       String
-  role                String?
   verification_token  String?
   email_verified_at   DateTime?
   reset_token         String?
@@ -25,16 +24,15 @@ model User {
   actionlogs          ActionLog[]
   changelogs          ChangeLog[]
   sessions            Session[]
-  m_roleId            String?
-  Role                Role?       @relation(fields: [roleId], references: [id])
-  roleId              String?
+  role                Role?       @relation(fields: [id_role], references: [id])
+  id_role             String      @db.Uuid
 
   @@map("m_user")
 }
 
 model Session {
-  id         String    @id @default(uuid())
-  id_user    String
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_user    String    @db.Uuid
   expires_at DateTime
   ip_address String?
   user_agent String?
@@ -46,39 +44,39 @@ model Session {
 }
 
 model ActionLog {
-  id         String   @id @default(uuid())
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   action     String
   ip_address String?
   user_agent String?
   metadata   Json?
   created_at DateTime @default(now())
-  id_user    String?
+  id_user    String?  @db.Uuid
   user       User?    @relation(fields: [id_user], references: [id])
 
   @@map("s_actionlog")
 }
 
 model ChangeLog {
-  id            String   @id @default(uuid())
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   table_name    String
   record_id     String
   action        String
   previous_data Json?
   new_data      Json
   created_at    DateTime @default(now())
-  id_user       String?
+  id_user       String?  @db.Uuid
   user          User?    @relation(fields: [id_user], references: [id])
 
   @@map("s_changelog")
 }
 
 model Role {
-  id         String    @id @unique
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name       String
   created_at DateTime  @default(now())
   updated_at DateTime?
   deleted_at DateTime?
-  created_by String?
+  created_by String?   @db.Uuid
   updated_by String?
   user       User[]
 
