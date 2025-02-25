@@ -3,6 +3,7 @@ import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { useEffect } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+
 import * as Models from "shared/models";
 
 export const useModelTable = ({
@@ -46,9 +47,7 @@ export const useModelTable = ({
       return modelName ? (Models as any)[modelName] : null;
     };
 
-    const getAccessorPath = (
-      column: any
-    ): { path: string; models: any[] } => {
+    const getAccessorPath = (column: any): { path: string; models: any[] } => {
       if (!("rel" in column)) return { path: column.col, models: [] };
 
       if (typeof column.rel === "string") {
@@ -70,14 +69,14 @@ export const useModelTable = ({
 
         const key = Object.keys(obj)[0];
         const value = obj[key];
-        
+
         if (paths.length === 0) {
           // First level relation
           paths.push(key);
           const currentModel = getModelInfo(key);
           if (currentModel) {
             models.push(currentModel);
-            if (typeof value === 'object') {
+            if (typeof value === "object") {
               processRelObject(value, currentModel);
             }
           }
@@ -90,7 +89,7 @@ export const useModelTable = ({
               const nextModel = getModelInfo(relationConfig.model);
               if (nextModel) {
                 models.push(nextModel);
-                if (typeof value === 'object') {
+                if (typeof value === "object") {
                   processRelObject(value, nextModel);
                 }
               }
@@ -101,26 +100,6 @@ export const useModelTable = ({
 
       processRelObject(column.rel);
       return { path: paths.join("."), models };
-    };
-
-    const getNestedValue = (obj: any, path: string[]): any => {
-      let current = obj;
-      for (const key of path) {
-        if (Array.isArray(current)) {
-          // If current is an array, take first element
-          current = current[0];
-        }
-        if (current && typeof current === "object" && key in current) {
-          current = current[key];
-        } else {
-          return undefined;
-        }
-      }
-      // Handle final value being an array
-      if (Array.isArray(current)) {
-        current = current[0];
-      }
-      return current;
     };
 
     const buildSelect = (column: any): any => {
@@ -198,7 +177,7 @@ export const useModelTable = ({
           } else {
             // For related path, get the last model in the chain (deepest relation)
             const lastModel = relatedModels[relatedModels.length - 1];
-            
+
             if (lastModel) {
               // Get the column label from the last model if it exists
               const columnLabel = lastModel?.config.columns[fieldName]?.label;
@@ -206,7 +185,8 @@ export const useModelTable = ({
                 headerText = columnLabel;
               } else {
                 // Fallback: Use last model's name + field
-                const modelLabel = lastModel.config.tableName || lastModel.config.modelName;
+                const modelLabel =
+                  lastModel.config.tableName || lastModel.config.modelName;
                 headerText = `${modelLabel} ${
                   fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
                 }`;
@@ -221,13 +201,12 @@ export const useModelTable = ({
           return {
             accessorKey: accessorPath,
             header: headerText,
-            cell: ({ row }) => {
-              const path = accessorPath.split(".");
-              const value = getNestedValue(row.original, path);
-              if (value === null || value === undefined || value === "") {
-                return "N/A";
-              }
-              return value;
+            meta: {
+              accessorPath,
+              modelName: !hasRelation
+                ? model.name
+                : relatedModels[relatedModels.length - 1]?.config.modelName,
+              columnName: fieldName,
             },
           };
         });

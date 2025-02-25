@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { ModelName, Models } from "shared/types";
 
 type GetModelFromRel<
@@ -15,14 +16,20 @@ type RelObject<M extends ModelName> = {
   [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>>;
 };
 
-type Column<Name extends ModelName> = 
+type Column<Name extends ModelName> =
   | { col: GetColumnsFromModel<Name> }
-  | { 
+  | {
       rel: Models[Name]["relations"][number];
-      col: GetColumnsFromModel<GetModelFromRel<Name, Models[Name]["relations"][number]>>;
+      col: GetColumnsFromModel<
+        GetModelFromRel<Name, Models[Name]["relations"][number]>
+      >;
     }
   | { rel: RelObject<Name> };
 
 export type LayoutTable<Name extends ModelName> = {
   columns: Column<Name>[];
+  checkbox?: {
+    enabled: boolean;
+    actions: { label: ReactNode; onClick: () => void }[];
+  };
 };

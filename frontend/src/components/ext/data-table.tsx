@@ -12,22 +12,68 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { isValidElement } from "react";
+
 import { Spinner } from "../ui/spinner";
 import { WarnFull } from "../app/warn-full";
+import { DataCell } from "./data-cell";
+import { ModelName } from "shared/types";
+import { PaginationResult } from "system/types";
+import { cn } from "@/lib/utils";
+import { css } from "goober";
+import { Ellipsis } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { LayoutTable } from "system/model/layout/types";
 
-interface DataTableProps<TData, TValue> {
+export type ColumnMetaData = {
+  modelName: ModelName;
+  columnName: string;
+  accessorPath: string;
+};
+
+interface DataTableProps<TData extends { type: ModelName }, TValue> {
   columns: ColumnDef<TData, TValue>[];
-  data: TData[];
 }
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends { type: ModelName }, TValue>({
   columns,
-  data,
   status,
-}: DataTableProps<TData, TValue> & { status: "init" | "loading" | "ready" }) {
+  result,
+  checkbox,
+}: DataTableProps<TData, TValue> & {
+  status: "init" | "loading" | "ready";
+  result: PaginationResult<any> | null;
+  checkbox?: LayoutTable<any>["checkbox"];
+}) {
   const table = useReactTable({
-    data,
-    columns,
+    data: result?.data || [],
+    columns: checkbox?.enabled
+      ? [
+          {
+            id: "select",
+            header: ({ table }) => (
+              <Checkbox
+                checked={
+                  table.getIsAllPageRowsSelected() ||
+                  (table.getIsSomePageRowsSelected() && "indeterminate")
+                }
+                onCheckedChange={(value) =>
+                  table.toggleAllPageRowsSelected(!!value)
+                }
+                aria-label="Select all"
+              />
+            ),
+            cell: ({ row }) => (
+              <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+              />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+          },
+          ...columns,
+        ]
+      : columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -37,9 +83,15 @@ export function DataTable<TData, TValue>({
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
+              {headerGroup.headers.map((header, idx) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={cn(
+                      "select-none",
+                      idx === 0 && !checkbox?.enabled && "pl-3"
+                    )}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -49,6 +101,17 @@ export function DataTable<TData, TValue>({
                   </TableHead>
                 );
               })}
+              <TableHead className="select-none flex justify-end items-center">
+                {result && (
+                  <>
+                    <sup>
+                      {Math.min(result.total, result.perPage * result.page)}
+                    </sup>
+                    <div className="px-1">/</div>
+                    <sub>{result.total}</sub>
+                  </>
+                )}
+              </TableHead>
             </TableRow>
           ))}
         </TableHeader>
@@ -58,33 +121,59 @@ export function DataTable<TData, TValue>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className={cn(
+                  "cursor-pointer",
+                  css`
+                    &:hover {
+                      .action {
+                        opacity: 1;
+                      }
+                    }
+                  `
+                )}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {(() => {
-                      const content = flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      );
-                      if (Array.isArray(content)) {
-                        return content.join(", ");
-                      }
-                      if (content !== null && typeof content === "object") {
-                        // Check if it's a React element using isValidElement
-                        if (isValidElement(content)) {
-                          return content;
-                        }
-                        // For plain objects, try to stringify or return a fallback
-                        try {
-                          return JSON.stringify(content);
-                        } catch (e) {
-                          return "[Complex Object]";
-                        }
-                      }
-                      return content;
-                    })()}
-                  </TableCell>
-                ))}
+                {row.getVisibleCells().map((cell, idx) => {
+                  if (idx === 0 && checkbox?.enabled) {
+                    return (
+                      <TableCell key={cell.id} className="w-[30px]">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    );
+                  }
+                  return (
+                    <TableCell
+                      key={cell.id}
+                      className={idx === 0 && !checkbox?.enabled ? "pl-3" : ""}
+                    >
+                      {(() => {
+                        const meta = cell.column.columnDef.meta as
+                          | ColumnMetaData
+                          | undefined;
+                        if (!meta) return null;
+                        const path = meta.accessorPath.split(".");
+                        const value = getNestedValue(row.original, path);
+
+                        return (
+                          <DataCell
+                            colIdx={idx}
+                            modelName={meta.modelName ?? row.original.type}
+                            columnName={meta.columnName ?? cell.column.id}
+                            value={value}
+                            rowId={row.id}
+                          />
+                        );
+                      })()}
+                    </TableCell>
+                  );
+                })}
+                <TableCell className="flex items-center justify-end">
+                  <div className="opacity-0 action transition-all border rounded-sm px-1 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600">
+                    <Ellipsis size={20} />
+                  </div>
+                </TableCell>
               </TableRow>
             ))
           ) : (
@@ -113,3 +202,23 @@ export function DataTable<TData, TValue>({
     </div>
   );
 }
+
+const getNestedValue = (obj: any, path: string[]): any => {
+  let current = obj;
+  for (const key of path) {
+    if (Array.isArray(current)) {
+      // If current is an array, take first element
+      current = current[0];
+    }
+    if (current && typeof current === "object" && key in current) {
+      current = current[key];
+    } else {
+      return undefined;
+    }
+  }
+  // Handle final value being an array
+  if (Array.isArray(current)) {
+    current = current[0];
+  }
+  return current;
+};
