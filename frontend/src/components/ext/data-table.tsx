@@ -78,7 +78,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
   });
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border bg-white">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -122,7 +122,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className={cn(
-                  "cursor-pointer",
+                  "cursor-pointer hover:bg-blue-50",
                   css`
                     &:hover {
                       .action {
@@ -170,7 +170,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                   );
                 })}
                 <TableCell className="flex items-center justify-end">
-                  <div className="opacity-0 action transition-all border rounded-sm px-1 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600">
+                  <div className="opacity-0 action transition-all border rounded-sm px-1 hover:bg-white hover:border-blue-400 hover:text-blue-600">
                     <Ellipsis size={20} />
                   </div>
                 </TableCell>

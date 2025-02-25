@@ -1,27 +1,16 @@
+import {
+  Command,
+  CommandItem,
+  CommandList,
+  CommandGroup,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { PopoverTrigger } from "@radix-ui/react-popover";
+import { ExternalLink, Filter, Pencil } from "lucide-react";
 import { FC, useState } from "react";
 import { ModelName } from "shared/types";
 import { Popover, PopoverContent } from "../ui/popover";
-import { PopoverTrigger } from "@radix-ui/react-popover";
-import { cn } from "@/lib/utils";
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-  CommandShortcut,
-} from "@/components/ui/command";
-import {
-  ExternalLink,
-  Filter,
-  Link2,
-  Pencil,
-  SquareArrowDown,
-  SquareArrowUpRight,
-} from "lucide-react";
+import * as models from "shared/models";
 
 const cell = { popover: "" };
 
@@ -70,25 +59,48 @@ export const DataCell: FC<{
         </PopoverTrigger>
         <PopoverContent className="text-sm p-0 min-w-[100px]">
           <div className="w-full h-full flex felx-col items-center justify-center">
-            <Command>
-              <CommandList className="p-1">
-                <CommandItem value="filter" onSelect={select}>
-                  <Filter />
-                  Filter berdasarkan ini
-                </CommandItem>
-                <CommandItem value="new-tab" onSelect={select}>
-                  <ExternalLink />
-                  Buka di tab baru
-                </CommandItem>
-                <CommandItem value="edit" onSelect={select}>
-                  <Pencil />
-                  Edit data
-                </CommandItem>
-              </CommandList>
-            </Command>
+            <CellAction
+              select={select}
+              modelName={modelName}
+              columnName={columnName}
+            />
           </div>
         </PopoverContent>
       </Popover>
     </div>
+  );
+};
+
+const CellAction: FC<{
+  select: (value: string) => void;
+  modelName: ModelName;
+  columnName: string;
+}> = ({ select, columnName, modelName }) => {
+  const model = models[modelName];
+  return (
+    <Command>
+      <CommandList>
+        <CommandGroup
+          heading={
+            <>
+              {modelName} &bull; {model.config.columns[columnName].label}
+            </>
+          }
+        >
+          <CommandItem value="filter" onSelect={select}>
+            <Filter />
+            Filter berdasarkan ini
+          </CommandItem>
+          <CommandItem value="new-tab" onSelect={select}>
+            <ExternalLink />
+            Buka di tab baru
+          </CommandItem>
+          <CommandItem value="edit" onSelect={select}>
+            <Pencil />
+            Edit data
+          </CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </Command>
   );
 };

@@ -28,13 +28,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { css } from "goober";
 
-interface Tab {
+export interface Tab {
   id: string;
-  value: string;
   label: string;
-  content: React.ReactNode;
   pinned?: boolean;
+  closable?: boolean;
 }
 
 interface DraggableTabProps {
@@ -67,7 +67,7 @@ const DraggableTab = ({
   onUnpin,
   onCloseOthers,
   onCloseRight,
-  isDragging
+  isDragging,
 }: DraggableTabProps) => {
   const [rightClick, setRightClick] = React.useState(false);
   const [closing, setClosing] = React.useState(false);
@@ -82,20 +82,23 @@ const DraggableTab = ({
   } = useSortable({ id: tab.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform ? {
-      x: transform.x,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1
-    } : {
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1
-    }),
+    transform: CSS.Transform.toString(
+      transform
+        ? {
+            x: transform.x,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+          }
+        : {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+          }
+    ),
     transition,
-    opacity: isSortableNodeDragging ? 0.4 : 1,
-    position: 'relative' as const,
+    position: "relative" as const,
     zIndex: isDragging ? 1 : 0,
   };
 
@@ -112,33 +115,42 @@ const DraggableTab = ({
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (!wasDragged) {
-      onSelect(tab.value);
+      onSelect(tab.id);
     }
   };
 
   return (
     <TabsTrigger
       ref={setNodeRef}
-      value={tab.value}
+      value={tab.id}
       style={style}
-      className={`relative cursor-pointer select-none group flex items-center ${isDragging ? 'shadow-lg bg-white/80' : ''}`}
+      className={cn(
+        `relative cursor-pointer select-none group flex items-center `,
+        isDragging
+          ? css`
+              border: 1px solid #8ec6ff !important;
+              background: #eff6ff !important;
+              border-bottom: 0 !important;
+            `
+          : ""
+      )}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       {...attributes}
       {...(rightClick ? {} : listeners)}
     >
-      <ContextMenu onOpenChange={(open) => {
-        setRightClick(open)
-      }}>
+      <ContextMenu
+        onOpenChange={(open) => {
+          setRightClick(open);
+        }}
+      >
         <ContextMenuTrigger asChild>
-          <div
-            className="flex items-center"
-          >
+          <div className={cn("flex items-center")}>
             {tab.pinned && (
               <Pin size={14} className="mr-1 text-muted-foreground" />
             )}
             <span>{tab.label}</span>
-            {!tab.pinned && (
+            {!tab.pinned && tab.closable !== false && (
               <span
                 role="button"
                 onPointerDown={(e) => {
@@ -154,7 +166,10 @@ const DraggableTab = ({
                   e.stopPropagation();
                   onClose();
                 }}
-                className={cn("p-1 ml-1 -mr-2 rounded-full cursor-pointer", closing ? "bg-slate-100" : "hover:bg-slate-300")}
+                className={cn(
+                  "p-[2px] ml-1 -mr-2 rounded-full cursor-pointer",
+                  closing ? "bg-slate-100" : "hover:bg-slate-300"
+                )}
               >
                 <X size={14} />
               </span>
@@ -162,9 +177,7 @@ const DraggableTab = ({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={onClose}>
-            Close Tab
-          </ContextMenuItem>
+          <ContextMenuItem onClick={onClose}>Close Tab</ContextMenuItem>
           {onCloseOthers && (
             <ContextMenuItem onClick={onCloseOthers}>
               Close Other Tabs
@@ -191,7 +204,6 @@ const DraggableTab = ({
         </ContextMenuContent>
       </ContextMenu>
     </TabsTrigger>
-
   );
 };
 
@@ -201,6 +213,7 @@ interface DraggableTabsProps {
   onTabChange: (value: string) => void;
   onTabsReorder: (tabs: Tab[]) => void;
   onTabClose: (tabId: string) => void;
+  className?: string;
 }
 
 export const DraggableTabs = ({
@@ -209,29 +222,30 @@ export const DraggableTabs = ({
   onTabChange,
   onTabsReorder,
   onTabClose,
+  className,
 }: DraggableTabsProps) => {
   const [draggedTab, setDraggedTab] = React.useState<Tab | null>(null);
 
   const handleCloseOthers = (tabId: string) => {
-    const newTabs = tabs.filter(t => t.id === tabId || t.pinned);
+    const newTabs = tabs.filter((t) => t.id === tabId || t.pinned);
     onTabsReorder(newTabs);
   };
 
   const handleCloseRight = (tabId: string) => {
-    const index = tabs.findIndex(t => t.id === tabId);
+    const index = tabs.findIndex((t) => t.id === tabId);
     const newTabs = tabs.filter((t, i) => i <= index || t.pinned);
     onTabsReorder(newTabs);
   };
 
   const handlePinTab = (tabId: string) => {
-    const newTabs = tabs.map(t =>
+    const newTabs = tabs.map((t) =>
       t.id === tabId ? { ...t, pinned: true } : t
     );
     onTabsReorder(newTabs);
   };
 
   const handleUnpinTab = (tabId: string) => {
-    const newTabs = tabs.map(t =>
+    const newTabs = tabs.map((t) =>
       t.id === tabId ? { ...t, pinned: false } : t
     );
     onTabsReorder(newTabs);
@@ -242,7 +256,7 @@ export const DraggableTabs = ({
       activationConstraint: {
         distance: 5,
         tolerance: 5,
-        delay: 50
+        delay: 50,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -271,7 +285,7 @@ export const DraggableTabs = ({
     sideEffects: defaultDropAnimationSideEffects({
       styles: {
         active: {
-          opacity: '0.4',
+          opacity: "0.4",
         },
       },
     }),
@@ -279,11 +293,20 @@ export const DraggableTabs = ({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange}>
-      <TabsList className="flex w-full mx-auto overflow-x-auto overflow-y-hidden">
+      <TabsList
+        className={cn(
+          "flex w-full mx-auto overflow-x-auto overflow-y-hidden rounded-none",
+          className
+        )}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
+          onDragMove={(event) => {
+            if (!draggedTab) {
+              handleDragStart(event);
+            }
+          }}
           onDragEnd={handleDragEnd}
           modifiers={[restrictToHorizontalAxis]}
         >
@@ -291,25 +314,30 @@ export const DraggableTabs = ({
             items={tabs.map((tab) => tab.id)}
             strategy={horizontalListSortingStrategy}
           >
-            {[...tabs].sort((a, b) => {
-              // Sort pinned tabs first
-              if (a.pinned && !b.pinned) return -1;
-              if (!a.pinned && b.pinned) return 1;
-              return 0;
-            }).map((tab) => (
-              <DraggableTab
-                key={tab.id}
-                tab={tab}
-                onClose={() => onTabClose(tab.id)}
-                onSelect={onTabChange}
-                onCloseOthers={() => handleCloseOthers(tab.id)}
-                onCloseRight={() => handleCloseRight(tab.id)}
-                onPin={() => handlePinTab(tab.id)}
-                onUnpin={() => handleUnpinTab(tab.id)}
-              />
-            ))}
+            {[...tabs]
+              .sort((a, b) => {
+                // Sort pinned tabs first
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return 0;
+              })
+              .map((tab) => (
+                <DraggableTab
+                  key={tab.id}
+                  tab={tab}
+                  onClose={() => onTabClose(tab.id)}
+                  onSelect={onTabChange}
+                  onCloseOthers={() => handleCloseOthers(tab.id)}
+                  onCloseRight={() => handleCloseRight(tab.id)}
+                  onPin={() => handlePinTab(tab.id)}
+                  onUnpin={() => handleUnpinTab(tab.id)}
+                />
+              ))}
           </SortableContext>
-          <DragOverlay dropAnimation={dropAnimation} modifiers={[restrictToHorizontalAxis]}>
+          <DragOverlay
+            dropAnimation={dropAnimation}
+            modifiers={[restrictToHorizontalAxis]}
+          >
             {draggedTab ? (
               <DraggableTab
                 tab={draggedTab}
@@ -321,9 +349,6 @@ export const DraggableTabs = ({
           </DragOverlay>
         </DndContext>
       </TabsList>
-      {tabs.map((tab) => (
-        <div key={tab.id}>{tab.content}</div>
-      ))}
     </Tabs>
   );
 };
