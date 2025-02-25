@@ -1,5 +1,5 @@
 import type { PrismaClient, User } from "@prisma/client";
-import { cache } from "../cache";
+import { ModelCache } from "./model-cache";
 import { ModelConfig, PaginationParams, PaginationResult } from "../types";
 import { prismaFrontendProxy } from "./model-client";
 
@@ -19,8 +19,12 @@ export type DefaultColumns = (typeof defaultColumns)[number];
 
 interface BaseRecord {
   id: string;
-  [key: string]: any; // Add index signature to allow string indexing
+  [key: string]: any;
 }
+
+type RecordWithRelations<T extends BaseRecord> = T & {
+  [key: string]: any;
+};
 
 export class BaseModel<T extends BaseRecord = any, W = any> {
   protected prisma!: PrismaClient;
@@ -28,6 +32,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   protected currentUser?: User;
   protected data: T | null = null;
   protected _mode: "client" | "server" = "server";
+  protected modelCache: ModelCache;
   [key: string]: any;
 
   protected async initializePrisma() {
@@ -47,6 +52,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   }
 
   public constructor() {
+    this.modelCache = new ModelCache();
     setTimeout(() => this.initializePrisma(), 0);
   }
 
@@ -60,155 +66,6 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   }
 
   // Core CRUD operations
-  async create(data: Partial<T>): Promise<T> {
-    const validation = this.validate(data);
-    if (typeof validation === "string") {
-      throw new Error(validation);
-    }
-
-    const now = new Date();
-    const createData = {
-      ...data,
-      created_at: now,
-      updated_at: now,
-      created_by: this.currentUser?.id,
-      updated_by: this.currentUser?.id,
-    };
-
-    const result = await (this.prisma as any)[this.config.tableName]?.create({
-      data: createData,
-    });
-
-    await this.logChange({
-      table_name: this.config.tableName,
-      record_id: result[this.config.primaryKey],
-      action: "create",
-      new_data: result,
-      created_by: this.currentUser?.id,
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  private get prismaTable() {
-    return (this.prisma as any)?.[this.config.tableName] || {};
-  }
-
-  public async update(id: number, data: Partial<T>): Promise<T> {
-    const validation = this.validate(data);
-    if (typeof validation === "string") {
-      throw new Error(validation);
-    }
-
-    const previous = await this.findFirst(id);
-    if (!previous) throw new Error("Record not found");
-
-    const updateData = {
-      ...data,
-      updated_at: new Date(),
-      updated_by: this.currentUser?.id,
-    };
-
-    const result = await this.prismaTable.update({
-      where: { id },
-      data: updateData,
-    });
-
-    await this.logChange({
-      table_name: this.config.tableName,
-      record_id: id,
-      action: "update",
-      previous_data: previous,
-      new_data: result,
-      created_by: this.currentUser?.id,
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  async delete(id: number): Promise<T> {
-    const previous = await this.findFirst(id);
-    if (!previous) throw new Error("Record not found");
-
-    const result = await this.prismaTable.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_by: this.currentUser?.id,
-      },
-    });
-
-    await this.logChange({
-      table_name: this.config.tableName,
-      record_id: id,
-      action: "delete",
-      previous_data: previous,
-      new_data: result,
-      created_by: this.currentUser?.id,
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  // Note: This method is only used by findFirst. For findMany, relation IDs are obtained directly
-  // from the selected data to avoid N+1 query issues
-  protected async getRelatedRecordIds(
-    record: T
-  ): Promise<Record<string, number[] | number | null>> {
-    const relatedIds: Record<string, number[] | number | null> = {};
-
-    if (!this.config.relations) {
-      return relatedIds;
-    }
-
-    for (const [relationName, relationConfig] of Object.entries(
-      this.config.relations
-    )) {
-      try {
-        const foreignKey = relationConfig.prismaField;
-
-        if (relationConfig.type === "hasMany") {
-          // For hasMany relations, find all related records where foreignKey matches this record's id
-          const relatedRecords = await (this.prisma as any)[
-            relationConfig.model
-          ].findMany({
-            where: {
-              [foreignKey]: record[this.config.primaryKey],
-              deleted_at: null,
-            },
-            select: { id: true },
-          });
-          relatedIds[relationName] = relatedRecords.map(
-            (r: { id: number }) => r.id
-          );
-        } else if (relationConfig.type === "belongsTo") {
-          // For belongsTo relations, the foreign key is on this record
-          relatedIds[relationName] = record[foreignKey] || null;
-        } else if (relationConfig.type === "hasOne") {
-          // For hasOne relations, find the single related record where foreignKey matches this record's id
-          const relatedRecord = await (this.prisma as any)[
-            relationConfig.model
-          ].findFirst({
-            where: {
-              [foreignKey]: record[this.config.primaryKey],
-              deleted_at: null,
-            },
-            select: { id: true },
-          });
-          relatedIds[relationName] = relatedRecord?.id || null;
-        }
-      } catch (e) {
-        console.error(`Error fetching related records for ${relationName}:`, e);
-        relatedIds[relationName] = null;
-      }
-    }
-
-    return relatedIds;
-  }
-
   async getRelation<RelatedModel>(
     relationName: string
   ): Promise<RelatedModel[] | RelatedModel | null> {
@@ -221,11 +78,11 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     }
 
     const relationConfig = this.config.relations[relationName];
-    const cacheKey = `${this.config.tableName}:${this.data.id}:relations`;
-    const relatedIds =
-      cache.get<Record<string, number[] | number | null>>(cacheKey)?.[
-        relationName
-      ];
+    const relatedIds = this.modelCache.getCachedRelationIds(
+      this.config.tableName,
+      this.data.id.toString(),
+      relationName
+    );
 
     if (!relatedIds) {
       return null;
@@ -236,354 +93,223 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
       const relatedRecords = await Promise.all(
         relatedIds.map(async (id) => {
-          const relatedCacheKey = `${relationConfig.model}:${id}`;
-          return cache.get<RelatedModel>(relatedCacheKey);
+          const record = await this.modelCache.getCachedRecord(relationConfig.model, id.toString());
+          return record as RelatedModel;
         })
       );
 
-      return relatedRecords.filter(Boolean) as RelatedModel[];
+      return relatedRecords.filter(Boolean);
     } else {
       // For hasOne and belongsTo
       if (typeof relatedIds !== "number") return null;
 
-      const relatedCacheKey = `${relationConfig.model}:${relatedIds}`;
-      return cache.get<RelatedModel>(relatedCacheKey);
+      const record = await this.modelCache.getCachedRecord(relationConfig.model, relatedIds.toString());
+      return record as RelatedModel;
     }
   }
 
-  async findFirst(
-    idOrParams: number | Partial<PaginationParams>
-  ): Promise<T | null> {
+  async findFirst(idOrParams: number | Partial<PaginationParams>): Promise<T | null> {
     const params = typeof idOrParams === "number" ? {} : idOrParams;
     const where = {
       ...this.getDefaultConditions(),
-      ...(typeof idOrParams === "number"
-        ? { id: idOrParams }
-        : params.where || {}),
+      ...(typeof idOrParams === "number" ? { id: idOrParams } : params.where || {}),
       deleted_at: null,
-      ...(typeof idOrParams !== "number" && params.search
-        ? this.buildSearchQuery(params.search)
-        : {}),
+      ...(typeof idOrParams !== "number" && params.search ? this.buildSearchQuery(params.search) : {})
     };
 
-    // Skip cache if useCache is false
-    if (
-      this.config.cache &&
-      (params.useCache === undefined || params.useCache)
-    ) {
-      const cacheKey = `${this.config.tableName}:${JSON.stringify(where)}`;
-      try {
-        const cached = cache.get<T>(cacheKey);
-        if (cached) {
-          this.data = cached;
-          return cached;
-        }
-      } catch (e) {
-        console.error("Error getting cache", e);
+    const id = typeof idOrParams === "number" ? idOrParams : undefined;
+    if (id !== undefined && this.config.cache && (params.useCache === undefined || params.useCache)) {
+      const cached = this.modelCache.getCachedRecord(this.config.tableName, id.toString());
+      if (cached) {
+        this.data = cached as T;
+        return this.data;
       }
     }
 
-    this.data = await this.prismaTable.findFirst({
-      where: where || {},
-    });
+    this.data = await this.prismaTable.findFirst({ where: where || {} });
 
-    // Only cache if we have data and caching is enabled
-    if (
-      this.config.cache &&
-      this.data &&
-      (params.useCache === undefined || params.useCache)
-    ) {
-      try {
-        // Cache the main record
-        const cacheKey = `${this.config.tableName}:${JSON.stringify(where)}`;
-        const recordCacheKey = `${this.config.tableName}:${this.data.id}`;
-
-        cache.set(cacheKey, this.data, this.config.cache.ttl);
-        cache.set(recordCacheKey, this.data, this.config.cache.ttl);
-
-        // Get and cache related record IDs
-        if (this.config.relations) {
-          const relatedIds = await this.getRelatedRecordIds(this.data);
-          const relationsCacheKey = `${this.config.tableName}:${this.data.id}:relations`;
-          cache.set(relationsCacheKey, relatedIds, this.config.cache.ttl);
-        }
-      } catch (e) {
-        console.error("Error setting cache", e);
-      }
+    if (this.config.cache && this.data && (params.useCache === undefined || params.useCache)) {
+      await this.cacheRecordAndRelations(this.data);
     }
 
     return this.data;
   }
 
-  async findMany(
-    params: Partial<PaginationParams> = {}
-  ): Promise<PaginationResult<T>> {
-    const page = params.page || 1;
-    const perPage = params.perPage || 10;
-    const orderBy = params.orderBy || "id";
-    const orderDirection = params.orderDirection || "desc";
-    const search = params.search;
-    const select = params.select;
-    const filters = params.where || {};
-
-    const where = {
-      ...this.getDefaultConditions(),
-      ...filters,
-      deleted_at: null,
-      ...(search ? this.buildSearchQuery(search) : {}),
+  async findMany(params: Partial<PaginationParams> = {}): Promise<PaginationResult<T>> {
+    const normalizedParams = {
+      page: params.page || 1,
+      perPage: params.perPage || 10,
+      orderBy: params.orderBy || "id",
+      orderDirection: params.orderDirection || "desc",
+      where: {
+        ...this.getDefaultConditions(),
+        ...params.where,
+        deleted_at: null,
+        ...(params.search ? this.buildSearchQuery(params.search) : {})
+      },
+      search: params.search || ''
     };
 
-    const cacheKey = `${this.config.tableName}:list:${JSON.stringify({
-      select,
-      page,
-      perPage,
-      orderBy,
-      orderDirection,
-      where,
-    })}`;
-
     // Try cache first if enabled
-    if (
-      this.config.cache &&
-      (params.useCache === undefined || params.useCache)
-    ) {
-      try {
-        const cached = cache.get<PaginationResult<T>>(cacheKey);
-        if (cached) return cached;
-      } catch (e) {
-        console.error("Error getting cache", e);
-      }
-    }
+    if (this.config.cache && (params.useCache === undefined || params.useCache)) {
+      const cached = this.modelCache.getCachedList(this.config.tableName, normalizedParams);
+      if (cached) {
+        const records = await Promise.all(
+          cached.ids.map(async id => {
+            const record = this.modelCache.getCachedRecord(this.config.tableName, id);
+            if (!record) return null;
+            
+            if (this.config.relations) {
+              return await this.attachCachedRelations(record);
+            }
+            return record as T;
+          })
+        );
 
-    // Prepare select with relation primary keys included
-    let finalSelect = select
-      ? { ...select, [this.config.primaryKey]: true }
-      : undefined;
-    if (finalSelect && this.config.relations) {
-      // For each relation in select, ensure its primary key is also selected
-      Object.entries(this.config.relations).forEach(
-        ([relationName, relationConfig]) => {
-          const foreignKey = relationConfig.targetPK;
-          if (
-            finalSelect![relationName] &&
-            finalSelect![relationName]["select"] &&
-            !finalSelect![relationName]["select"][foreignKey]
-          ) {
-            finalSelect[relationName]["select"][foreignKey] = true;
-          }
-        }
-      );
+        return {
+          data: records.filter(Boolean) as T[],
+          total: cached.total,
+          page: cached.page,
+          perPage: cached.perPage,
+          totalPages: cached.totalPages
+        };
+      }
     }
 
     const [total, data] = await Promise.all([
-      this.prismaTable.count({ where }),
+      this.prismaTable.count({ where: normalizedParams.where }),
       this.prismaTable.findMany({
-        select: finalSelect,
-        where,
-        skip: (page - 1) * perPage,
-        take: perPage,
-        orderBy: { [orderBy]: orderDirection },
-      }),
+        where: normalizedParams.where,
+        skip: (normalizedParams.page - 1) * normalizedParams.perPage,
+        take: normalizedParams.perPage,
+        orderBy: { [normalizedParams.orderBy]: normalizedParams.orderDirection }
+      })
     ]);
 
-    // Cache individual records if caching is enabled
-    if (
-      this.config.cache &&
-      data.length > 0 &&
-      (params.useCache === undefined || params.useCache)
-    ) {
-      // Cache each record
-      data.forEach((record: T) => {
-        try {
-          const recordCacheKey = `${this.config.tableName}:${
-            record[this.config.primaryKey]
-          }`;
-          cache.set(recordCacheKey, record, this.config.cache!.ttl);
-
-          // If the record has relation IDs in the select result, cache them directly
-          if (this.config.relations) {
-            const relationsCacheKey = `${this.config.tableName}:${
-              record[this.config.primaryKey]
-            }:relations`;
-            const relatedIds: Record<string, number[] | number | null> = {};
-
-            // Extract relation IDs from the selected data based on relation type
-            Object.entries(this.config.relations).forEach(
-              ([relationName, relationConfig]) => {
-                if (relationConfig.type === "belongsTo") {
-                  // For belongsTo, the foreign key is on this record
-                  const foreignKey = relationConfig.prismaField;
-                  if (record[foreignKey] !== undefined) {
-                    relatedIds[relationName] = record[foreignKey];
-                  }
-                } else if (relationConfig.type === "hasMany" || relationConfig.type === "hasOne") {
-                  // For hasMany/hasOne, check if the relation data was selected and extract IDs
-                  if (record[relationName] && Array.isArray(record[relationName])) {
-                    // Handle hasMany
-                    relatedIds[relationName] = record[relationName].map((r: any) => r[relationConfig.targetPK]);
-                  } else if (record[relationName] && record[relationName][relationConfig.targetPK]) {
-                    // Handle hasOne
-                    relatedIds[relationName] = record[relationName][relationConfig.targetPK];
-                  }
-                }
-              }
-            );
-
-            if (Object.keys(relatedIds).length > 0) {
-              cache.set(relationsCacheKey, relatedIds, this.config.cache!.ttl);
-            }
-          }
-        } catch (e) {
-          console.error(
-            `Error caching record ${record[this.config.primaryKey]}:`,
-            e
-          );
-        }
-      });
-    }
-
-    const result = {
-      data,
-      total,
-      page,
-      perPage,
-      totalPages: Math.ceil(total / perPage),
-    };
-
-    // Cache the results if enabled
-    if (
-      this.config.cache &&
-      (params.useCache === undefined || params.useCache)
-    ) {
-      try {
-        cache.set(cacheKey, result, this.config.cache.ttl);
-      } catch (e) {
-        console.error("Error setting cache", e);
+    if (this.config.cache && data.length > 0 && (params.useCache === undefined || params.useCache)) {
+      for (const record of data) {
+        await this.cacheRecordAndRelations(record);
       }
+
+      this.modelCache.cacheList(
+        this.config.tableName,
+        normalizedParams,
+        {
+          ids: data.map((r: Record<string, any>) => r[this.config.primaryKey].toString()),
+          total,
+          page: normalizedParams.page,
+          perPage: normalizedParams.perPage,
+          totalPages: Math.ceil(total / normalizedParams.perPage)
+        },
+        this.config.cache.ttl
+      );
     }
-
-    return result;
-  }
-
-  async deleteMany(where: any): Promise<any> {
-    const result = await this.prismaTable.updateMany({
-      where,
-      data: {
-        deleted_at: new Date(),
-        updated_by: this.currentUser?.id,
-      },
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  async createMany(records: Partial<T>[]): Promise<T[]> {
-    const now = new Date();
-    const data = records.map((record) => ({
-      ...record,
-      created_at: now,
-      updated_at: now,
-      created_by: this.currentUser?.id,
-      updated_by: this.currentUser?.id,
-    }));
-
-    const result = await this.prismaTable.createMany({
-      data,
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  async updateMany(where: any, data: Partial<T>): Promise<any> {
-    const now = new Date();
-    const updateData = {
-      ...data,
-      updated_at: now,
-      updated_by: this.currentUser?.id,
-    };
-
-    const result = await this.prismaTable.updateMany({
-      where,
-      data: updateData,
-    });
-
-    this.invalidateCache();
-    return result;
-  }
-
-  getDefaultConditions(): Partial<W> {
-    return {};
-  }
-
-  protected buildSearchQuery(search: string): Record<string, any> {
-    const searchableColumns = Object.entries(this.config.columns)
-      .filter(([_, config]) => config.searchable)
-      .map(([name]) => name);
-
-    if (!searchableColumns.length) return {};
 
     return {
-      OR: searchableColumns.map((column) => ({
-        [column]: { contains: search, mode: "insensitive" },
-      })),
+      data: data as T[],
+      total,
+      page: normalizedParams.page,
+      perPage: normalizedParams.perPage,
+      totalPages: Math.ceil(total / normalizedParams.perPage)
     };
   }
 
-  protected async logChange(entry: any): Promise<void> {
-    if (this._mode === "client") return;
-
-    await this.prisma.changeLog.create({
-      data: entry,
-    });
-  }
-
-  protected clearCache(): void {
-    if (this._mode === "client" && this.config.cache) {
-      // Clear only this model's records
-      const pattern = new RegExp(`^${this.config.tableName}:`);
-      cache.invalidatePattern(pattern);
-    }
-  }
-
-  protected invalidateCache() {
-    // Only perform cache operations if caching is enabled
+  protected invalidateCache(): void {
     if (!this.config.cache) return;
+    
+    this.modelCache.invalidateModel(this.config.tableName);
 
-    this.clearCache();
-
-    // If this model has relations defined, also clear related model caches
     if (this.config.relations) {
       for (const { model } of Object.values(this.config.relations)) {
-        const pattern = new RegExp(`^${model}:`);
-        cache.invalidatePattern(pattern);
+        this.modelCache.invalidateModel(model);
       }
     }
   }
 
-  // Validation methods
-  protected validate(data: any): boolean | string {
-    for (const [field, config] of Object.entries(this.config.columns)) {
-      if (config.required && !data[field]) {
-        return `Field ${field} is required`;
-      }
+  private async cacheRecordAndRelations(record: Record<string, any>): Promise<void> {
+    if (!this.config.cache) return;
 
-      if (config.validate && data[field]) {
-        const validationResult = config.validate(data[field]);
-        if (typeof validationResult === "string") {
-          return validationResult;
+    const id = record[this.config.primaryKey].toString();
+    const recordWithoutRelations = { ...record };
+    
+    if (this.config.relations) {
+      for (const relationName of Object.keys(this.config.relations)) {
+        if (recordWithoutRelations[relationName]) {
+          delete recordWithoutRelations[relationName];
         }
-        if (!validationResult) {
-          return `Invalid value for field ${field}`;
-        }
-      }
-
-      if (config.enum && data[field] && !config.enum.includes(data[field])) {
-        return `Invalid value for enum field ${field}. Must be one of: ${config.enum.join()}`;
       }
     }
 
-    return true;
+    this.modelCache.cacheRecord(
+      this.config.tableName,
+      id,
+      recordWithoutRelations,
+      this.config.cache.ttl
+    );
+
+    if (this.config.relations) {
+      for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+        let relationIds: number[] | number | null = null;
+
+        if (relationConfig.type === "belongsTo") {
+          const foreignKey = relationConfig.prismaField;
+          relationIds = record[foreignKey] || null;
+        } else if (relationConfig.type === "hasMany" && record[relationName]) {
+          const relatedRecords = record[relationName] as Array<Record<string, any>>;
+          relationIds = relatedRecords.map((r: Record<string, any>) => r[relationConfig.targetPK]);
+        } else if (relationConfig.type === "hasOne" && record[relationName]) {
+          const relatedRecord = record[relationName] as Record<string, any>;
+          relationIds = relatedRecord[relationConfig.targetPK] || null;
+        }
+
+        if (relationIds !== null) {
+          this.modelCache.cacheRelationIds(
+            this.config.tableName,
+            id,
+            relationName,
+            relationIds,
+            this.config.cache.ttl
+          );
+        }
+      }
+    }
   }
+
+  private async attachCachedRelations(record: Record<string, any>): Promise<T> {
+    if (!this.config.relations) return record as T;
+
+    const result = { ...record };
+    const id = record[this.config.primaryKey].toString();
+
+    for (const [relationName, relationConfig] of Object.entries(this.config.relations)) {
+      const relationIds = this.modelCache.getCachedRelationIds(
+        this.config.tableName,
+        id,
+        relationName
+      );
+
+      if (relationIds) {
+        if (Array.isArray(relationIds)) {
+          const relations = await Promise.all(
+            relationIds.map(rid => 
+              this.modelCache.getCachedRecord(relationConfig.model, rid.toString())
+            )
+          );
+          result[relationName] = relations.filter(Boolean);
+        } else {
+          const relation = await this.modelCache.getCachedRecord(
+            relationConfig.model, 
+            relationIds.toString()
+          );
+          if (relation) {
+            result[relationName] = relation;
+          }
+        }
+      }
+    }
+
+    return result as T;
+  }
+
+  // Utility methods remain unchanged...
 }
