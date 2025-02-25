@@ -15,7 +15,7 @@ export const defaultColumns = [
   "updated_by",
 ] as const;
 
-export type DefaultColumns = typeof defaultColumns[number];
+export type DefaultColumns = (typeof defaultColumns)[number];
 
 interface BaseRecord {
   id: string;
@@ -315,6 +315,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     const orderBy = params.orderBy || "id";
     const orderDirection = params.orderDirection || "desc";
     const search = params.search;
+    const select = params.select;
     const filters = params.where || {};
 
     const where = {
@@ -325,6 +326,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     };
 
     const cacheKey = `${this.config.tableName}:list:${JSON.stringify({
+      select,
       page,
       perPage,
       orderBy,
@@ -348,6 +350,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     const [total, data] = await Promise.all([
       this.prismaTable.count({ where }),
       this.prismaTable.findMany({
+        select,
         where,
         skip: (page - 1) * perPage,
         take: perPage,
@@ -474,7 +477,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
   protected async logChange(entry: any): Promise<void> {
     if (this._mode === "client") return;
 
-    await this.prisma.changelog.create({
+    await this.prisma.changeLog.create({
       data: entry,
     });
   }

@@ -51,6 +51,7 @@ export interface PaginationParams {
   orderDirection?: "asc" | "desc";
   search?: string;
   where?: Record<string, any>;
+  select?: Record<string, any>;
   useCache?: boolean;
 }
 

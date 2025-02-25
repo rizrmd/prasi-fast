@@ -1,11 +1,11 @@
 import type { Prisma, Role as PrismaRole } from "@prisma/client";
 import { BaseModel, DefaultColumns } from "system/model/model";
 import {
+  ColumnConfig,
+  ModelColumns,
+  ModelConfig,
   ModelRelations,
   RelationConfig,
-  ColumnConfig,
-  ModelConfig,
-  ModelColumns,
 } from "system/types";
 
 export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {

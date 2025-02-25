@@ -1,10 +1,20 @@
 import { BunRequest } from "bun";
 import { unpack } from "msgpackr";
 import * as models from "shared/models";
+import { ModelName } from "shared/types";
 export const modelRoute = async (req: BunRequest<"/_system/models/:model">) => {
-  const modelName = req.params.model;
+  let paramModelName = req.params.model;
   if (req.method === "POST") {
-    const posts = unpack(new Uint8Array(await req.arrayBuffer())) as { method: string; args: any[] }[];
+    const posts = unpack(new Uint8Array(await req.arrayBuffer())) as {
+      method: string;
+      args: any[];
+    }[];
+
+    let modelName = Object.keys(models).find((e) => {
+      if (paramModelName.toLowerCase() === e.toLowerCase()) {
+        return true;
+      }
+    }) as ModelName;
 
     const model = (models as any)[modelName];
     const prisma = model.prisma[model.config.tableName] as any;

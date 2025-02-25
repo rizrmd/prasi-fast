@@ -1,43 +1,34 @@
-import { ModelName, useModel } from "@/lib/hooks/use-model";
-import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { FC } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { Spinner } from "../ui/spinner";
-
-export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
-  const model = useModel({
-    modelName,
-    async onInit() {
-      const res = await model.instance?.findMany({});
-    },
-  });
-
-  if (!model.ready) return (
-    <div className="flex-1 flex items-center justify-center">
-      <Spinner />
-    </div>
-  )
-
-  return (
-    <div className="rounded-md border">
-      mantap jiwa raga
-    </div>
-  )
-}
+import { WarnFull } from "../app/warn-full";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
 }
 export function DataTable<TData, TValue>({
   columns,
   data,
-}: DataTableProps<TData, TValue>) {
+  status,
+}: DataTableProps<TData, TValue> & { status: "init" | "loading" | "ready" }) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
   return (
     <div className="rounded-md border">
@@ -51,11 +42,11 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
-                )
+                );
               })}
             </TableRow>
           ))}
@@ -76,13 +67,27 @@ export function DataTable<TData, TValue>({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
+              <TableCell
+                colSpan={columns.length}
+                className="h-24 opacity-50 text-center select-none"
+              >
+                {status === "loading" ? (
+                  <div className="flex items-center justify-center space-x-1">
+                    <Spinner className="h-4 w-4 " />
+                    <div>Loading...</div>
+                  </div>
+                ) : (
+                  <WarnFull size={35}>
+                    Data di tampilan ini
+                    <br />
+                    tidak tersedia
+                  </WarnFull>
+                )}
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

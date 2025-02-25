@@ -2,7 +2,7 @@ import { api } from "@/lib/generated/api";
 import { pageModules } from "@/lib/generated/routes";
 import { createContext, useContext, useEffect } from "react";
 import { useAuth } from "./auth";
-import { useLocal } from "./hooks/use-local";
+import { useLocal } from "../hooks/use-local";
 
 type Params = Record<string, string>;
 type RoutePattern = {

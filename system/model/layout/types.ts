@@ -1,5 +1,4 @@
 import { ModelName, Models } from "shared/types";
-import { rel } from ".";
 
 export type LayoutTable<Name extends ModelName> = {
   columns: (
