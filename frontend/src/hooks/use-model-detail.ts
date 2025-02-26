@@ -2,16 +2,35 @@ import { useEffect } from "react";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { layouts } from "shared/layouts";
+import { defaultColumns } from "system/model/model";
+import { useParams } from "@/lib/router";
+import { Column, Fields, LayoutDetail } from "system/model/layout/types";
+import { ModelName } from "shared/types";
+
+type ModelRecord = {
+  id: string;
+  [key: string]: any;
+};
+
+type DetailState<T extends ModelRecord> = {
+  available: boolean;
+  loading: boolean;
+  data: T | null;
+  current: null | LayoutDetail<ModelName>;
+};
 
 export const useModelDetail = ({
   model,
 }: {
   model: ReturnType<typeof useModel>;
 }) => {
-  const detail = useLocal({
-    ready: false,
-    available: false,
+  const params = useParams();
+  const id = params.id;
+  const detail = useLocal<DetailState<ModelRecord>>({
     loading: false,
+    available: false,
+    data: null,
+    current: null,
   });
 
   let layout = (layouts as any)[
@@ -20,12 +39,13 @@ export const useModelDetail = ({
 
   useEffect(() => {
     if (model.ready) {
-      detail.ready = true;
+      detail.loading = false;
       if (layout && layout.detail) {
         detail.available = true;
+        detail.current = layout.detail;
       }
     } else {
-      detail.ready = false;
+      detail.loading = false;
     }
     detail.render();
   }, [model.ready, layout]);
@@ -34,7 +54,96 @@ export const useModelDetail = ({
     let isMounted = true;
 
     const fetchData = async () => {
-      if (!detail.ready || !model.instance || !layout?.table) return;
+      if (!model.instance || !layout?.detail) return;
+
+      detail.loading = true;
+      detail.render();
+
+      try {
+        const findManyParams: {
+          select: { [key: string]: boolean | object | string };
+          where: { id: string };
+        } = {
+          select: (() => {
+            const selectFields: { [key: string]: boolean | object } = {
+              id: true,
+            };
+
+            // Add default columns
+            defaultColumns.forEach((col) => {
+              selectFields[col] = true;
+            });
+
+            // Convert Fields to Prisma select
+            const convertFieldsToPrismaSelect = <T extends ModelName>(
+              fields: Fields<T>
+            ): Record<
+              string,
+              boolean | { select: Record<string, boolean | object> }
+            > => {
+              const processFields = (
+                input: Fields<T>
+              ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
+                if (Array.isArray(input)) {
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  for (const item of input) {
+                    const nestedResults = processFields(item);
+                    Object.assign(result, nestedResults);
+                  }
+                  return result;
+                } else if ("vertical" in input) {
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  for (const item of input.vertical) {
+                    const nestedResults = processFields(item);
+                    Object.assign(result, nestedResults);
+                  }
+                  return result;
+                } else if ("horizontal" in input) {
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  for (const item of input.horizontal) {
+                    const nestedResults = processFields(item);
+                    Object.assign(result, nestedResults);
+                  }
+                  return result;
+                } else if ("col" in input) {
+                  return { [String(input.col)]: true };
+                }
+                return {};
+              };
+
+              const result = processFields(fields);
+              return result;
+            };
+
+            // Add detail fields
+            if (layout.detail.fields) {
+              Object.assign(
+                selectFields,
+                convertFieldsToPrismaSelect(layout.detail.fields)
+              );
+            }
+
+            return selectFields;
+          })(),
+          where: { id },
+        };
+
+        // Add tab selections if they are valid column names
+        if (layout.detail.tabs && typeof layout.detail.tabs === "object") {
+          for (const [key, value] of Object.entries(layout.detail.tabs)) {
+            if (typeof key === "string" && !key.match(/^\d+$/)) {
+              findManyParams.select[key] = value;
+            }
+          }
+        }
+
+        const data = await model.instance.findMany(findManyParams);
+        if (isMounted && data) {
+          detail.data = data[0] || null;
+        }
+      } catch (error) {
+        console.error("Error fetching model detail:", error);
+      }
 
       detail.loading = false;
       detail.render();
@@ -43,7 +152,7 @@ export const useModelDetail = ({
     return () => {
       isMounted = false;
     };
-  }, [detail.ready, model.instance, layout?.detail]);
+  }, [model.instance, layout?.detail]);
 
   return detail;
 };

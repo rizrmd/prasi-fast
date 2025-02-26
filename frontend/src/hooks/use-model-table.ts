@@ -18,7 +18,7 @@ export const useModelTable = ({
     loading: false,
     columns: [] as ColumnDef<any, any>[],
     result: null as Awaited<
-      ReturnType<Exclude<(typeof model)["instance"], null>["findMany"]>
+      ReturnType<Exclude<(typeof model)["instance"], null>["findList"]>
     > | null,
     current: null as LayoutTable<ModelName> | null,
   });
@@ -258,7 +258,7 @@ export const useModelTable = ({
         });
 
         // Log the final select object
-        const result = await model.instance.findMany({
+        const result = await model.instance.findList({
           select,
         });
 

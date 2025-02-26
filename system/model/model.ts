@@ -194,7 +194,12 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
         : {}),
     };
 
-    const id = typeof idOrParams === "string" ? idOrParams : undefined;
+    // Check for direct ID or primary key in where clause
+    const id =
+      typeof idOrParams === "string"
+        ? idOrParams
+        : params.where?.[this.config.primaryKey];
+
     if (
       id !== undefined &&
       this.config.cache &&
@@ -223,7 +228,7 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
     return this.data;
   }
 
-  async findMany(
+  async findList(
     params: Partial<PaginationParams & { select?: Record<string, any> }> = {}
   ): Promise<PaginationResult<T>> {
     const normalizedParams = {
@@ -409,6 +414,75 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
 
   protected buildSearchQuery(search: string) {
     return {};
+  }
+
+  async findMany(
+    params: Partial<Omit<PaginationParams, 'page' | 'perPage'> & { select?: Record<string, any> }> = {}
+  ): Promise<T[]> {
+    const normalizedParams = {
+      orderBy: params.orderBy || "id",
+      orderDirection: params.orderDirection || "desc",
+      where: {
+        ...this.getDefaultConditions(),
+        ...params.where,
+        deleted_at: null,
+        ...(params.search ? this.buildSearchQuery(params.search) : {}),
+      },
+      search: params.search || "",
+      select: params.select,
+    };
+
+    const requiredFields = this.getSelectFields(params.select);
+
+    // Try cache first if enabled
+    if (this.config.cache && (params.useCache === undefined || params.useCache)) {
+      const cachedIds = this.modelCache.getCachedIds(this.config.tableName, normalizedParams);
+      if (cachedIds) {
+        const records = await Promise.all(
+          cachedIds.map(async (id) => {
+            const record = this.modelCache.getCachedRecord(
+              this.config.tableName,
+              id,
+              requiredFields
+            );
+            if (!record) return null;
+
+            if (this.config.relations) {
+              return await this.attachCachedRelations(record);
+            }
+            return record as T;
+          })
+        );
+
+        // If all required fields are cached for all records
+        if (!records.includes(null)) {
+          return records.filter(Boolean) as T[];
+        }
+      }
+    }
+
+    const data = await this.prismaTable.findMany({
+      where: normalizedParams.where,
+      orderBy: {
+        [normalizedParams.orderBy]: normalizedParams.orderDirection,
+      },
+      ...(params.select ? { select: this.ensurePrimaryKeys(params.select) } : {}),
+    });
+
+    if (this.config.cache && data.length > 0 && (params.useCache === undefined || params.useCache)) {
+      for (const record of data) {
+        await this.cacheRecordAndRelations(record, params.select);
+      }
+
+      this.modelCache.cacheIds(
+        this.config.tableName,
+        normalizedParams,
+        data.map((r: Record<string, any>) => r[this.config.primaryKey].toString()),
+        this.config.cache.ttl
+      );
+    }
+
+    return data as T[];
   }
 
   private async attachCachedRelations(record: Record<string, any>): Promise<T> {

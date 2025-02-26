@@ -16,7 +16,7 @@ type RelObject<M extends ModelName> = {
   [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>>;
 };
 
-type Column<Name extends ModelName> =
+export type Column<Name extends ModelName> =
   | { col: GetColumnsFromModel<Name> }
   | {
       rel: Models[Name]["relations"][number];
@@ -34,10 +34,10 @@ export type LayoutTable<Name extends ModelName> = {
   };
 };
 
-type Fields<Name extends ModelName> =
-  | Column<Name>[]
-  | { flow: "horizontal" | "vertical"; fields: Fields<Name> }
-  | Fields<Name>[]; // Nested fields
+export type Fields<Name extends ModelName> =
+  | { vertical: Fields<Name>[] }
+  | { horizontal: Fields<Name>[] }
+  | Column<Name>;
 
 export type LayoutDetail<Name extends ModelName> = {
   fields: Fields<Name>;

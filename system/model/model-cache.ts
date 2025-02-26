@@ -138,4 +138,24 @@ export class ModelCache {
     };
     return `${tableName}:list:${JSON.stringify(normalizedParams)}`;
   }
+
+  private getIdsKey(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>): string {
+    const normalizedParams = {
+      orderBy: params.orderBy || 'id',
+      orderDirection: params.orderDirection || 'desc',
+      where: params.where || {},
+      search: params.search || ''
+    };
+    return `${tableName}:ids:${JSON.stringify(normalizedParams)}`;
+  }
+
+  // Non-paginated list operations
+  cacheIds(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>, ids: string[], ttl: number): void {
+    const key = this.getIdsKey(tableName, params);
+    this.cache.set(key, ids, ttl);
+  }
+
+  getCachedIds(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>): string[] | null {
+    return this.cache.get<string[]>(this.getIdsKey(tableName, params));
+  }
 }
