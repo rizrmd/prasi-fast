@@ -4,6 +4,7 @@ import { useLocal } from "@/hooks/use-local";
 import { api } from "@generated/api";
 import type { User } from "@prisma/client";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { ModelRegistry } from "@/../../system/model/model-registry";
 
 interface AuthContextType {
   user: Partial<User> | null;
@@ -31,12 +32,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await api.authCheck();
         if ("error" in response) {
           console.log("Session check failed:", response.error);
-
           local.loading = false;
           local.render();
           return;
         }
         local.user = response.user;
+
+        // Update all models with current user
+        const models = ModelRegistry.getInstances();
+        models.forEach((model: { setCurrentUser: (user: Partial<User> | null) => void }) => model.setCurrentUser(response.user));
+
       } catch (error) {
         console.error("Session check failed:", error);
       } finally {
@@ -47,6 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkSession();
   }, []);
+
+  // Update models whenever user state changes
+  useEffect(() => {
+    const models = ModelRegistry.getInstances();
+    models.forEach((model: { setCurrentUser: (user: Partial<User> | null) => void }) => model.setCurrentUser(local.user));
+  }, [local.user]);
 
   const login = async (email: string, password: string) => {
     const response = await api.authLogin({ username: email, password });

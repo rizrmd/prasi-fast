@@ -32,7 +32,9 @@ type FormWriter = {
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
-  save: (data: any) => Promise<{ success: boolean; error?: string }>;
+  save: (
+    data: any
+  ) => Promise<{ success: boolean; error?: string; newId?: string }>;
   del: (data: any) => Promise<{ success: boolean; error?: string }>;
   fields: Fields<ModelName>;
   data: any;
@@ -81,13 +83,19 @@ export const DetailForm: FC<{
         e.preventDefault();
         writer.saving = true;
 
-        await save(snapshot(writer.data));
+        const res = await save(snapshot(writer.data));
 
         writer.saving = false;
         writer.unsaved = false;
         onChanged?.(undefined);
 
         toast("Data berhasil tersimpan", { dismissible: true });
+
+        if (res.newId) {
+          navigate(
+            `/model/${model.config.modelName.toLowerCase()}/detail/${res.newId}`
+          );
+        }
       }}
       className={cn("flex flex-col items-stretch flex-1 -mt-3")}
     >

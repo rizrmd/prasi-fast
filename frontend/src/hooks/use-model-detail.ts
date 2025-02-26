@@ -24,21 +24,47 @@ export const useModelDetail = ({
     available: false,
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
-    del: async (data: any) => {
-      console.log(data);
+    del: async (data: ModelRecord) => {
+      if (!model.instance || !data.id) {
+        return { success: false };
+      }
 
-      await new Promise((done) => {
-        setTimeout(done, 500);
-      });
-      return { success: true };
+      try {
+        await model.instance.delete({
+          where: { id: data.id },
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Error deleting record:", error);
+        return { success: false };
+      }
     },
-    save: async (data: any) => {
-      console.log(data);
+    save: async (data: ModelRecord) => {
+      if (!model.instance) {
+        return { success: false };
+      }
 
-      await new Promise((done) => {
-        setTimeout(done, 500);
-      });
-      return { success: true };
+      try {
+        let newId = undefined;
+        const pk = model.instance.config.primaryKey;
+        if (data[pk]) {
+          await model.instance.update({
+            where: { [pk]: data[pk] },
+            data,
+          });
+        } else {
+          const res = await model.instance.create({
+            data,
+          });
+          if (res) {
+            newId = (res as any)[pk];
+          }
+        }
+        return { success: true, newId };
+      } catch (error) {
+        console.error("Error saving record:", error);
+        return { success: false };
+      }
     },
   });
 

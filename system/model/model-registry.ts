@@ -7,4 +7,8 @@ export class ModelRegistry {
     }
     return ModelRegistry.instances.get(modelName) as M;
   }
+
+  public static getInstances(): any[] {
+    return Array.from(ModelRegistry.instances.values());
+  }
 }
