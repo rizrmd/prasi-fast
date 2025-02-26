@@ -92,52 +92,53 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
   // Prepare the model file content using the shared model sample as reference
   const className = capitalize(modelName);
   const fileContent = `import type { Prisma, ${className} as Prisma${className} } from "@prisma/client";
-import { BaseModel, DefaultColumns } from "system/model/model";
+import { Model, DefaultColumns } from "system/model/model";
 import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
 
-export class ${className} extends BaseModel<Prisma${className}, Prisma.${className}WhereInput> {
-  title(data: Partial<Prisma${className}>) {
-    return \`\${data.${titleColumn}}\`;
-  }
-  formatCount(count: number) {
-    return \`\${count} item\$\{count > 1 ? 's' : ''}\`; 
-  }
-  config: ModelConfig = {
+export class ${className} extends Model<Prisma${className}> {
+  readonly config: ModelConfig = {
     modelName: "${className}",
     tableName: "${tableName}",
     primaryKey: "${models[modelName].pk}",
     relations: relations as ModelRelations,
     columns: columns as ModelColumns
   };
-  get columns() {
-    return Object.keys(this.config.columns) as (
-      | keyof typeof columns
-      | DefaultColumns
-    )[];
+
+  title(data: Partial<Prisma${className}>): string {
+    return \`\${data.${titleColumn}}\`;
   }
-  get relations() {
-    return Object.keys(this.config.relations) as (keyof typeof relations)[];
+
+  formatCount(count: number): string {
+    return \`\${count} item\$\{count > 1 ? 's' : ''}\`; 
+  }
+
+  get columns(): (keyof typeof columns | DefaultColumns)[] {
+    return Object.keys(this.config.columns);
+  }
+
+  get relations(): (keyof typeof relations)[] {
+    return Object.keys(this.config.relations);
   }
 }
 
 /** Columns **/
-const columns = {
+const columns: Record<string, ColumnConfig> = {
 ${Object.entries(columns)
   .map(([key, value]) => {
     return `  ${key}: ${JSON.stringify(value, null, 2)
       .split("\n")
-      .join("\n  ")} as ColumnConfig`;
+      .join("\n  ")}`;
   })
   .join(",\n")}
 };
 
 /** Relations **/
-const relations = {
+const relations: Record<string, RelationConfig> = {
   ${Object.entries(relations)
     .map(([key, value]) => {
       return `  ${key}: ${JSON.stringify(value, null, 2)
         .split("\n")
-        .join("\n  ")} as RelationConfig`;
+        .join("\n  ")}`;
     })
     .join(",\n")}
   };

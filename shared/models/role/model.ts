@@ -1,53 +1,54 @@
 import type { Prisma, Role as PrismaRole } from "@prisma/client";
-import { BaseModel, DefaultColumns } from "system/model/model";
+import { Model, DefaultColumns } from "system/model/model";
 import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
 
-export class Role extends BaseModel<PrismaRole, Prisma.RoleWhereInput> {
-  title(data: Partial<PrismaRole>) {
-    return `${data.name}`;
+/** Role Columns */
+const columns: Record<string, ColumnConfig> = {
+  id: {
+    type: "string",
+    label: "Id",
+    required: true
+  },
+  name: {
+    type: "string",
+    label: "Name", 
+    required: true
   }
-  formatCount(count: number) {
-    return `${count} item${count > 1 ? 's' : ''}`; 
+};
+
+/** Role Relations */
+const relations: Record<string, RelationConfig> = {
+  user: {
+    model: "User",
+    type: "hasMany",
+    prismaField: "user",
+    targetPK: "id",
+    label: "User"
   }
-  config: ModelConfig = {
+};
+
+export class Role extends Model<PrismaRole> {
+  readonly config: ModelConfig = {
     modelName: "Role",
     tableName: "role",
     primaryKey: "id",
     relations: relations as ModelRelations,
     columns: columns as ModelColumns
   };
-  get columns() {
-    return Object.keys(this.config.columns) as (
-      | keyof typeof columns
-      | DefaultColumns
-    )[];
+
+  title(data: Partial<PrismaRole>): string {
+    return `${data.name}`;
   }
-  get relations() {
-    return Object.keys(this.config.relations) as (keyof typeof relations)[];
+
+  formatCount(count: number): string {
+    return `${count} item${count > 1 ? 's' : ''}`;
+  }
+
+  get columns(): (keyof typeof columns | DefaultColumns)[] {
+    return Object.keys(this.config.columns);
+  }
+
+  get relations(): (keyof typeof relations)[] {
+    return Object.keys(this.config.relations);
   }
 }
-
-/** Columns **/
-const columns = {
-  id: {
-    "type": "string",
-    "label": "Id",
-    "required": true
-  } as ColumnConfig,
-  name: {
-    "type": "string",
-    "label": "Name",
-    "required": true
-  } as ColumnConfig
-};
-
-/** Relations **/
-const relations = {
-    user: {
-    "model": "User",
-    "type": "hasMany",
-    "prismaField": "user",
-    "targetPK": "id",
-    "label": "User"
-  } as RelationConfig
-  };
