@@ -41,5 +41,11 @@ export type Fields<Name extends ModelName> =
 
 export type LayoutDetail<Name extends ModelName> = {
   fields: Fields<Name>;
-  tabs: Models[Name]["relations"][number][];
+  tabs: DetailTab<Name>[];
 };
+
+export type DetailTab<Name extends ModelName> = ({ title: string } & (
+  | { type: "default" }
+  | { type: "relation"; name: Models[Name]["relations"][number] }
+  | { type: "jsx"; element: ReactNode }
+))

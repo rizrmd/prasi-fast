@@ -15,7 +15,7 @@ export const ModelNavTabs = () => {
   const render = useState({})[1];
   return (
     <div className="flex relative items-stretch flex-col">
-      <div className="h-[40px] border-b border-[#ececeb]"></div>
+      <div className="h-[40px] border-b border-sidebar-border"></div>
       <DraggableTabs
         activeTab={nav.active}
         tabs={nav.tabs}
@@ -37,8 +37,8 @@ export const ModelNavTabs = () => {
               box-shadow: none !important;
               border-bottom-left-radius: 0;
               border-bottom-right-radius: 0;
-              color: #165dfb;
-              border: 1px solid #ececeb;
+              color: var(--ring);
+              border: 1px solid var(--sidebar-border);
               border-bottom: 0;
             }
           `

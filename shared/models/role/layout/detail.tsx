@@ -7,5 +7,8 @@ export const detail: LayoutDetail<"Role"> = {
       { horizontal: [{ col: "name" }, { col: "name" }] },
     ],
   },
-  tabs: ["user"],
+  tabs: [
+    { title: "Detail", type: "default" },
+    { title: "User", type: "relation", name: "user" },
+  ],
 };

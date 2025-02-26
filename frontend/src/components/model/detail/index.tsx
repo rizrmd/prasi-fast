@@ -1,10 +1,13 @@
 import { WarnFull } from "@/components/app/warn-full";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useModel } from "@/hooks/use-model";
 import { useModelDetail } from "@/hooks/use-model-detail";
 import { FC } from "react";
 import { ModelName, Models } from "shared/types";
 import { Fields } from "system/model/layout/types";
+import { MDetailTabs } from "./detail-tabs";
+import { DetailForm } from "./form";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
@@ -27,68 +30,25 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
   return (
     <>
-      <RecursiveFields
-        model={model.instance}
-        fields={detail.current.fields}
-        data={detail.data}
-      />
+      <div className="rounded-md border bg-white">
+        <MDetailTabs model={model.instance} detail={detail.current}>
+          {({ activeTab }) => {
+            if (
+              activeTab.type === "default" &&
+              model.instance &&
+              detail.current
+            ) {
+              return (
+                <DetailForm
+                  model={model.instance}
+                  fields={detail.current.fields}
+                  data={detail.data}
+                />
+              );
+            }
+          }}
+        </MDetailTabs>
+      </div>
     </>
-  );
-};
-
-const RecursiveFields: FC<{
-  model: Models[keyof Models];
-  fields: Fields<ModelName>;
-  data: any;
-}> = ({ model, fields, data }) => {
-  if (!fields) return null;
-
-  if (Array.isArray(fields)) {
-    return (
-      <>
-        {fields.map((field, index) => (
-          <RecursiveFields key={index} model={model} fields={field} data={data} />
-        ))}
-      </>
-    );
-  }
-
-  if ("vertical" in fields) {
-    return (
-      <div className="flex flex-col gap-4">
-        {fields.vertical.map((field, index) => (
-          <RecursiveFields key={index} model={model} fields={field} data={data} />
-        ))}
-      </div>
-    );
-  }
-
-  if ("horizontal" in fields) {
-    return (
-      <div className="flex flex-row gap-4">
-        {fields.horizontal.map((field, index) => (
-          <RecursiveFields key={index} model={model} fields={field} data={data} />
-        ))}
-      </div>
-    );
-  }
-
-  if ("col" in fields) {
-    return <Field model={model} col={fields.col} data={data} />;
-  }
-
-  return null;
-};
-
-const Field: FC<{ model: Models[keyof Models]; col: string; data: any }> = ({
-  model,
-  col,
-  data,
-}) => {
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="font-medium">{col}</label>
-      <div>{data?.[col] ?? "-"}</div>
-    </div>
   );
 };

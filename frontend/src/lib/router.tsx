@@ -3,20 +3,21 @@ import { pageModules } from "@/lib/generated/routes";
 import { createContext, useContext, useEffect } from "react";
 import { useAuth } from "./auth";
 import { useLocal } from "../hooks/use-local";
-import componentsConfig from "../../components.json";
+import config from "../../config.json";
 
 // Normalize basePath to ensure it has trailing slash only if it's not '/'
-const basePath = componentsConfig.basePath === '/' 
-  ? '/' 
-  : componentsConfig.basePath.endsWith('/')
-    ? componentsConfig.basePath
-    : componentsConfig.basePath + '/';
+const basePath =
+  config.basePath === "/"
+    ? "/"
+    : config.basePath.endsWith("/")
+    ? config.basePath
+    : config.basePath + "/";
 
 // Utility for consistent path building
 function buildPath(to: string): string {
-  return to.startsWith("/") 
-    ? basePath === "/" 
-      ? to 
+  return to.startsWith("/")
+    ? basePath === "/"
+      ? to
       : `${basePath}${to.slice(1)}`
     : to;
 }
@@ -92,11 +93,16 @@ export function useRouter() {
 
     const loadPage = async () => {
       // Always strip basePath if it exists, since the route definitions don't include it
-      const withoutBase = basePath !== "/" && local.currentPath.startsWith(basePath)
-        ? local.currentPath.slice(basePath.length)
-        : local.currentPath;
+      const withoutBase =
+        basePath !== "/" && local.currentPath.startsWith(basePath)
+          ? local.currentPath.slice(basePath.length)
+          : local.currentPath;
       // Ensure path starts with slash and handle trailing slashes
-      const path = (withoutBase.startsWith("/") ? withoutBase : "/" + withoutBase).replace(/\/$/, "") || "/";
+      const path =
+        (withoutBase.startsWith("/") ? withoutBase : "/" + withoutBase).replace(
+          /\/$/,
+          ""
+        ) || "/";
 
       await logRouteChange(path);
 
@@ -161,7 +167,7 @@ export function useRouter() {
     currentPath: local.currentPath,
     navigate,
     params: local.params,
-    isLoading
+    isLoading,
   };
 }
 

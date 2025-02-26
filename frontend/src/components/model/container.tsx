@@ -74,12 +74,18 @@ const ContainerBreadcrumb = ({}: {}) => {
     })();
   }, [location.pathname, location.hash]);
   return (
-    <Breadcrumb className="p-2 border-b bg-white">
+    <Breadcrumb className="p-2 border-b bg-white select-none">
       <BreadcrumbList>
         {local.breads.map((bread, index) => (
           <Fragment key={index}>
-            <BreadcrumbItem className="hover:underline">
-              <Link to={bread.url}>{bread.title}</Link>
+            <BreadcrumbItem>
+              {index === local.breads.length - 1 ? (
+                <>{bread.title}</>
+              ) : (
+                <Link to={bread.url} className="hover:underline">
+                  {bread.title}
+                </Link>
+              )}
             </BreadcrumbItem>
             {index < local.breads.length - 1 && <BreadcrumbSeparator />}
           </Fragment>

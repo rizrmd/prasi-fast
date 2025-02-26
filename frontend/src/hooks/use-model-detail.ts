@@ -128,15 +128,6 @@ export const useModelDetail = ({
           where: { id },
         };
 
-        // Add tab selections if they are valid column names
-        if (layout.detail.tabs && typeof layout.detail.tabs === "object") {
-          for (const [key, value] of Object.entries(layout.detail.tabs)) {
-            if (typeof key === "string" && !key.match(/^\d+$/)) {
-              findManyParams.select[key] = value;
-            }
-          }
-        }
-
         const data = await model.instance.findMany(findManyParams);
         if (isMounted && data) {
           detail.data = data[0] || null;
