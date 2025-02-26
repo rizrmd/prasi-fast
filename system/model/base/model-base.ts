@@ -1,6 +1,6 @@
 import type { PrismaClient, User } from "@prisma/client";
 import { ModelConfig } from "../../types";
-import { ModelCache } from "../model-cache";
+import { ModelCache } from "./model-cache";
 import { prismaFrontendProxy } from "../model-client";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {

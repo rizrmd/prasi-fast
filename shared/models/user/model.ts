@@ -1,12 +1,36 @@
-import type { Prisma, User as PrismaUser } from "@prisma/client";
-import { Model, DefaultColumns } from "system/model/model";
+import type { User as PrismaUser } from "@prisma/client";
+import { DefaultColumns, Model } from "system/model/model";
 import {
   ColumnConfig,
   ModelColumns,
-  ModelConfig,
   ModelRelations,
   RelationConfig,
 } from "system/types";
+
+export class User extends Model<PrismaUser> {
+  constructor() {
+    super();
+    this.setConfig({
+      modelName: "User",
+      tableName: "m_user",
+      primaryKey: "id",
+      relations: relations as ModelRelations,
+      columns: columns as ModelColumns,
+    });
+  }
+
+  title(data: Partial<PrismaUser>): string {
+    return `${data.username}`;
+  }
+
+  get columns(): (keyof typeof columns | DefaultColumns)[] {
+    return Object.keys(this.state.config.columns);
+  }
+
+  get relations(): (keyof typeof relations)[] {
+    return Object.keys(this.state.config.relations);
+  }
+}
 
 /** User Columns */
 const columns: Record<string, ColumnConfig> = {
@@ -88,28 +112,3 @@ const relations: Record<string, RelationConfig> = {
     label: "Role",
   },
 };
-
-export class User extends Model<PrismaUser> {
-  constructor() {
-    super();
-    this.setConfig({
-      modelName: "User",
-      tableName: "user",
-      primaryKey: "id",
-      relations: relations as ModelRelations,
-      columns: columns as ModelColumns,
-    });
-  }
-
-  title(data: Partial<PrismaUser>): string {
-    return `${data.username}`;
-  }
-
-  get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.state.config.columns);
-  }
-
-  get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.state.config.relations);
-  }
-}

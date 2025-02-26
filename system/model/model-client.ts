@@ -45,7 +45,7 @@ export const prismaFrontendProxy = () => {
                 clearTimeout(pending[modelName].timeout);
                 pending[modelName].timeout = setTimeout(async () => {
                   const url = new URL(config.backend.url);
-                  url.pathname = `/_system/models/${modelName}`;
+                  url.pathname = `/_system/models/${modelName.toLowerCase()}`;
                   const response = await fetch(url, {
                     method: "POST",
                     headers: {
@@ -62,7 +62,7 @@ export const prismaFrontendProxy = () => {
                       pending[modelName].cached[
                         JSON.stringify(pending[modelName].ops[i])
                       ] = { ts: Date.now(), value };
-                      
+
                       if (value && value.error) {
                         promise.reject(value);
                       } else {

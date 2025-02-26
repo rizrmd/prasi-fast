@@ -1,6 +1,6 @@
-import { ModelManager } from "./model-manager";
-import type { BaseRecord } from "./model-base";
-import { QueryManagerFriend, WithFriends } from "./model-friend";
+import { ModelManager } from "../model-manager";
+import type { BaseRecord } from "../model-base";
+import { QueryManagerFriend, WithFriends } from "../model-friend";
 
 export class ModelQuery<T extends BaseRecord = any> extends ModelManager<T> implements WithFriends<QueryManagerFriend> {
   public readonly _friend: QueryManagerFriend = {

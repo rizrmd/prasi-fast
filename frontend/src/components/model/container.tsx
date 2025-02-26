@@ -20,7 +20,7 @@ export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
       <div className="flex flex-col flex-1 bg-slate-100">
         <ModelNavTabs />
         <ContainerBreadcrumb />
-        <div className="p-2  flex flex-1 items-stretch flex-col">
+        <div className="p-2 flex flex-1 items-stretch flex-col">
           {children}
         </div>
       </div>
@@ -38,95 +38,90 @@ const ContainerBreadcrumb = ({}: {}) => {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     (async () => {
-      const parts = location.pathname
-        .substring("/model".length)
-        .split("/")
-        .filter((e) => e);
+      try {
+        const parts = location.pathname
+          .substring("/model".length)
+          .split("/")
+          .filter((e) => e);
 
-      let modelName = Object.keys(models).find((name) => {
-        if (name.toLowerCase() === parts[0]) {
-          return name;
-        }
-      }) as ModelName;
+        let modelName = Object.keys(models).find((name) => {
+          if (name.toLowerCase() === parts[0]) {
+            return name;
+          }
+        }) as ModelName;
 
-      const model = models[modelName];
-      modelRef.current = model;
-      if (model) {
-        const breads = [] as typeof local.breads;
+        const model = models[modelName];
+        modelRef.current = model;
         if (model) {
+          const breads = [] as typeof local.breads;
           breads.push({
             title: model.config.modelName,
             url: `/model/${model.config.modelName.toLowerCase()}`,
           });
-        }
 
-        if (parts[1] === "detail" && parts[2]) {
-          local.breads = breads;
-          local.loading = true;
-          local.render();
-          const id = parts[2];
-          if (id === "new" || id === "clone") {
-            const prev_id = parseHash()["prev"];
-            if (prev_id) {
-              try {
-                const data = (await model.findFirst(prev_id)) as any;
-                if (data) {
-                  breads.push({
-                    title: model.title(data),
-                    url: `/model/${parts[0]}/detail/${prev_id}`,
-                  });
-                }
-              } catch (e) {}
-            }
-
-            breads.push({
-              title: id === "new" ? "Tambah Baru" : "Duplikat",
-              url: `/model/${parts[0]}/detail/${id}`,
-            });
-          } else {
-            const data = (await model.findFirst(id)) as any;
-
-            const updateBreadcrumb = (data: any) => {
-              const newTitle = model.title(data);
-              const newBreads = [...breads];
-              newBreads.push({
-                title: newTitle,
+          if (parts[1] === "detail" && parts[2]) {
+            local.breads = breads;
+            local.loading = true;
+            local.render();
+            const id = parts[2];
+            if (id === "new" || id === "clone") {
+              const prev_id = parseHash()["prev"];
+              if (prev_id) {
+                try {
+                  const data = (await model.findFirst(prev_id)) as any;
+                  if (data) {
+                    breads.push({
+                      title: model.title(data),
+                      url: `/model/${parts[0]}/detail/${prev_id}`,
+                    });
+                  }
+                } catch (e) {}
+              }
+              breads.push({
+                title: id === "new" ? "Tambah Baru" : "Duplikat",
                 url: `/model/${parts[0]}/detail/${id}`,
               });
-              local.breads = newBreads;
-              local.render();
-            };
-
-            updateBreadcrumb(data);
-            let currentId = id;
-
-            const subscribeToModel = (modelId: string) => {
-              model.subscribe([modelId]).then(async unsub => {
-                unsubscribe = unsub;
-                const newData = await model.findFirst(modelId);
-                if (newData) {
-                  updateBreadcrumb(newData);
+            } else {
+              const data = (await model.findFirst(id)) as any;
+              const updateBreadcrumb = (data: any) => {
+                const newTitle = model.title(data);
+                const newBreads = [...breads];
+                newBreads.push({
+                  title: newTitle,
+                  url: `/model/${parts[0]}/detail/${id}`,
+                });
+                local.breads = newBreads;
+                local.render();
+              };
+              updateBreadcrumb(data);
+              let currentId = id;
+              const subscribeToModel = (modelId: string) => {
+                model.subscribe([modelId]).then(async (unsub) => {
+                  unsubscribe = unsub;
+                  const newData = await model.findFirst(modelId);
+                  if (newData) {
+                    updateBreadcrumb(newData);
+                  }
+                });
+              };
+              subscribeToModel(currentId);
+              return () => {
+                if (unsubscribe) {
+                  unsubscribe();
                 }
-              });
-            };
-
-            subscribeToModel(currentId);
-
-            return () => {
-              if (unsubscribe) {
-                unsubscribe();
-              }
-            };
+              };
+            }
           }
+          local.breads = breads;
         }
-        local.breads = breads;
+      } catch (error) {
+        console.error(error);
+      } finally {
+        local.loading = false;
+        local.render();
       }
-      local.loading = false;
-      local.render();
     })();
-
-    return () => {
-    };
+    return () => {};
   }, [location.pathname, location.hash]);
 
   return (

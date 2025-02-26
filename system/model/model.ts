@@ -1,13 +1,13 @@
 import type { PrismaClient, User } from "@prisma/client";
 import type { ModelConfig, PaginationParams, PaginationResult } from "../types";
-import { ModelCrud } from "./base/model-crud";
-import { ModelCacheManager } from "./base/model-cache";
-import { ModelQuery } from "./base/model-query";
-import { ModelRelations } from "./base/model-relations";
-import { ModelSubscription } from "./base/model-subscription";
+import { ModelCrud } from "./base/manager/model-crud";
+import { ModelCacheManager } from "./base/manager/model-cache";
+import { ModelQuery } from "./base/manager/model-query";
+import { ModelRelations } from "./base/manager/model-relations";
+import { ModelSubscription } from "./base/manager/model-subscription";
 import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
-import { ModelCache } from "./model-cache";
+import { ModelCache } from "./base/model-cache";
 
 export {
   defaultColumns,
@@ -35,7 +35,7 @@ export class Model<T extends BaseRecord = any> {
     data: null,
     mode: "server",
     currentUser: null,
-    modelCache: new ModelCache(),
+    modelCache: new ModelCache(), // Initialize with debug off
   };
   private cacheManager!: ModelCacheManager<T>;
   private queryManager!: ModelQuery<T>;
@@ -161,7 +161,13 @@ export class Model<T extends BaseRecord = any> {
       this.state.prisma = prismaFrontendProxy() as PrismaClient;
     } else {
       this.state.mode = "server";
-      delete this.state.config?.cache;
+      // Explicitly disable cache on server side
+      if (this.state.config) {
+        this.state.config = {
+          ...this.state.config,
+          cache: undefined,
+        };
+      }
 
       if (!g.prisma) {
         g.prisma = new (await import("@prisma/client")).PrismaClient();

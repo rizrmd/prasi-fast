@@ -1,133 +1,161 @@
-import { ModelManager } from "./model-manager";
-import type { BaseRecord } from "./model-base";
-import { CacheManagerFriend, WithFriends } from "./model-friend";
+import { Cache, cache as globalCache } from "./cache";
 
-export class ModelCacheManager<T extends BaseRecord = any> extends ModelManager<T> implements WithFriends<CacheManagerFriend> {
-  public readonly _friend: CacheManagerFriend = {
-    invalidateCache: this.invalidateCache.bind(this),
-    cacheRecordAndRelations: this.cacheRecordAndRelations.bind(this),
-    attachCachedRelations: this.attachCachedRelations.bind(this)
-  };
-  protected ensurePrimaryKeys(select: Record<string, any>): Record<string, any> {
-    // Not needed in cache manager
-    throw new Error("Not implemented");
+interface ListParams {
+  page?: number;
+  perPage?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+  where?: Record<string, any>;
+  search?: string;
+}
+
+interface ListCacheResult {
+  ids: string[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+}
+
+interface CachedRecord {
+  fields: Set<string>;
+  data: Record<string, any>;
+}
+
+interface RelationCache {
+  [relationName: string]: number[] | number | null;
+}
+
+export class ModelCache {
+  private cache: Cache;
+
+  constructor() {
+    this.cache = globalCache;
   }
 
-  protected getSelectFields(select?: Record<string, any>): string[] {
-    // Not needed in cache manager
-    throw new Error("Not implemented");
-  }
-
-  protected invalidateCache(): void {
-    if (!this.config.cache) return;
-
-    this.modelCache.invalidateModel(this.config.tableName);
-
-    if (this.config.relations) {
-      for (const { model } of Object.values(this.config.relations)) {
-        this.modelCache.invalidateModel(model);
-      }
+  // Record operations
+  cacheRecord(tableName: string, id: string, record: Record<string, any>, fields: string[], ttl: number): void {
+    const recordData = this.stripRelations(record);
+    const key = this.getRecordKey(tableName, id);
+    const existing = this.cache.get<CachedRecord>(key);
+    
+    if (existing) {
+      // Merge new data while preserving existing fields
+      const mergedFields = new Set([...existing.fields, ...fields]);
+      const mergedData = { ...existing.data, ...recordData };
+      this.cache.set(key, { fields: mergedFields, data: mergedData }, ttl);
+    } else {
+      // New record
+      this.cache.set(key, { fields: new Set(fields), data: recordData }, ttl);
     }
   }
 
-  protected async cacheRecordAndRelations(
-    record: Record<string, any>,
-    select?: Record<string, any>
-  ): Promise<void> {
-    if (!this.config.cache) return;
-
-    const id = record[this.config.primaryKey].toString();
-    const recordWithoutRelations = { ...record };
-
-    if (this.config.relations) {
-      for (const relationName of Object.keys(this.config.relations)) {
-        if (recordWithoutRelations[relationName]) {
-          delete recordWithoutRelations[relationName];
-        }
-      }
-    }
-
-    this.modelCache.cacheRecord(
-      this.config.tableName,
-      id,
-      recordWithoutRelations,
-      this.columns,
-      this.config.cache.ttl
-    );
-
-    if (this.config.relations) {
-      for (const [relationName, relationConfig] of Object.entries(
-        this.config.relations
-      )) {
-        let relationIds: number[] | number | null = null;
-
-        if (relationConfig.type === "belongsTo") {
-          const foreignKey = relationConfig.prismaField;
-          relationIds = record[foreignKey] || null;
-        } else if (relationConfig.type === "hasMany" && record[relationName]) {
-          const relatedRecords = record[relationName] as Array<Record<string, any>>;
-          relationIds = relatedRecords.map((r) => r[relationConfig.targetPK]);
-        } else if (relationConfig.type === "hasOne" && record[relationName]) {
-          const relatedRecord = record[relationName] as Record<string, any>;
-          relationIds = relatedRecord[relationConfig.targetPK] || null;
-        }
-
-        if (relationIds !== null) {
-          this.modelCache.cacheRelationIds(
-            this.config.tableName,
-            id,
-            relationName,
-            relationIds,
-            this.config.cache.ttl
-          );
-        }
-      }
-    }
+  getCachedRecord(tableName: string, id: string, requiredFields?: string[]): Record<string, any> | null {
+    const cached = this.cache.get<CachedRecord>(this.getRecordKey(tableName, id));
+    if (!cached) return null;
+    
+    // If no specific fields required, return all cached data
+    if (!requiredFields) return cached.data;
+    
+    // Check if all required fields are cached
+    const hasAllFields = requiredFields.every(field => cached.fields.has(field));
+    return hasAllFields ? cached.data : null;
   }
 
-  protected async attachCachedRelations(record: Record<string, any>): Promise<T> {
-    if (!this.config.relations) return record as T;
+  // Relation operations  
+  cacheRelationIds(
+    tableName: string, 
+    id: string, 
+    relationName: string, 
+    ids: number[] | number | null,
+    ttl: number
+  ): void {
+    const key = this.getRelationsKey(tableName, id);
+    const existing = this.cache.get<RelationCache>(key) || {};
+    this.cache.set(key, { ...existing, [relationName]: ids }, ttl);
+  }
 
+  getCachedRelationIds(
+    tableName: string,
+    id: string,
+    relationName: string
+  ): number[] | number | null {
+    const relations = this.cache.get<RelationCache>(this.getRelationsKey(tableName, id));
+    return relations?.[relationName] ?? null;
+  }
+
+  // List operations
+  cacheList(tableName: string, params: ListParams, result: ListCacheResult, ttl: number): void {
+    const key = this.getListKey(tableName, params);
+    this.cache.set(key, result, ttl);
+  }
+
+  getCachedList(tableName: string, params: ListParams): ListCacheResult | null {
+    return this.cache.get<ListCacheResult>(this.getListKey(tableName, params));
+  }
+
+  // Invalidation
+  invalidateModel(tableName: string): void {
+    this.cache.invalidatePattern(new RegExp(`^${tableName}:`));
+  }
+
+  invalidateRecord(tableName: string, id: string): void {
+    // Invalidate record and its relations
+    this.cache.delete(this.getRecordKey(tableName, id));
+    this.cache.delete(this.getRelationsKey(tableName, id));
+    
+    // Also need to invalidate lists as they might contain this record's ID
+    this.cache.invalidatePattern(new RegExp(`^${tableName}:list:`));
+  }
+
+  // Private helpers
+  private stripRelations(record: Record<string, any>): Record<string, any> {
     const result = { ...record };
-    const id = record[this.config.primaryKey].toString();
-
-    for (const [relationName, relationConfig] of Object.entries(
-      this.config.relations
-    )) {
-      const relationIds = this.modelCache.getCachedRelationIds(
-        this.config.tableName,
-        id,
-        relationName
-      );
-
-      if (relationIds) {
-        if (Array.isArray(relationIds)) {
-          const relations = await Promise.all(
-            relationIds.map((rid) =>
-              this.modelCache.getCachedRecord(
-                relationConfig.model,
-                rid.toString()
-              )
-            )
-          );
-          result[relationName] = relations.filter(Boolean);
-        } else {
-          const relation = await this.modelCache.getCachedRecord(
-            relationConfig.model,
-            relationIds.toString()
-          );
-          if (relation) {
-            result[relationName] = relation;
-          }
-        }
+    for (const [key, value] of Object.entries(result)) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        delete result[key];
       }
     }
-
-    return result as T;
+    return result;
   }
 
-  protected notifySubscribers(id: string): void {
-    // Not needed in cache manager
-    throw new Error("Not implemented");
+  private getRecordKey(tableName: string, id: string): string {
+    return `${tableName}:${id}`;
+  }
+
+  private getRelationsKey(tableName: string, id: string): string {
+    return `${tableName}:${id}:relations`;
+  }
+
+  private getListKey(tableName: string, params: ListParams): string {
+    const normalizedParams = {
+      page: params.page || 1,
+      perPage: params.perPage || 10,
+      orderBy: params.orderBy || 'id',
+      orderDirection: params.orderDirection || 'desc',
+      where: params.where || {},
+      search: params.search || ''
+    };
+    return `${tableName}:list:${JSON.stringify(normalizedParams)}`;
+  }
+
+  private getIdsKey(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>): string {
+    const normalizedParams = {
+      orderBy: params.orderBy || 'id',
+      orderDirection: params.orderDirection || 'desc',
+      where: params.where || {},
+      search: params.search || ''
+    };
+    return `${tableName}:ids:${JSON.stringify(normalizedParams)}`;
+  }
+
+  // Non-paginated list operations
+  cacheIds(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>, ids: string[], ttl: number): void {
+    const key = this.getIdsKey(tableName, params);
+    this.cache.set(key, ids, ttl);
+  }
+
+  getCachedIds(tableName: string, params: Omit<ListParams, 'page' | 'perPage'>): string[] | null {
+    return this.cache.get<string[]>(this.getIdsKey(tableName, params));
   }
 }

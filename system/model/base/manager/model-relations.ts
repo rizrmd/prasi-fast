@@ -1,6 +1,6 @@
-import { ModelManager } from "./model-manager";
-import type { BaseRecord } from "./model-base";
-import type { WithFriends } from "./model-friend";
+import { ModelManager } from "../model-manager";
+import type { BaseRecord } from "../model-base";
+import type { WithFriends } from "../model-friend";
 
 export class ModelRelations<T extends BaseRecord = any> extends ModelManager<T> {
   // No friend interface needed for relations manager since it only has public methods

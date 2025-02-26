@@ -1,6 +1,6 @@
-import { ModelManager } from "./model-manager";
-import type { BaseRecord } from "./model-base";
-import { SubscriptionManagerFriend, WithFriends } from "./model-friend";
+import { ModelManager } from "../model-manager";
+import type { BaseRecord } from "../model-base";
+import { SubscriptionManagerFriend, WithFriends } from "../model-friend";
 
 export class ModelSubscription<T extends BaseRecord = any> extends ModelManager<T> implements WithFriends<SubscriptionManagerFriend> {
   public readonly _friend: SubscriptionManagerFriend = {
