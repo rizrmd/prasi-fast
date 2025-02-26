@@ -90,23 +90,26 @@ const relations: Record<string, RelationConfig> = {
 };
 
 export class User extends Model<PrismaUser> {
-  readonly config: ModelConfig = {
-    modelName: "User",
-    tableName: "user",
-    primaryKey: "id",
-    relations: relations as ModelRelations,
-    columns: columns as ModelColumns,
-  };
+  constructor() {
+    super();
+    this.setConfig({
+      modelName: "User",
+      tableName: "user",
+      primaryKey: "id",
+      relations: relations as ModelRelations,
+      columns: columns as ModelColumns,
+    });
+  }
 
   title(data: Partial<PrismaUser>): string {
     return `${data.username}`;
   }
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.config.columns);
+    return Object.keys(this.state.config.columns);
   }
 
   get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.config.relations);
+    return Object.keys(this.state.config.relations);
   }
 }

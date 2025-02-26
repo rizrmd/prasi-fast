@@ -28,13 +28,16 @@ const relations: Record<string, RelationConfig> = {
 };
 
 export class Role extends Model<PrismaRole> {
-  readonly config: ModelConfig = {
-    modelName: "Role",
-    tableName: "role",
-    primaryKey: "id",
-    relations: relations as ModelRelations,
-    columns: columns as ModelColumns
-  };
+  constructor() {
+    super();
+    this.setConfig({
+      modelName: "Role",
+      tableName: "m_role",
+      primaryKey: "id",
+      relations: relations as ModelRelations,
+      columns: columns as ModelColumns
+    });
+  }
 
   title(data: Partial<PrismaRole>): string {
     return `${data.name}`;
@@ -45,10 +48,10 @@ export class Role extends Model<PrismaRole> {
   }
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.config.columns);
+    return Object.keys(this.state.config.columns);
   }
 
   get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.config.relations);
+    return Object.keys(this.state.config.relations);
   }
 }

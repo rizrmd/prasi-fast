@@ -4,15 +4,15 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLocal } from "@/hooks/use-local";
 import { ProtectedRoute } from "@/lib/auth";
+import { parseHash } from "@/lib/parse-hash";
 import { Link } from "@/lib/router";
-import { FC, Fragment, ReactNode, useEffect } from "react";
+import { FC, Fragment, ReactNode, useEffect, useRef } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
-import { Skeleton } from "../ui/skeleton";
 import { ModelNavTabs } from "./nav-tabs";
-import { parseHash } from "@/lib/parse-hash";
 
 export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
   return (
@@ -34,7 +34,9 @@ const ContainerBreadcrumb = ({}: {}) => {
     breads: [] as { title: string; url: string }[],
   });
 
+  const modelRef = useRef<any>(null);
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     (async () => {
       const parts = location.pathname
         .substring("/model".length)
@@ -48,6 +50,7 @@ const ContainerBreadcrumb = ({}: {}) => {
       }) as ModelName;
 
       const model = models[modelName];
+      modelRef.current = model;
       if (model) {
         const breads = [] as typeof local.breads;
         if (model) {
@@ -82,10 +85,38 @@ const ContainerBreadcrumb = ({}: {}) => {
             });
           } else {
             const data = (await model.findFirst(id)) as any;
-            breads.push({
-              title: model.title(data),
-              url: `/model/${parts[0]}/detail/${id}`,
-            });
+
+            const updateBreadcrumb = (data: any) => {
+              const newTitle = model.title(data);
+              const newBreads = [...breads];
+              newBreads.push({
+                title: newTitle,
+                url: `/model/${parts[0]}/detail/${id}`,
+              });
+              local.breads = newBreads;
+              local.render();
+            };
+
+            updateBreadcrumb(data);
+            let currentId = id;
+
+            const subscribeToModel = (modelId: string) => {
+              model.subscribe([modelId]).then(async unsub => {
+                unsubscribe = unsub;
+                const newData = await model.findFirst(modelId);
+                if (newData) {
+                  updateBreadcrumb(newData);
+                }
+              });
+            };
+
+            subscribeToModel(currentId);
+
+            return () => {
+              if (unsubscribe) {
+                unsubscribe();
+              }
+            };
           }
         }
         local.breads = breads;
@@ -93,6 +124,9 @@ const ContainerBreadcrumb = ({}: {}) => {
       local.loading = false;
       local.render();
     })();
+
+    return () => {
+    };
   }, [location.pathname, location.hash]);
 
   return (

@@ -12,10 +12,10 @@ export abstract class ModelBase<T extends BaseRecord = any> {
   protected get modelCache() { return this.state.modelCache; }
 
   protected get prismaTable() {
-    if (!this.config?.tableName) {
-      throw new Error("Table name not configured");
+    if (!this.config?.modelName) {
+      throw new Error("Model name not configured");
     }
-    return this.prisma[this.config.tableName as keyof PrismaClient] as any;
+    return this.prisma[this.config.modelName as keyof PrismaClient] as any;
   }
 
   protected getDefaultConditions() {

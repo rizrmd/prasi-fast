@@ -17,14 +17,14 @@ export const prismaFrontendProxy = () => {
   return new Proxy(
     {},
     {
-      get: (target, tableName: string) => {
+      get: (target, modelName: string) => {
         return new Proxy(
           {},
           {
             get(target, method, receiver) {
               return async (...args: any[]) => {
-                if (!pending[tableName]) {
-                  pending[tableName] = {
+                if (!pending[modelName]) {
+                  pending[modelName] = {
                     ops: [],
                     timeout: null,
                     promises: [],
@@ -33,34 +33,34 @@ export const prismaFrontendProxy = () => {
                 }
 
                 const cacheKey = JSON.stringify({ method, args });
-                const cached = pending[tableName].cached[cacheKey];
+                const cached = pending[modelName].cached[cacheKey];
                 if (cached) {
                   const { value, ts } = cached;
                   if (Date.now() - ts < 1000) {
                     return value;
                   }
                 }
-                pending[tableName].ops.push({ method, args });
+                pending[modelName].ops.push({ method, args });
 
-                clearTimeout(pending[tableName].timeout);
-                pending[tableName].timeout = setTimeout(async () => {
+                clearTimeout(pending[modelName].timeout);
+                pending[modelName].timeout = setTimeout(async () => {
                   const url = new URL(config.backend.url);
-                  url.pathname = `/_system/models/${tableName}`;
+                  url.pathname = `/_system/models/${modelName}`;
                   const response = await fetch(url, {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/x-msgpack",
                     },
-                    body: pack(pending[tableName].ops),
+                    body: pack(pending[modelName].ops),
                   });
                   const result = await response.json();
                   let i = 0;
-                  for (const promise of pending[tableName].promises) {
+                  for (const promise of pending[modelName].promises) {
                     if (result instanceof Array) {
                       const value = result.shift();
 
-                      pending[tableName].cached[
-                        JSON.stringify(pending[tableName].ops[i])
+                      pending[modelName].cached[
+                        JSON.stringify(pending[modelName].ops[i])
                       ] = { ts: Date.now(), value };
                       
                       if (value && value.error) {
@@ -72,12 +72,12 @@ export const prismaFrontendProxy = () => {
                     i++;
                   }
 
-                  pending[tableName].ops = [];
-                  pending[tableName].promises = [];
+                  pending[modelName].ops = [];
+                  pending[modelName].promises = [];
                 }, 300);
 
                 return new Promise<any>((resolve, reject) => {
-                  pending[tableName].promises.push({ resolve, reject });
+                  pending[modelName].promises.push({ resolve, reject });
                 });
               };
             },

@@ -96,13 +96,16 @@ import { Model, DefaultColumns } from "system/model/model";
 import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
 
 export class ${className} extends Model<Prisma${className}> {
-  readonly config: ModelConfig = {
-    modelName: "${className}",
-    tableName: "${tableName}",
-    primaryKey: "${models[modelName].pk}",
-    relations: relations as ModelRelations,
-    columns: columns as ModelColumns
-  };
+  constructor() {
+    super();
+    this.setConfig({
+      modelName: "${className}",
+      tableName: "${tableName}",
+      primaryKey: "${models[modelName].pk}",
+      relations: relations as ModelRelations,
+      columns: columns as ModelColumns
+    });
+  }
 
   title(data: Partial<Prisma${className}>): string {
     return \`\${data.${titleColumn}}\`;

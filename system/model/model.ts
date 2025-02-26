@@ -9,7 +9,11 @@ import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
 import { ModelCache } from "./model-cache";
 
-export { defaultColumns, type DefaultColumns, type BaseRecord } from "./base/model-base";
+export {
+  defaultColumns,
+  type DefaultColumns,
+  type BaseRecord,
+} from "./base/model-base";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
   prisma: PrismaClient;
@@ -25,13 +29,13 @@ export interface ModelState<T extends BaseRecord> {
 }
 
 export class Model<T extends BaseRecord = any> {
-  private state: ModelState<T> = {
+  protected state: ModelState<T> = {
     prisma: undefined as unknown as PrismaClient,
     config: undefined as unknown as ModelConfig,
     data: null,
     mode: "server",
     currentUser: null,
-    modelCache: new ModelCache()
+    modelCache: new ModelCache(),
   };
   private cacheManager!: ModelCacheManager<T>;
   private queryManager!: ModelQuery<T>;
@@ -44,6 +48,14 @@ export class Model<T extends BaseRecord = any> {
 
   constructor() {
     this.initPromise = this.initialize();
+  }
+
+  get prisma() {
+    return this.state.prisma;
+  }
+
+  get config() {
+    return this.state.config;
   }
 
   private async initialize() {
@@ -65,24 +77,24 @@ export class Model<T extends BaseRecord = any> {
 
     // Share state with data managers first
     const dataManagers = [
-      this.cacheManager, 
-      this.queryManager, 
-      this.relationsManager, 
-      this.subscriptionManager
+      this.cacheManager,
+      this.queryManager,
+      this.relationsManager,
+      this.subscriptionManager,
     ];
 
-    dataManagers.forEach(manager => {
-      Object.defineProperty(manager, 'state', {
-        get: () => this.state
+    dataManagers.forEach((manager) => {
+      Object.defineProperty(manager, "state", {
+        get: () => this.state,
       });
     });
-    
+
     // Create concrete implementation of ModelCrud
     class ConcreteCrud extends ModelCrud<T> {
       constructor(private model: Model<T>) {
         super();
-        Object.defineProperty(this, 'state', {
-          get: () => model.state
+        Object.defineProperty(this, "state", {
+          get: () => model.state,
         });
       }
 
@@ -102,7 +114,10 @@ export class Model<T extends BaseRecord = any> {
         record: Record<string, any>,
         select?: Record<string, any>
       ) {
-        await this.model.cacheManager._friend.cacheRecordAndRelations(record, select);
+        await this.model.cacheManager._friend.cacheRecordAndRelations(
+          record,
+          select
+        );
       }
 
       protected async attachCachedRelations(record: Record<string, any>) {
@@ -124,12 +139,12 @@ export class Model<T extends BaseRecord = any> {
       this.cacheManager,
       this.queryManager,
       this.relationsManager,
-      this.subscriptionManager
+      this.subscriptionManager,
     ];
 
-    managers.forEach(manager => {
-      Object.defineProperty(manager, 'state', {
-        get: () => this.state
+    managers.forEach((manager) => {
+      Object.defineProperty(manager, "state", {
+        get: () => this.state,
       });
     });
   }
@@ -140,7 +155,7 @@ export class Model<T extends BaseRecord = any> {
       if (!this.state.config?.cache) {
         this.state.config = {
           ...this.state.config,
-          cache: { ttl: 60 }
+          cache: { ttl: 60 },
         };
       }
       this.state.prisma = prismaFrontendProxy() as PrismaClient;
@@ -177,7 +192,7 @@ export class Model<T extends BaseRecord = any> {
     await this.ensureInitialized();
     return this.subscriptionManager.subscribe(ids);
   }
-  
+
   // CRUD methods
   public async findFirst(
     idOrParams: string | Partial<PaginationParams>
