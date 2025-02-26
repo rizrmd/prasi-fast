@@ -101,6 +101,7 @@ export abstract class ModelCrud<
     > = {}
   ): Promise<T[]> {
     let queryParams = { ...params };
+    const ids = params.where?.id ? [params.where.id] : params.where?.id?.in;
 
     if (Array.isArray(params.select)) {
       queryParams.select = params.select.reduce(
@@ -112,14 +113,47 @@ export abstract class ModelCrud<
       );
     }
 
+    let results: T[] = [];
+    const uncachedIds: string[] = [];
+
+    // Check cache if we can identify specific records
+    if (this.shouldUseCache() && ids) {
+      for (const id of ids) {
+        try {
+          const cachedItem = this.state.modelCache.get<T>(
+            this.state.config.modelName,
+            id
+          );
+          if (cachedItem) {
+            results.push(cachedItem);
+          } else {
+            uncachedIds.push(id);
+          }
+        } catch (error) {
+          console.error("Cache read error:", error);
+          uncachedIds.push(id);
+        }
+      }
+    }
+
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
       : undefined;
 
-    const results = await this.prismaTable.findMany({
-      ...queryParams,
-      select: enhancedSelect,
-    });
+    // Query database for uncached items or when no specific IDs
+    if (!ids || uncachedIds.length > 0) {
+      const whereClause = ids 
+        ? { ...queryParams.where, id: { in: uncachedIds } }
+        : queryParams.where;
+
+      const dbResults = await this.prismaTable.findMany({
+        ...queryParams,
+        where: whereClause,
+        select: enhancedSelect,
+      });
+
+      results = ids ? [...results, ...dbResults] : dbResults;
+    }
 
     if (this.shouldUseCache() && results.length) {
       await Promise.all(
@@ -129,7 +163,7 @@ export abstract class ModelCrud<
       );
     }
 
-    return results as T[];
+    return results;
   }
 
   async findList(
@@ -144,6 +178,7 @@ export abstract class ModelCrud<
     let queryParams = { ...params };
     const page = queryParams.page || 1;
     const perPage = queryParams.perPage || 10;
+    const ids = params.where?.id ? [params.where.id] : params.where?.id?.in;
 
     if (Array.isArray(queryParams.select)) {
       queryParams.select = queryParams.select.reduce(
@@ -155,21 +190,56 @@ export abstract class ModelCrud<
       );
     }
 
+    let records: T[] = [];
+    const uncachedIds: string[] = [];
+    let totalCount = 0;
+    
+    // Check cache if we can identify specific records
+    if (this.shouldUseCache() && ids) {
+      for (const id of ids) {
+        try {
+          const cachedItem = this.state.modelCache.get<T>(
+            this.state.config.modelName,
+            id
+          );
+          if (cachedItem) {
+            records.push(cachedItem);
+          } else {
+            uncachedIds.push(id);
+          }
+        } catch (error) {
+          console.error("Cache read error:", error);
+          uncachedIds.push(id);
+        }
+      }
+    }
+
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
       : undefined;
 
     const skip = (page - 1) * perPage;
 
-    const [records, totalCount] = await Promise.all([
-      this.prismaTable.findMany({
-        ...queryParams,
-        select: enhancedSelect,
-        skip,
-        take: perPage,
-      }),
-      this.prismaTable.count({ where: queryParams.where }),
-    ]);
+    // Query database for uncached items or when no specific IDs
+    if (!ids || uncachedIds.length > 0) {
+      const whereClause = ids 
+        ? { ...queryParams.where, id: { in: uncachedIds } }
+        : queryParams.where;
+
+      const [dbRecords, count] = await Promise.all([
+        this.prismaTable.findMany({
+          ...queryParams,
+          where: whereClause,
+          select: enhancedSelect,
+          skip,
+          take: perPage,
+        }),
+        this.prismaTable.count({ where: whereClause }),
+      ]);
+
+      records = ids ? [...records, ...dbRecords] : dbRecords;
+      totalCount = count;
+    }
 
     if (this.shouldUseCache() && records.length) {
       await Promise.all(
@@ -180,7 +250,7 @@ export abstract class ModelCrud<
     }
 
     return {
-      data: records as T[],
+      data: records,
       page,
       perPage,
       total: totalCount,
