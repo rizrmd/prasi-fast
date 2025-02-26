@@ -2,6 +2,7 @@ import "@/index.css";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/lib/router";
 import { AppLoading } from "./app-loading";
+import { Layout } from "./layout";
 
 function NavBar() {
   const { user, logout } = useAuth();
@@ -60,11 +61,11 @@ function AppContent() {
   if (isLoading) {
     return <AppLoading />;
   }
-  // if (currentPath.startsWith("/auth")) {
-  return <>{Page ? <Page /> : <div>Page not found</div>}</>;
-  // }
+  if (currentPath.startsWith("/auth")) {
+    return <>{Page ? <Page /> : <div>Page not found</div>}</>;
+  }
 
-  // return <Layout>{Page ? <Page /> : <div>Page not found</div>}</Layout>;
+  return <Layout>{Page ? <Page /> : <div>Page not found</div>}</Layout>;
 }
 
 export function App() {

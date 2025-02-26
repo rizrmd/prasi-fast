@@ -30,10 +30,10 @@ export const ModelNavTabs = () => {
               border: 1px solid transparent;
               border-bottom: 0;
               position: absolute;
+              cursor: pointer;
             }
             .tab-item[data-state="active"] {
-              background: #f1f5f9;
-              background: linear-gradient(180deg, white 0%, #f1f5f9);
+              background: white;
               box-shadow: none !important;
               border-bottom-left-radius: 0;
               border-bottom-right-radius: 0;

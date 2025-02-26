@@ -2,7 +2,7 @@ import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
-  BreadcrumbSeparator
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useLocal } from "@/hooks/use-local";
 import { ProtectedRoute } from "@/lib/auth";
@@ -11,11 +11,13 @@ import { FC, Fragment, ReactNode, useEffect } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { Skeleton } from "../ui/skeleton";
+import { ModelNavTabs } from "./nav-tabs";
 
 export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <ProtectedRoute>
       <div className="flex flex-col flex-1 bg-slate-100">
+        <ModelNavTabs />
         <ContainerBreadcrumb />
         <div className="p-2  flex flex-1 items-stretch flex-col">
           {children}
@@ -72,7 +74,7 @@ const ContainerBreadcrumb = ({}: {}) => {
     })();
   }, [location.pathname, location.hash]);
   return (
-    <Breadcrumb className="p-2 border-b">
+    <Breadcrumb className="p-2 border-b bg-white">
       <BreadcrumbList>
         {local.breads.map((bread, index) => (
           <Fragment key={index}>
