@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/global-alert";
 import { Input } from "@/components/ui/input";
 import { useReader, useWriter } from "@/hooks/use-read-write";
+import { parseHash } from "@/lib/parse-hash";
 import { navigate, useParams } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
@@ -19,7 +20,7 @@ import { ModelName, Models } from "shared/types";
 import { Fields } from "system/model/layout/types";
 import { snapshot } from "valtio";
 
-type FormWriter = { data: any; unsaved: boolean };
+type FormWriter = { data: any; unsaved: boolean; resetting: boolean };
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
@@ -28,15 +29,28 @@ export const DetailForm: FC<{
   onChanged?: (changedData: any) => void;
   unsavedData?: any;
 }> = ({ model, fields, data, onChanged, unsavedData }) => {
+  const params = useParams();
   const writer = useWriter({
     data: {} as any,
     unsaved: false,
+    resetting: false,
   } as FormWriter);
 
   if (!fields) return null;
 
-  const reset = () => {
-    if (unsavedData) {
+  useEffect(() => {
+    if (params.id === "clone") {
+      const prev_id = parseHash()["prev"];
+      if (!prev_id) {
+        navigate(`/model/${model.config.modelName.toLowerCase()}/new`);
+      } else {
+        const newData = structuredClone(data);
+        writer.data = newData;
+        delete writer.data[model.config.primaryKey];
+        writer.unsaved = true;
+        onChanged?.(newData);
+      }
+    } else if (unsavedData) {
       const snapshotData = snapshot(unsavedData);
       writer.data = structuredClone(data);
       for (const [k, v] of Object.entries(snapshotData)) {
@@ -48,15 +62,31 @@ export const DetailForm: FC<{
       writer.unsaved = false;
       onChanged?.(undefined);
     }
-  };
-
-  useEffect(() => {
-    reset();
   }, [data]);
 
   return (
     <div className={cn("flex flex-col items-stretch flex-1 -mt-3")}>
-      <Toolbar writer={writer} model={model} onReset={reset} />
+      <Toolbar
+        writer={writer}
+        model={model}
+        onReset={() => {
+          const prev_id = parseHash()["prev"];
+          if (params.id === "clone" && prev_id) {
+            navigate(
+              `/model/${model.config.modelName.toLowerCase()}/detail/${prev_id}`
+            );
+            return;
+          }
+          onChanged?.(undefined);
+
+          writer.data = structuredClone(data);
+          writer.unsaved = false;
+          writer.resetting = true;
+          setTimeout(() => {
+            writer.resetting = false;
+          }, 100);
+        }}
+      />
       <div className="flex flex-1 relative flex-col items-stretch">
         <RecursiveFields
           model={model}
@@ -73,7 +103,7 @@ export const DetailForm: FC<{
 
 const Toolbar: FC<{
   writer: FormWriter;
-  onReset: () => void;
+  onReset: (from: string) => void;
   model: Models[keyof Models];
 }> = ({ writer, model, onReset }) => {
   const params = useParams();
@@ -113,37 +143,30 @@ const Toolbar: FC<{
             <ChevronRight />
           </Button>
         </SimpleTooltip>
-        {!form.unsaved && (
+        {!form.unsaved && !["new", "clone"].includes(params.id) && (
           <SimpleTooltip content="Duplikat data ini">
             <Button
               size="sm"
               variant={"outline"}
               className={cn("text-xs rounded-sm cursor-pointer")}
-              onClick={async () => {
-                const confirmed = await Alert.confirm(
-                  "Apakah anda yakin ingin menduplikat data ini?"
-                );
-                if (confirmed) {
-                  Alert.info("terhapus!");
-                }
-              }}
+              href={`/model/${model.config.modelName.toLowerCase()}/detail/clone#prev=${
+                params.id
+              }`}
             >
               <Copy strokeWidth={1.5} />
             </Button>
           </SimpleTooltip>
         )}
 
-        {params.id !== "new" && (
+        {!form.unsaved && !["new", "clone"].includes(params.id) && (
           <SimpleTooltip content="Tambah data baru">
             <Button
               size="sm"
-              variant={"outline"}
+              href={`/model/${model.config.modelName.toLowerCase()}/detail/new#prev=${
+                params.id
+              }`}
               className={cn("text-xs rounded-sm cursor-pointer")}
-              onClick={() => {
-                navigate(
-                  `/model/${model.config.modelName.toLowerCase()}/detail/new`
-                );
-              }}
+              variant={"outline"}
             >
               <Plus strokeWidth={1.5} />
               <div className="-ml-1">Tambah</div>
@@ -162,11 +185,11 @@ const Toolbar: FC<{
                 )}
                 onClick={async () => {
                   const confirmed = await Alert.confirm(
-                    "Apakah anda yakin ingin me-reset data ini seperti sebelum dientry?"
+                    "Apakah anda yakin ingin me-reset data ini seperti awal?"
                   );
 
                   if (confirmed) {
-                    onReset();
+                    onReset("reset");
                   }
                 }}
               >
@@ -287,18 +310,19 @@ const Field: FC<{
   const config = model.config.columns[col];
   const value = form.data[col];
   return (
-    <div className="field flex-1 flex flex-col gap-1 text-sm">
-      <label className="font-medium">{config.label}</label>
+    <label className="field flex-1 flex flex-col gap-1 text-sm">
+      <div className="font-medium">{config.label}</div>
       <Input
+        asDiv={form.resetting}
         className="bg-white"
-        value={value || ""}
-        onChange={(e) => {
-          const value = e.currentTarget.value;
+        defaultValue={value || ""}
+        onInput={(e) => {
+          const value = (e.target as HTMLInputElement).value;
           writer.data[col] = value;
           writer.unsaved = true;
           onChange(value);
         }}
       />
-    </div>
+    </label>
   );
 };

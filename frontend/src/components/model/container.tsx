@@ -12,6 +12,7 @@ import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { Skeleton } from "../ui/skeleton";
 import { ModelNavTabs } from "./nav-tabs";
+import { parseHash } from "@/lib/parse-hash";
 
 export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
   return (
@@ -30,7 +31,7 @@ export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
 const ContainerBreadcrumb = ({}: {}) => {
   const local = useLocal({
     loading: false,
-    breads: [] as { title: string; url: string, }[],
+    breads: [] as { title: string; url: string }[],
   });
 
   useEffect(() => {
@@ -61,9 +62,22 @@ const ContainerBreadcrumb = ({}: {}) => {
           local.loading = true;
           local.render();
           const id = parts[2];
-          if (id === "new") {
+          if (id === "new" || id === "clone") {
+            const prev_id = parseHash()["prev"];
+            if (prev_id) {
+              try {
+                const data = (await model.findFirst(prev_id)) as any;
+                if (data) {
+                  breads.push({
+                    title: model.title(data),
+                    url: `/model/${parts[0]}/detail/${prev_id}`,
+                  });
+                }
+              } catch (e) {}
+            }
+
             breads.push({
-              title: 'Tambah Baru',
+              title: id === "new" ? "Tambah Baru" : "Duplikat",
               url: `/model/${parts[0]}/detail/${id}`,
             });
           } else {

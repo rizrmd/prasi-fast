@@ -32,22 +32,14 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   return (
     <>
       <div className="rounded-md border bg-white">
-        <DetailForm
-          model={model.instance}
-          fields={detail.current.fields}
-          data={detail.data}
-          // unsavedData={writer.unsavedTabs[writer.idx]}
-          // onChanged={(data) => {
-          //   writer.unsavedTabs[writer.idx] = data;
-          // }}
-        />
-        {/* <MDetailTabs model={model.instance} detail={detail.current}>
+        <MDetailTabs model={model.instance} detail={detail.current}>
           {({ activeTab, writer }) => {
             if (
               activeTab.type === "default" &&
               model.instance &&
               detail.current
             ) {
+              if (detail.data === null) return null;
               return (
                 <DetailForm
                   model={model.instance}
@@ -61,7 +53,7 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
               );
             }
           }}
-        </MDetailTabs> */}
+        </MDetailTabs>
       </div>
     </>
   );

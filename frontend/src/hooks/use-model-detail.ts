@@ -6,6 +6,7 @@ import { Fields, LayoutDetail } from "system/model/layout/types";
 import { defaultColumns } from "system/model/model";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
+import { parseHash } from "@/lib/parse-hash";
 
 type ModelRecord = {
   id: string;
@@ -25,7 +26,6 @@ export const useModelDetail = ({
   model: ReturnType<typeof useModel>;
 }) => {
   const params = useParams();
-  const id = params.id;
   const detail = useLocal<DetailState<ModelRecord>>({
     loading: false,
     available: false,
@@ -56,11 +56,19 @@ export const useModelDetail = ({
     const fetchData = async () => {
       if (!model.instance || !layout?.detail) return;
 
-      if (params.id === 'new') {
+      let id = params.id;
+      if (params.id === "new") {
         detail.data = {} as any;
         detail.loading = false;
         detail.render();
         return;
+      } else if (params.id === "clone") {
+        const prev_id = parseHash()["prev"];
+        if (prev_id) {
+          id = prev_id;
+        } else {
+          return;
+        }
       }
 
       detail.loading = true;
@@ -90,23 +98,35 @@ export const useModelDetail = ({
             > => {
               const processFields = (
                 input: Fields<T>
-              ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
+              ): Record<
+                string,
+                boolean | { select: Record<string, boolean | object> }
+              > => {
                 if (Array.isArray(input)) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("vertical" in input) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input.vertical) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("horizontal" in input) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input.horizontal) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);

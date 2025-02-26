@@ -1,6 +1,7 @@
+import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { cn } from "@/lib/utils";
-import { Asterisk } from "lucide-react";
+import { Asterisk, TriangleAlert } from "lucide-react";
 import { FC, ReactNode } from "react";
 import { ModelName, Models } from "shared/types";
 import { DetailTab, LayoutDetail } from "system/model/layout/types";
@@ -77,12 +78,20 @@ const Tabs: FC<{
             }}
             key={idx}
           >
-            {e.title}{" "}
-            {unsavedTabs[idx] && (
-              <div className="text-red-500">
-                <Asterisk size="12" />
-              </div>
-            )}
+            <>
+              {unsavedTabs[idx] ? (
+                <SimpleTooltip content="Belum disimpan" delay={300}>
+                  <div className="flex items-center">
+                    {e.title}
+                    <div className="text-red-500 ml-1">
+                      <TriangleAlert size="12" />
+                    </div>
+                  </div>
+                </SimpleTooltip>
+              ) : (
+                <>{e.title} </>
+              )}
+            </>
           </div>
         );
       })}
