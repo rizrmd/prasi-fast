@@ -25,7 +25,7 @@ model User {
   changelogs          ChangeLog[]
   sessions            Session[]
   role                Role?       @relation(fields: [id_role], references: [id])
-  id_role             String      @db.Uuid
+  id_role             String?     @db.Uuid
 
   @@map("m_user")
 }

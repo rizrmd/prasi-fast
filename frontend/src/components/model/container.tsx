@@ -1,20 +1,31 @@
-import { FC, Fragment, ReactNode, useEffect } from "react";
 import {
   Breadcrumb,
-  BreadcrumbEllipsis,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+  BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
-import * as models from "shared/models";
 import { useLocal } from "@/hooks/use-local";
+import { ProtectedRoute } from "@/lib/auth";
+import { Link } from "@/lib/router";
+import { FC, Fragment, ReactNode, useEffect } from "react";
+import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { Skeleton } from "../ui/skeleton";
-import { Link } from "@/lib/router";
 
 export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
+  return (
+    <ProtectedRoute>
+      <div className="flex flex-col flex-1 bg-slate-100">
+        <ContainerBreadcrumb />
+        <div className="p-2  flex flex-1 items-stretch flex-col">
+          {children}
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
+};
+
+const ContainerBreadcrumb = ({}: {}) => {
   const local = useLocal({
     loading: false,
     breads: [] as { title: string; url: string }[],
@@ -60,32 +71,28 @@ export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
       local.render();
     })();
   }, [location.pathname, location.hash]);
-
   return (
-    <div className="flex flex-col flex-1 bg-slate-100">
-      <Breadcrumb className="p-2 border-b">
-        <BreadcrumbList>
-          {local.breads.map((bread, index) => (
-            <Fragment key={index}>
-              <BreadcrumbItem className="hover:underline">
-                <Link to={bread.url}>{bread.title}</Link>
-              </BreadcrumbItem>
-              {index < local.breads.length - 1 && <BreadcrumbSeparator />}
-            </Fragment>
-          ))}
-          {local.loading && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <div className="h-[20px] flex items-center">
-                  <Skeleton className="h-[15px] w-[60px]" />
-                </div>
-              </BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
-      <div className="p-2  flex flex-1 items-stretch flex-col">{children}</div>
-    </div>
+    <Breadcrumb className="p-2 border-b">
+      <BreadcrumbList>
+        {local.breads.map((bread, index) => (
+          <Fragment key={index}>
+            <BreadcrumbItem className="hover:underline">
+              <Link to={bread.url}>{bread.title}</Link>
+            </BreadcrumbItem>
+            {index < local.breads.length - 1 && <BreadcrumbSeparator />}
+          </Fragment>
+        ))}
+        {local.loading && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <div className="h-[20px] flex items-center">
+                <Skeleton className="h-[15px] w-[60px]" />
+              </div>
+            </BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 };

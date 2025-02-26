@@ -1,4 +1,5 @@
 import { ModelContainer } from "@/components/model/container";
+import { MDetail } from "@/components/model/detail";
 import { useParams } from "@/lib/router";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
@@ -11,5 +12,9 @@ export default () => {
   }) as ModelName;
   if (!modelName) modelName = params.name as any;
 
-  return <ModelContainer>asdas</ModelContainer>;
+  return (
+    <ModelContainer>
+      <MDetail modelName={modelName} />
+    </ModelContainer>
+  );
 };

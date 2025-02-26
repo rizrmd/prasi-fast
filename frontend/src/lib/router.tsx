@@ -68,7 +68,7 @@ function matchRoute(path: string, routePattern: RoutePattern): Params | null {
 }
 
 export function useRouter() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const local = useLocal({
     currentPath: window.location.pathname,
     Page: null as React.ComponentType | null,
@@ -161,6 +161,7 @@ export function useRouter() {
     currentPath: local.currentPath,
     navigate,
     params: local.params,
+    isLoading
   };
 }
 

@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 
 import * as Models from "shared/models";
+import { LayoutTable } from "system/model/layout/types";
+import { ModelName } from "shared/types";
 
 export const useModelTable = ({
   model,
@@ -12,30 +14,29 @@ export const useModelTable = ({
   model: ReturnType<typeof useModel>;
 }) => {
   const table = useLocal({
-    ready: false,
     available: false,
     loading: false,
     columns: [] as ColumnDef<any, any>[],
     result: null as Awaited<
       ReturnType<Exclude<(typeof model)["instance"], null>["findMany"]>
     > | null,
+    current: null as LayoutTable<ModelName> | null,
   });
-
-  let layout = (layouts as any)[
-    model.name
-  ] as (typeof layouts)[keyof typeof layouts];
 
   useEffect(() => {
     if (model.ready) {
-      table.ready = true;
+      let layout = (layouts as any)[
+        model.name
+      ] as (typeof layouts)[keyof typeof layouts];
+
+      table.current = layout?.table || null;
       if (layout && layout.table) {
         table.available = true;
       }
-    } else {
-      table.ready = false;
     }
+    table.loading = false;
     table.render();
-  }, [model.ready, layout]);
+  }, [model.ready]);
 
   useEffect(() => {
     let isMounted = true;
@@ -163,7 +164,8 @@ export const useModelTable = ({
     };
 
     const fetchData = async () => {
-      if (!table.ready || !model.instance || !layout?.table) return;
+      const layout = { table: table.current };
+      if (!model.instance || !layout.table) return;
 
       table.loading = true;
       table.render();
@@ -280,7 +282,7 @@ export const useModelTable = ({
     return () => {
       isMounted = false;
     };
-  }, [table.ready, model.instance, layout?.table]);
+  }, [table.current]);
 
   return table;
 };
