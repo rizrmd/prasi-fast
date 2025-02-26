@@ -9,9 +9,18 @@ function NavBar() {
   return (
     <nav className="mb-8 flex items-center justify-between">
       <div>
-        <Link to="/" className="mx-2 text-blue-500 hover:text-blue-700">Home</Link>
-        <Link to="/api-tester" className="mx-2 text-blue-500 hover:text-blue-700">API Tester</Link>
-        <Link to="/about" className="mx-2 text-blue-500 hover:text-blue-700">About</Link>
+        <Link to="/" className="mx-2 text-blue-500 hover:text-blue-700">
+          Home
+        </Link>
+        <Link
+          to="/api-tester"
+          className="mx-2 text-blue-500 hover:text-blue-700"
+        >
+          API Tester
+        </Link>
+        <Link to="/about" className="mx-2 text-blue-500 hover:text-blue-700">
+          About
+        </Link>
       </div>
       <div>
         {user ? (
@@ -26,8 +35,18 @@ function NavBar() {
           </div>
         ) : (
           <div>
-            <Link to="/auth/login" className="mx-2 text-blue-500 hover:text-blue-700">Login</Link>
-            <Link to="/auth/register" className="mx-2 text-blue-500 hover:text-blue-700">Register</Link>
+            <Link
+              to="/auth/login"
+              className="mx-2 text-blue-500 hover:text-blue-700"
+            >
+              Login
+            </Link>
+            <Link
+              to="/auth/register"
+              className="mx-2 text-blue-500 hover:text-blue-700"
+            >
+              Register
+            </Link>
           </div>
         )}
       </div>
@@ -36,17 +55,16 @@ function NavBar() {
 }
 
 function AppContent() {
-  const { Page } = useRouter();
+  const { Page, currentPath } = useRouter();
 
-  return (
-    <Layout>
-      {Page ? <Page /> : <div>Page not found</div>}
-    </Layout>
-  );
+  if (currentPath.startsWith("/auth")) {
+    return <>{Page ? <Page /> : <div>Page not found</div>}</>;
+  }
+
+  return <Layout>{Page ? <Page /> : <div>Page not found</div>}</Layout>;
 }
 
 export function App() {
-
   return (
     <AuthProvider>
       <AppContent />

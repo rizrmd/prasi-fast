@@ -28,6 +28,35 @@ interface RunOptions {
 // Track child processes for cleanup
 const childProcesses: { kill: () => void }[] = [];
 
+// Global cleanup function
+const cleanup = () => {
+  console.log(
+    `\n${cyan}⚡️ Shutting down ${childProcesses.length} running processes...${reset}`
+  );
+  childProcesses.forEach((process) => process.kill());
+};
+
+// Track if cleanup has already run
+let isCleaningUp = false;
+
+// Handle process termination
+const handleTermination = () => {
+  if (!isCleaningUp) {
+    isCleaningUp = true;
+    cleanup();
+    process.exit(0);
+  }
+};
+
+process.on("SIGINT", handleTermination);
+process.on("SIGTERM", handleTermination);
+process.on("exit", () => {
+  if (!isCleaningUp) {
+    isCleaningUp = true;
+    cleanup();
+  }
+});
+
 function runCommand(
   command: string,
   args: string[],
@@ -37,13 +66,35 @@ function runCommand(
   return new Promise((resolve, reject) => {
     const process = spawn(command, args, {
       cwd,
-      stdio,
+      stdio: stdio === "inherit" ? "inherit" : ["inherit", "pipe", "pipe"], // fully inherit or just inherit stdin
       shell: true,
     });
 
     childProcesses.push(process);
 
+    const isServer =
+      args.includes("server.ts") || args.includes("src/index.html");
+
+    // For servers, wait a short delay to ensure initialization
+    if (isServer) {
+      setTimeout(() => {
+        // If process is still running after delay, consider it initialized
+        if (childProcesses.includes(process)) {
+          resolve();
+        }
+      }, 100);
+    } else {
+      // For non-server processes, resolve immediately
+      resolve();
+    }
+
+    // Only show stderr
+    process.stderr?.on("data", (data) => {
+      console.error(`${red}${data.toString().trim()}${reset}`);
+    });
+
     process.on("error", (error) => {
+      console.error(`${red}${error.message}${reset}`);
       reject(new Error(`Failed to start process: ${error.message}`));
     });
 
@@ -53,16 +104,10 @@ function runCommand(
         childProcesses.splice(index, 1);
       }
 
-      if (code === 0) {
-        resolve();
-      } else {
+      // For non-zero exit codes, reject with error
+      if (code !== 0) {
         reject(new Error(`Process exited with code ${code}`));
       }
-    });
-
-    // Handle parent process exit
-    process.on("SIGTERM", () => {
-      process.kill();
     });
   });
 }
@@ -97,7 +142,7 @@ async function runFrontend({
     process.env.NODE_ENV = "production";
   }
 
-  await runCommand(command, args, cwd, "ignore");
+  await runCommand(command, args, cwd, "inherit");
 }
 
 async function runBackend({
@@ -119,7 +164,7 @@ async function runBackend({
     process.env.NODE_ENV = "production";
   }
 
-  await runCommand(command, args, cwd);
+  await runCommand(command, args, cwd, "inherit");
 }
 
 async function build() {
@@ -131,7 +176,7 @@ async function build() {
   await runCommand("bun", ["run", "build.ts"], frontendCwd);
 }
 
-function runCombined({
+async function runCombined({
   port = DEFAULT_PORT,
   hot = true,
   prod = false,
@@ -145,39 +190,57 @@ function runCombined({
     }
 
     console.clear();
-    process.stdout.write(
-      `${cyan}⚡️ Starting ${
-        prod ? "production" : "development"
-      } server...${reset}\n`
+    console.log(
+      `\n${cyan}⚡️ Starting ${
+        prod ? "Production" : "Development"
+      } Server${reset}\n`
     );
 
-    // Start both servers without awaiting them
-    runFrontend({ port, hot, prod }).catch((error) => {
-      console.error(`${red}Frontend failed: ${error.message}${reset}`);
+    // Build phase
+    console.log(`${cyan}[1/3]${reset} Building API...`);
+    try {
+      await buildApis();
+      console.log(`${green}✓${reset} API build complete\n`);
+    } catch (error) {
+      console.error(`\n${red}✕ API build failed: ${error}${reset}`);
       process.exit(1);
-    });
+    }
 
-    runBackend({ port: API_PORT, host: API_HOST, hot, prod }).catch((error) => {
-      console.error(`${red}Backend failed: ${error.message}${reset}`);
+    // Start servers
+    console.log(`${cyan}[2/3]${reset} Starting servers in parallel...`);
+    try {
+      await Promise.all([
+        runFrontend({ port, hot, prod })
+          .then(() => console.log(`${green}✓${reset} Frontend server ready`))
+          .catch((error: any) => {
+            console.error(
+              `\n${red}✕ Frontend failed: ${error.message}${reset}`
+            );
+            process.exit(1);
+          }),
+        runBackend({ port: API_PORT, host: API_HOST, hot, prod })
+          .then(() => console.log(`${green}✓${reset} Backend server ready`))
+          .catch((error: any) => {
+            console.error(`\n${red}✕ Backend failed: ${error.message}${reset}`);
+            process.exit(1);
+          }),
+      ]);
+
+      // Final status
+      console.log(`\n${cyan}[3/3]${reset} All services ready!\n`);
+      console.clear();
+      console.log(`🚀 Prasi Fast\n`);
+      console.log(` ${green}• Frontend${reset} ▸  ${config.frontend.url}`);
+      console.log(` ${cyan}• Backend${reset}  ▸  ${config.backend.url}\n`);
+    } catch (error: any) {
+      console.error(
+        `\n${red}✕ Server initialization failed: ${error.message}${reset}`
+      );
       process.exit(1);
-    });
-
-    // Show URLs after a short delay to ensure servers have started
-    setTimeout(() => {
-      console.log(`   🌐 ${green}Frontend ${config.frontend.url}${reset}`);
-      console.log(`   🗄️  ${cyan}Backend  ${config.backend.url}${reset}`);
-    }, 100);
+    }
 
     // Keep the process alive
     process.stdin.resume();
-
-    // Ensure clean shutdown
-    process.on("SIGINT", () => {
-      console.log("\nShutting down servers...");
-      // Kill all child processes
-      childProcesses.forEach((process) => process.kill());
-      process.exit(0);
-    });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
@@ -198,22 +261,24 @@ const options: RunOptions = {
 };
 
 // Command execution
-switch (command) {
-  case "frontend":
-    runFrontend(options);
-    break;
-  case "backend":
-    runBackend(options);
-    break;
-  case "combined":
-    runCombined(options);
-    break;
-  case "build":
-    build();
-    break;
-  default:
-    console.error(
-      "Unknown command. Available commands: frontend, backend, combined, build"
-    );
-    process.exit(1);
-}
+(async () => {
+  switch (command) {
+    case "frontend":
+      runFrontend(options);
+      break;
+    case "backend":
+      runBackend(options);
+      break;
+    case "combined":
+      await runCombined(options);
+      break;
+    case "build":
+      build();
+      break;
+    default:
+      console.error(
+        "Unknown command. Available commands: frontend, backend, combined, build"
+      );
+      process.exit(1);
+  }
+})();

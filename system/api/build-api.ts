@@ -15,12 +15,17 @@ async function generateAPICode(apiFiles: string[]): Promise<string> {
   let apiObject = "";
 
   for (const file of apiFiles) {
-    const { path } = require(`backend/src/api/${file}`).default;
     const name = file.replace(".ts", "");
     const camelName = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    imports += `import type ${camelName} from "backend/src/api/${name}";\n`;
-
-    apiObject += `  ${camelName}: apiClient<typeof ${camelName}>("${path}"),\n`;
+    
+    try {
+      const module = await import(`../../backend/src/api/${name}`);
+      const { path } = module.default;
+      imports += `import type ${camelName} from "backend/src/api/${name}";\n`;
+      apiObject += `  ${camelName}: apiClient<typeof ${camelName}>("${path}"),\n`;
+    } catch (error) {
+      console.error(`Failed to import API file ${file}:`, error);
+    }
   }
 
   return `// This file is auto-generated. Do not edit manually.

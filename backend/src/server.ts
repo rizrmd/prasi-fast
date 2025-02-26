@@ -2,18 +2,14 @@ import { BunRequest, serve } from "bun";
 import { statSync } from "fs";
 import { join } from "path";
 import { modelRoute } from "system/model/model-route";
-import * as api from "./generated/api";
-import * as systemAPI from "system/api";
 import config from "../../config.json";
 import { parseServerUrl } from "../../shared/types/config";
+import * as api from "./generated/api";
 
 const { port: PORT, host: HOST } = process.env.PORT
   ? { port: parseInt(process.env.PORT), host: "localhost" }
   : parseServerUrl(config.backend.url);
-const STATIC_DIR =
-  process.env.NODE_ENV === "production"
-    ? "../frontend/dist"
-    : "../frontend/src";
+const STATIC_DIR = "../../frontend/dist";
 
 function serveStatic(path: string) {
   try {
@@ -24,7 +20,8 @@ function serveStatic(path: string) {
       return new Response(Bun.file(fullPath));
     }
     return null;
-  } catch {
+  } catch (e) {
+    console.error(e);
     return null;
   }
 }
@@ -122,24 +119,24 @@ const server = serve({
       return response;
     }
 
-    // For all other routes, serve index.html for client-side routing
-    const indexResponse = serveStatic("index.html");
-    if (indexResponse) {
-      addCorsHeaders(indexResponse.headers);
-      return indexResponse;
-    }
+    // // serve frontend static site
+    // const indexResponse = serveStatic("index.html");
+    // if (indexResponse) {
+    //   addCorsHeaders(indexResponse.headers);
+    //   return indexResponse;
+    // }
 
-    const errorResponse = new Response(
-      JSON.stringify({ error: "Server Error" }),
+    const readyResponse = new Response(
+      JSON.stringify({ status: "Server Ready" }),
       {
-        status: 500,
+        status: 200,
         headers: {
           "Content-Type": "application/json",
         },
       }
     );
-    addCorsHeaders(errorResponse.headers);
-    return errorResponse;
+    addCorsHeaders(readyResponse.headers);
+    return readyResponse;
   },
 });
 
