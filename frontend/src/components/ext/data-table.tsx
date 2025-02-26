@@ -20,7 +20,7 @@ import { ModelName } from "shared/types";
 import { PaginationResult } from "system/types";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import { Ellipsis } from "lucide-react";
+import { ChevronDown, Ellipsis } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutTable } from "system/model/layout/types";
 
@@ -177,8 +177,13 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                   );
                 })}
                 <TableCell className="flex items-center justify-end">
-                  <div className="opacity-0 action transition-all border rounded-sm px-1 hover:bg-white hover:border-blue-400 hover:text-blue-600">
-                    <Ellipsis size={20} />
+                  <div
+                    className="opacity-0 action transition-all border rounded-sm px-1 hover:bg-white hover:border-blue-400 hover:text-blue-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <ChevronDown size={15} />
                   </div>
                 </TableCell>
               </TableRow>

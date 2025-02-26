@@ -33,3 +33,13 @@ export type LayoutTable<Name extends ModelName> = {
     actions: { label: ReactNode; onClick: () => void }[];
   };
 };
+
+type Fields<Name extends ModelName> =
+  | Column<Name>[]
+  | { flow: "horizontal" | "vertical"; fields: Fields<Name> }
+  | Fields<Name>[]; // Nested fields
+
+export type LayoutDetail<Name extends ModelName> = {
+  fields: Fields<Name>;
+  tabs: Models[Name]["relations"][number][];
+};
