@@ -1,7 +1,7 @@
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { cn } from "@/lib/utils";
-import { Asterisk, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { FC, ReactNode } from "react";
 import { ModelName, Models } from "shared/types";
 import { DetailTab, LayoutDetail } from "system/model/layout/types";

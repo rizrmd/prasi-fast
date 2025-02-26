@@ -1,14 +1,11 @@
 import { WarnFull } from "@/components/app/warn-full";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useModel } from "@/hooks/use-model";
 import { useModelDetail } from "@/hooks/use-model-detail";
 import { FC } from "react";
-import { ModelName, Models } from "shared/types";
-import { Fields } from "system/model/layout/types";
+import { ModelName } from "shared/types";
 import { MDetailTabs } from "./detail-tabs";
 import { DetailForm } from "./form";
-import { snapshot } from "valtio";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
@@ -44,6 +41,8 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
                 <DetailForm
                   model={model.instance}
                   fields={detail.current.fields}
+                  save={detail.save}
+                  del={detail.del}
                   data={detail.data}
                   unsavedData={writer.unsavedTabs[writer.idx]}
                   onChanged={(data) => {

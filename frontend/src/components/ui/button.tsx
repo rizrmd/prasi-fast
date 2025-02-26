@@ -41,13 +41,17 @@ function Button({
   size,
   asChild = false,
   href,
+  asDiv = false,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    asDiv?: boolean;
     href?: string;
   }) {
-  const Comp = asChild ? Slot : "button";
+  const Comp = asChild
+    ? Slot
+    : ((asDiv && !props.disabled ? "div" : "button") as "button");
 
   if (href) {
     return (
@@ -61,7 +65,7 @@ function Button({
       >
         <Comp
           data-slot="button"
-          className={cn(buttonVariants({ variant, size, className }))}
+          className={cn("button", buttonVariants({ variant, size, className }))}
           {...props}
         />
       </a>
@@ -71,7 +75,7 @@ function Button({
   return (
     <Comp
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn("button", buttonVariants({ variant, size, className }))}
       {...props}
     />
   );

@@ -2,6 +2,7 @@ import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/global-alert";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { parseHash } from "@/lib/parse-hash";
 import { navigate, useParams } from "@/lib/router";
@@ -17,23 +18,33 @@ import {
 } from "lucide-react";
 import { FC, useEffect } from "react";
 import { ModelName, Models } from "shared/types";
+import { toast } from "sonner";
 import { Fields } from "system/model/layout/types";
 import { snapshot } from "valtio";
 
-type FormWriter = { data: any; unsaved: boolean; resetting: boolean };
+type FormWriter = {
+  data: any;
+  unsaved: boolean;
+  resetting: boolean;
+  saving: boolean;
+  deleting: boolean;
+};
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
+  save: (data: any) => Promise<{ success: boolean; error?: string }>;
+  del: (data: any) => Promise<{ success: boolean; error?: string }>;
   fields: Fields<ModelName>;
   data: any;
   onChanged?: (changedData: any) => void;
   unsavedData?: any;
-}> = ({ model, fields, data, onChanged, unsavedData }) => {
+}> = ({ model, fields, data, save, onChanged, unsavedData, del }) => {
   const params = useParams();
   const writer = useWriter({
     data: {} as any,
     unsaved: false,
     resetting: false,
+    saving: false,
   } as FormWriter);
 
   if (!fields) return null;
@@ -65,10 +76,26 @@ export const DetailForm: FC<{
   }, [data]);
 
   return (
-    <div className={cn("flex flex-col items-stretch flex-1 -mt-3")}>
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        writer.saving = true;
+
+        await save(snapshot(writer.data));
+
+        writer.saving = false;
+        writer.unsaved = false;
+        onChanged?.(undefined);
+
+        toast("Data berhasil tersimpan", { dismissible: true });
+      }}
+      className={cn("flex flex-col items-stretch flex-1 -mt-3")}
+    >
+      <button type="submit" className="hidden"></button>
       <Toolbar
         writer={writer}
         model={model}
+        del={del}
         onReset={() => {
           const prev_id = parseHash()["prev"];
           if (params.id === "clone" && prev_id) {
@@ -97,7 +124,7 @@ export const DetailForm: FC<{
           }}
         />
       </div>
-    </div>
+    </form>
   );
 };
 
@@ -105,7 +132,8 @@ const Toolbar: FC<{
   writer: FormWriter;
   onReset: (from: string) => void;
   model: Models[keyof Models];
-}> = ({ writer, model, onReset }) => {
+  del: any;
+}> = ({ writer, model, onReset, del }) => {
   const params = useParams();
   const form = useReader(writer);
 
@@ -114,7 +142,7 @@ const Toolbar: FC<{
       className={cn(
         "rounded-md border border-sidebar-border h-[40px] bg-sidebar mb-2 flex items-stretch p-[5px] rounded-t-none border-t-0 justify-between select-none",
         css`
-          button {
+          .button {
             height: auto;
             min-height: 0;
             padding: 0px 6px;
@@ -126,6 +154,7 @@ const Toolbar: FC<{
         <SimpleTooltip content="Data sebelumnya">
           <Button
             size="sm"
+            asDiv
             variant={"outline"}
             disabled
             className={cn("text-xs rounded-sm cursor-pointer")}
@@ -135,6 +164,7 @@ const Toolbar: FC<{
         </SimpleTooltip>
         <SimpleTooltip content="Data selanjutnya">
           <Button
+            asDiv
             size="sm"
             variant={"outline"}
             disabled
@@ -147,6 +177,7 @@ const Toolbar: FC<{
           <SimpleTooltip content="Duplikat data ini">
             <Button
               size="sm"
+              asDiv
               variant={"outline"}
               className={cn("text-xs rounded-sm cursor-pointer")}
               href={`/model/${model.config.modelName.toLowerCase()}/detail/clone#prev=${
@@ -162,6 +193,7 @@ const Toolbar: FC<{
           <SimpleTooltip content="Tambah data baru">
             <Button
               size="sm"
+              asDiv
               href={`/model/${model.config.modelName.toLowerCase()}/detail/new#prev=${
                 params.id
               }`}
@@ -173,12 +205,18 @@ const Toolbar: FC<{
             </Button>
           </SimpleTooltip>
         )}
-        {form.unsaved && (
-          <div className="text-xs text-red-400 flex items-center bg-white px-2 rounded-md space-x-1 border border-red-100">
-            <div>Belum disimpan</div>
+        {form.unsaved && !form.saving && (
+          <div
+            className={cn(
+              "text-xs flex items-center bg-white px-2 rounded-md space-x-1 border",
+              "border-red-100 text-red-400"
+            )}
+          >
+            <div>{"Belum disimpan"}</div>
             <SimpleTooltip content="Reset perubahan">
               <Button
                 size="sm"
+                asDiv
                 variant={"outline"}
                 className={cn(
                   "text-xs rounded-sm px-2 cursor-pointer text-black"
@@ -200,28 +238,54 @@ const Toolbar: FC<{
         )}
       </div>
       <div className="flex items-stretch space-x-1">
-        <SimpleTooltip content="Hapus data ini">
-          <Button
-            size="icon"
-            variant={"outline"}
+        {form.saving && (
+          <div
             className={cn(
-              "text-xs rounded-sm cursor-pointer text-red-400  border-red-100 hover:border-red-300 hover:text-red-500 transition-all border"
+              "text-xs flex items-center bg-white px-2 rounded-md space-x-1 border border-blue-100"
             )}
-            onClick={async () => {
-              const confirmed = await Alert.confirm(
-                "Apakah anda yakin ingin menghapus data ini?"
-              );
-              if (confirmed) {
-                Alert.info("terhapus!");
-              }
-            }}
           >
-            <Trash strokeWidth={1.5} />
-          </Button>
-        </SimpleTooltip>
-        <Button size="sm" className={cn("text-xs rounded-sm cursor-pointer")}>
-          <Save /> Simpan
-        </Button>
+            <Spinner className="h-4 w-4" />{" "}
+            <div>{form.deleting ? "Menghapus" : "Menyimpan"}...</div>
+          </div>
+        )}
+        {!form.saving && (
+          <>
+            {!["new", "clone"].includes(params.id) && (
+              <SimpleTooltip content="Hapus data ini">
+                <Button
+                  size="icon"
+                  asDiv
+                  variant={"outline"}
+                  className={cn(
+                    "text-xs rounded-sm cursor-pointer text-red-400  border-red-100 hover:border-red-300 hover:text-red-500 transition-all border"
+                  )}
+                  onClick={async () => {
+                    const confirmed = await Alert.confirm(
+                      "Apakah anda yakin ingin menghapus data ini?"
+                    );
+                    if (confirmed) {
+                      writer.saving = true;
+                      writer.deleting = true;
+                      await del(snapshot(writer.data));
+                      toast("Data terhapus", { dismissible: true });
+                      writer.saving = false;
+                      writer.deleting = false;
+                    }
+                  }}
+                >
+                  <Trash strokeWidth={1.5} />
+                </Button>
+              </SimpleTooltip>
+            )}
+            <Button
+              type="submit"
+              size="sm"
+              className={cn("text-xs rounded-sm cursor-pointer")}
+            >
+              <Save /> Simpan
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -314,6 +378,7 @@ const Field: FC<{
       <div className="font-medium">{config.label}</div>
       <Input
         asDiv={form.resetting}
+        type="text"
         className="bg-white"
         defaultValue={value || ""}
         onInput={(e) => {

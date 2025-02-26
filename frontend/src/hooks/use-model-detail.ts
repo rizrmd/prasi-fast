@@ -13,24 +13,33 @@ type ModelRecord = {
   [key: string]: any;
 };
 
-type DetailState<T extends ModelRecord> = {
-  available: boolean;
-  loading: boolean;
-  data: T | null;
-  current: null | LayoutDetail<ModelName>;
-};
-
 export const useModelDetail = ({
   model,
 }: {
   model: ReturnType<typeof useModel>;
 }) => {
   const params = useParams();
-  const detail = useLocal<DetailState<ModelRecord>>({
+  const detail = useLocal({
     loading: false,
     available: false,
-    data: null,
-    current: null,
+    data: null as any,
+    current: null as null | LayoutDetail<ModelName>,
+    del: async (data: any) => {
+      console.log(data);
+
+      await new Promise((done) => {
+        setTimeout(done, 500);
+      });
+      return { success: true };
+    },
+    save: async (data: any) => {
+      console.log(data);
+
+      await new Promise((done) => {
+        setTimeout(done, 500);
+      });
+      return { success: true };
+    },
   });
 
   let layout = (layouts as any)[
