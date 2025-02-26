@@ -1,6 +1,7 @@
 import "@/index.css";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/lib/router";
+import { GlobalAlert } from "@/components/ui/global-alert";
 import { AppLoading } from "./app-loading";
 import { Layout } from "./layout";
 
@@ -71,6 +72,7 @@ function AppContent() {
 export function App() {
   return (
     <AuthProvider>
+      <GlobalAlert />
       <AppContent />
     </AuthProvider>
   );

@@ -8,6 +8,7 @@ import { ModelName, Models } from "shared/types";
 import { Fields } from "system/model/layout/types";
 import { MDetailTabs } from "./detail-tabs";
 import { DetailForm } from "./form";
+import { snapshot } from "valtio";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
@@ -31,8 +32,17 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   return (
     <>
       <div className="rounded-md border bg-white">
-        <MDetailTabs model={model.instance} detail={detail.current}>
-          {({ activeTab }) => {
+        <DetailForm
+          model={model.instance}
+          fields={detail.current.fields}
+          data={detail.data}
+          // unsavedData={writer.unsavedTabs[writer.idx]}
+          // onChanged={(data) => {
+          //   writer.unsavedTabs[writer.idx] = data;
+          // }}
+        />
+        {/* <MDetailTabs model={model.instance} detail={detail.current}>
+          {({ activeTab, writer }) => {
             if (
               activeTab.type === "default" &&
               model.instance &&
@@ -43,11 +53,15 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
                   model={model.instance}
                   fields={detail.current.fields}
                   data={detail.data}
+                  unsavedData={writer.unsavedTabs[writer.idx]}
+                  onChanged={(data) => {
+                    writer.unsavedTabs[writer.idx] = data;
+                  }}
                 />
               );
             }
           }}
-        </MDetailTabs>
+        </MDetailTabs> */}
       </div>
     </>
   );

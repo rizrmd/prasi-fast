@@ -1,11 +1,11 @@
+import { useParams } from "@/lib/router";
 import { useEffect } from "react";
+import { layouts } from "shared/layouts";
+import { ModelName } from "shared/types";
+import { Fields, LayoutDetail } from "system/model/layout/types";
+import { defaultColumns } from "system/model/model";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
-import { layouts } from "shared/layouts";
-import { defaultColumns } from "system/model/model";
-import { useParams } from "@/lib/router";
-import { Column, Fields, LayoutDetail } from "system/model/layout/types";
-import { ModelName } from "shared/types";
 
 type ModelRecord = {
   id: string;
@@ -55,6 +55,13 @@ export const useModelDetail = ({
 
     const fetchData = async () => {
       if (!model.instance || !layout?.detail) return;
+
+      if (params.id === 'new') {
+        detail.data = {} as any;
+        detail.loading = false;
+        detail.render();
+        return;
+      }
 
       detail.loading = true;
       detail.render();

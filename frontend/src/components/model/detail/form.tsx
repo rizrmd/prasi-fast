@@ -1,102 +1,204 @@
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/global-alert";
 import { Input } from "@/components/ui/input";
-import { Tooltip } from "@/components/ui/tooltip";
-import { useValtio } from "@/hooks/use-valtio";
+import { useReader, useWriter } from "@/hooks/use-read-write";
+import { navigate, useParams } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import { ChevronLeft, ChevronRight, Copy, Save, Trash } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Plus,
+  Save,
+  Trash,
+} from "lucide-react";
 import { FC, useEffect } from "react";
 import { ModelName, Models } from "shared/types";
 import { Fields } from "system/model/layout/types";
+import { snapshot } from "valtio";
+
+type FormWriter = { data: any; unsaved: boolean };
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
   fields: Fields<ModelName>;
   data: any;
-}> = ({ model, fields, data }) => {
+  onChanged?: (changedData: any) => void;
+  unsavedData?: any;
+}> = ({ model, fields, data, onChanged, unsavedData }) => {
+  const writer = useWriter({
+    data: {} as any,
+    unsaved: false,
+  } as FormWriter);
+
   if (!fields) return null;
-  const form = useValtio({ data });
+
+  const reset = () => {
+    if (unsavedData) {
+      const snapshotData = snapshot(unsavedData);
+      writer.data = structuredClone(data);
+      for (const [k, v] of Object.entries(snapshotData)) {
+        writer.data[k] = v;
+      }
+      writer.unsaved = true;
+    } else {
+      writer.data = structuredClone(data);
+      writer.unsaved = false;
+      onChanged?.(undefined);
+    }
+  };
 
   useEffect(() => {
-    form.set((write) => {
-      write.data = data;
-    });
+    reset();
   }, [data]);
 
   return (
     <div className={cn("flex flex-col items-stretch flex-1 -mt-3")}>
-      <div
-        className={cn(
-          "rounded-md border border-sidebar-border h-[40px] bg-sidebar mb-2 flex items-stretch p-[5px] rounded-t-none border-t-0 justify-between",
-          css`
-            button {
-              height: auto;
-              min-height: 0;
-              padding: 0px 6px;
-            }
-          `
-        )}
-      >
-        <div className="flex items-stretch space-x-1">
-          <SimpleTooltip content="Data sebelumnya">
-            <Button
-              size="sm"
-              variant={"outline"}
-              disabled
-              className={cn("text-xs rounded-sm cursor-pointer")}
-            >
-              <ChevronLeft />
-            </Button>
-          </SimpleTooltip>
-          <SimpleTooltip content="Data selanjutnya">
-            <Button
-              size="sm"
-              variant={"outline"}
-              disabled
-              className={cn("text-xs rounded-sm cursor-pointer")}
-            >
-              <ChevronRight />
-            </Button>
-          </SimpleTooltip>
+      <Toolbar writer={writer} model={model} onReset={reset} />
+      <div className="flex flex-1 relative flex-col items-stretch">
+        <RecursiveFields
+          model={model}
+          fields={fields}
+          writer={writer}
+          onChange={({ col, value }) => {
+            onChanged?.(snapshot(writer.data));
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const Toolbar: FC<{
+  writer: FormWriter;
+  onReset: () => void;
+  model: Models[keyof Models];
+}> = ({ writer, model, onReset }) => {
+  const params = useParams();
+  const form = useReader(writer);
+
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-sidebar-border h-[40px] bg-sidebar mb-2 flex items-stretch p-[5px] rounded-t-none border-t-0 justify-between select-none",
+        css`
+          button {
+            height: auto;
+            min-height: 0;
+            padding: 0px 6px;
+          }
+        `
+      )}
+    >
+      <div className="flex items-stretch space-x-1">
+        <SimpleTooltip content="Data sebelumnya">
+          <Button
+            size="sm"
+            variant={"outline"}
+            disabled
+            className={cn("text-xs rounded-sm cursor-pointer")}
+          >
+            <ChevronLeft />
+          </Button>
+        </SimpleTooltip>
+        <SimpleTooltip content="Data selanjutnya">
+          <Button
+            size="sm"
+            variant={"outline"}
+            disabled
+            className={cn("text-xs rounded-sm cursor-pointer")}
+          >
+            <ChevronRight />
+          </Button>
+        </SimpleTooltip>
+        {!form.unsaved && (
           <SimpleTooltip content="Duplikat data ini">
             <Button
               size="sm"
               variant={"outline"}
               className={cn("text-xs rounded-sm cursor-pointer")}
+              onClick={async () => {
+                const confirmed = await Alert.confirm(
+                  "Apakah anda yakin ingin menduplikat data ini?"
+                );
+                if (confirmed) {
+                  Alert.info("terhapus!");
+                }
+              }}
             >
               <Copy strokeWidth={1.5} />
             </Button>
           </SimpleTooltip>
-        </div>
-        <div className="flex items-stretch space-x-1">
-          <SimpleTooltip content="Hapus data ini">
+        )}
+
+        {params.id !== "new" && (
+          <SimpleTooltip content="Tambah data baru">
             <Button
-              size="icon"
+              size="sm"
               variant={"outline"}
-              className={cn(
-                "text-xs rounded-sm cursor-pointer text-red-400  border-red-100 hover:border-red-300 hover:text-red-500 transition-all"
-              )}
+              className={cn("text-xs rounded-sm cursor-pointer")}
+              onClick={() => {
+                navigate(
+                  `/model/${model.config.modelName.toLowerCase()}/detail/new`
+                );
+              }}
             >
-              <Trash strokeWidth={1.5} />
+              <Plus strokeWidth={1.5} />
+              <div className="-ml-1">Tambah</div>
             </Button>
           </SimpleTooltip>
-          <Button size="sm" className={cn("text-xs rounded-sm cursor-pointer")}>
-            <Save /> Simpan
-          </Button>
-        </div>
+        )}
+        {form.unsaved && (
+          <div className="text-xs text-red-400 flex items-center bg-white px-2 rounded-md space-x-1 border border-red-100">
+            <div>Belum disimpan</div>
+            <SimpleTooltip content="Reset perubahan">
+              <Button
+                size="sm"
+                variant={"outline"}
+                className={cn(
+                  "text-xs rounded-sm px-2 cursor-pointer text-black"
+                )}
+                onClick={async () => {
+                  const confirmed = await Alert.confirm(
+                    "Apakah anda yakin ingin me-reset data ini seperti sebelum dientry?"
+                  );
+
+                  if (confirmed) {
+                    onReset();
+                  }
+                }}
+              >
+                <div className="">Reset</div>
+              </Button>
+            </SimpleTooltip>
+          </div>
+        )}
       </div>
-      <div className="flex flex-1 relative flex-col items-stretch">
-        <RecursiveFields
-          model={model}
-          fields={fields}
-          data={form.data}
-          onChange={({ col, value }) => {
-            form.set((write) => {
-              write.data[col] = value;
-            });
-          }}
-        />
+      <div className="flex items-stretch space-x-1">
+        <SimpleTooltip content="Hapus data ini">
+          <Button
+            size="icon"
+            variant={"outline"}
+            className={cn(
+              "text-xs rounded-sm cursor-pointer text-red-400  border-red-100 hover:border-red-300 hover:text-red-500 transition-all border"
+            )}
+            onClick={async () => {
+              const confirmed = await Alert.confirm(
+                "Apakah anda yakin ingin menghapus data ini?"
+              );
+              if (confirmed) {
+                Alert.info("terhapus!");
+              }
+            }}
+          >
+            <Trash strokeWidth={1.5} />
+          </Button>
+        </SimpleTooltip>
+        <Button size="sm" className={cn("text-xs rounded-sm cursor-pointer")}>
+          <Save /> Simpan
+        </Button>
       </div>
     </div>
   );
@@ -105,9 +207,9 @@ export const DetailForm: FC<{
 const RecursiveFields: FC<{
   model: Models[keyof Models];
   fields: Fields<ModelName>;
-  data: any;
+  writer: FormWriter;
   onChange: (arg: { col: string; value: any }) => void;
-}> = ({ model, fields, data, onChange }) => {
+}> = ({ model, fields, writer, onChange }) => {
   if (!fields) return null;
 
   if (Array.isArray(fields)) {
@@ -118,7 +220,7 @@ const RecursiveFields: FC<{
             key={index}
             model={model}
             fields={field}
-            data={data}
+            writer={writer}
             onChange={onChange}
           />
         ))}
@@ -134,7 +236,7 @@ const RecursiveFields: FC<{
             key={index}
             model={model}
             fields={field}
-            data={data}
+            writer={writer}
             onChange={onChange}
           />
         ))}
@@ -150,7 +252,7 @@ const RecursiveFields: FC<{
             key={index}
             model={model}
             fields={field}
-            data={data}
+            writer={writer}
             onChange={onChange}
           />
         ))}
@@ -163,7 +265,7 @@ const RecursiveFields: FC<{
       <Field
         model={model}
         col={fields.col}
-        data={data}
+        writer={writer}
         onChange={(value) => {
           onChange({ col: fields.col, value });
         }}
@@ -177,19 +279,24 @@ const RecursiveFields: FC<{
 const Field: FC<{
   model: Models[keyof Models];
   col: string;
-  data: any;
+  writer: FormWriter;
   onChange: (value: any) => void;
-}> = ({ model, col, data, onChange }) => {
+}> = ({ model, col, writer, onChange }) => {
+  const form = useReader(writer);
+
   const config = model.config.columns[col];
-  const value = data?.[col];
+  const value = form.data[col];
   return (
     <div className="field flex-1 flex flex-col gap-1 text-sm">
       <label className="font-medium">{config.label}</label>
       <Input
         className="bg-white"
-        value={value}
+        value={value || ""}
         onChange={(e) => {
-          onChange(e.currentTarget.value);
+          const value = e.currentTarget.value;
+          writer.data[col] = value;
+          writer.unsaved = true;
+          onChange(value);
         }}
       />
     </div>

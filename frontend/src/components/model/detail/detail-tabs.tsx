@@ -1,51 +1,91 @@
-import { useLocal } from "@/hooks/use-local";
+import { useReader, useWriter } from "@/hooks/use-read-write";
 import { cn } from "@/lib/utils";
+import { Asterisk } from "lucide-react";
 import { FC, ReactNode } from "react";
 import { ModelName, Models } from "shared/types";
 import { DetailTab, LayoutDetail } from "system/model/layout/types";
 
+type TabWriter = {
+  idx: number;
+  unsavedTabs: Record<number, any>;
+};
+
 export const MDetailTabs: FC<{
   model: Models[keyof Models];
   detail: LayoutDetail<ModelName>;
-  children: (arg: { activeTab: DetailTab<ModelName> }) => ReactNode;
+  children: (arg: {
+    activeTab: DetailTab<ModelName>;
+    writer: TabWriter;
+  }) => ReactNode;
 }> = ({ children, detail }) => {
-  const local = useLocal({
+  const writer = useWriter({
     idx: 0,
-  });
+    unsavedTabs: {},
+  } as TabWriter);
+  const reader = useReader(writer);
 
   return (
     <div className="flex flex-col flex-1">
-      <div className="border-b border-b-sidebar-border h-[35px] flex items-end px-3 space-x-3">
-        {detail.tabs.map((e, idx) => {
-          let id = "";
-          if (e.type === "relation") {
-            id = e.name;
-          } else if (e.type === "jsx") {
-            id = "jsx_" + idx;
-          }
-
-          return (
-            <div
-              className={cn(
-                "text-[13px] h-[34px] transition-all flex items-center cursor-pointer px-[2px]",
-                idx === local.idx
-                  ? "border-b border-ring font-semibold text-ring -mb-[1px]"
-                  : "opacity-50"
-              )}
-              onClick={() => {
-                local.idx = idx;
-                local.render();
-              }}
-              key={idx}
-            >
-              {e.title}
-            </div>
-          );
+      <Tabs detail={detail} writer={writer} />
+      <div className="flex flex-col p-3">
+        {children({
+          activeTab: detail.tabs[reader.idx],
+          writer,
         })}
       </div>
-      <div className="flex flex-col p-3">
-        {children({ activeTab: detail.tabs[local.idx] })}
-      </div>
+    </div>
+  );
+};
+
+const Tabs: FC<{
+  detail: LayoutDetail<ModelName>;
+  writer: TabWriter;
+}> = ({ detail, writer }) => {
+  const reader = useReader(writer);
+  const activeIdx = reader.idx;
+  const unsavedTabs = reader.unsavedTabs;
+  return (
+    <div className="border-b border-b-sidebar-border h-[35px] flex items-end px-3 space-x-3">
+      {detail.tabs.map((e, idx) => {
+        let id = "";
+        if (e.type === "relation") {
+          id = e.name;
+        } else if (e.type === "jsx") {
+          id = "jsx_" + idx;
+        }
+
+        return (
+          <div
+            className={cn(
+              "text-[13px] h-[34px] transition-all flex items-center cursor-pointer px-[2px]",
+              idx === activeIdx
+                ? cn(
+                    unsavedTabs[idx]
+                      ? "text-red-500 border-red-500"
+                      : "border-ring text-ring",
+                    "border-b  font-semibold  -mb-[1px]"
+                  )
+                : cn(
+                    unsavedTabs[idx]
+                      ? "text-red-500 border-red-500 border-b -mb-[1px]"
+                      : "",
+                    "opacity-50"
+                  )
+            )}
+            onClick={() => {
+              writer.idx = idx;
+            }}
+            key={idx}
+          >
+            {e.title}{" "}
+            {unsavedTabs[idx] && (
+              <div className="text-red-500">
+                <Asterisk size="12" />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

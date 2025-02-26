@@ -30,7 +30,7 @@ export const ModelContainer: FC<{ children: ReactNode }> = ({ children }) => {
 const ContainerBreadcrumb = ({}: {}) => {
   const local = useLocal({
     loading: false,
-    breads: [] as { title: string; url: string }[],
+    breads: [] as { title: string; url: string, }[],
   });
 
   useEffect(() => {
@@ -60,12 +60,19 @@ const ContainerBreadcrumb = ({}: {}) => {
           local.breads = breads;
           local.loading = true;
           local.render();
-          const data = (await model.findFirst(parts[2])) as any;
-
-          breads.push({
-            title: model.title(data),
-            url: `/model/${parts[0]}/detail/${parts[2]}`,
-          });
+          const id = parts[2];
+          if (id === "new") {
+            breads.push({
+              title: 'Tambah Baru',
+              url: `/model/${parts[0]}/detail/${id}`,
+            });
+          } else {
+            const data = (await model.findFirst(id)) as any;
+            breads.push({
+              title: model.title(data),
+              url: `/model/${parts[0]}/detail/${id}`,
+            });
+          }
         }
         local.breads = breads;
       }
@@ -73,6 +80,7 @@ const ContainerBreadcrumb = ({}: {}) => {
       local.render();
     })();
   }, [location.pathname, location.hash]);
+
   return (
     <Breadcrumb className="p-2 border-b bg-white select-none">
       <BreadcrumbList>
