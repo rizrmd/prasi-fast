@@ -3,6 +3,23 @@ import { pageModules } from "@/lib/generated/routes";
 import { createContext, useContext, useEffect } from "react";
 import { useAuth } from "./auth";
 import { useLocal } from "../hooks/use-local";
+import componentsConfig from "../../components.json";
+
+// Normalize basePath to ensure it has trailing slash only if it's not '/'
+const basePath = componentsConfig.basePath === '/' 
+  ? '/' 
+  : componentsConfig.basePath.endsWith('/')
+    ? componentsConfig.basePath
+    : componentsConfig.basePath + '/';
+
+// Utility for consistent path building
+function buildPath(to: string): string {
+  return to.startsWith("/") 
+    ? basePath === "/" 
+      ? to 
+      : `${basePath}${to.slice(1)}`
+    : to;
+}
 
 type Params = Record<string, string>;
 type RoutePattern = {
@@ -74,9 +91,13 @@ export function useRouter() {
     };
 
     const loadPage = async () => {
-      const path = local.currentPath.replace(/\/$/, "") || "/";
+      // Always strip basePath if it exists, since the route definitions don't include it
+      const withoutBase = basePath !== "/" && local.currentPath.startsWith(basePath)
+        ? local.currentPath.slice(basePath.length)
+        : local.currentPath;
+      // Ensure path starts with slash and handle trailing slashes
+      const path = (withoutBase.startsWith("/") ? withoutBase : "/" + withoutBase).replace(/\/$/, "") || "/";
 
-      // Log the route change
       await logRouteChange(path);
 
       // Try exact match first
@@ -124,8 +145,9 @@ export function useRouter() {
   }, [local.currentPath]);
 
   const navigate = (to: string) => {
-    window.history.pushState({}, "", to);
-    local.currentPath = to;
+    const fullPath = buildPath(to);
+    window.history.pushState({}, "", fullPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
   };
 
   return {
@@ -161,13 +183,14 @@ export function Link({
   };
 
   return (
-    <a href={to} onClick={handleClick} {...props}>
+    <a href={buildPath(to)} onClick={handleClick} {...props}>
       {children}
     </a>
   );
 }
 
 export const navigate = (to: string) => {
-  window.history.pushState({}, "", to);
+  const fullPath = buildPath(to);
+  window.history.pushState({}, "", fullPath);
   window.dispatchEvent(new PopStateEvent("popstate"));
 };
