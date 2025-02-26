@@ -15,7 +15,7 @@ export const useModelTable = ({
 }) => {
   const table = useLocal({
     available: false,
-    loading: false,
+    loading: true,
     columns: [] as ColumnDef<any, any>[],
     result: null as Awaited<
       ReturnType<Exclude<(typeof model)["instance"], null>["findList"]>
@@ -23,20 +23,16 @@ export const useModelTable = ({
     current: null as LayoutTable<ModelName> | null,
   });
 
-  useEffect(() => {
-    if (model.ready) {
-      let layout = (layouts as any)[
-        model.name
-      ] as (typeof layouts)[keyof typeof layouts];
+  if (model.ready) {
+    let layout = (layouts as any)[
+      model.name
+    ] as (typeof layouts)[keyof typeof layouts];
 
-      table.current = layout?.table || null;
-      if (layout && layout.table) {
-        table.available = true;
-      }
+    table.current = layout?.table || null;
+    if (layout && layout.table) {
+      table.available = true;
     }
-    table.loading = false;
-    table.render();
-  }, [model.ready]);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -235,7 +231,7 @@ export const useModelTable = ({
             if (typeof column.rel === "string") {
               select[column.rel] = {
                 select: {
-                  [column.col]: true,
+                  [(column as any).col]: true,
                 },
               };
             } else {
@@ -257,6 +253,7 @@ export const useModelTable = ({
           }
         });
 
+        console.log("find list");
         // Log the final select object
         const result = await model.instance.findList({
           select,

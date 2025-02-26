@@ -1,19 +1,25 @@
 import type { Prisma, Role as PrismaRole } from "@prisma/client";
 import { Model, DefaultColumns } from "system/model/model";
-import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
+import {
+  ModelRelations,
+  RelationConfig,
+  ColumnConfig,
+  ModelConfig,
+  ModelColumns,
+} from "system/types";
 
 /** Role Columns */
 const columns: Record<string, ColumnConfig> = {
   id: {
     type: "string",
     label: "Id",
-    required: true
+    required: true,
   },
   name: {
     type: "string",
-    label: "Name", 
-    required: true
-  }
+    label: "Name",
+    required: true,
+  },
 };
 
 /** Role Relations */
@@ -23,19 +29,18 @@ const relations: Record<string, RelationConfig> = {
     type: "hasMany",
     prismaField: "user",
     targetPK: "id",
-    label: "User"
-  }
+    label: "User",
+  },
 };
 
 export class Role extends Model<PrismaRole> {
   constructor() {
-    super();
-    this.setConfig({
+    super({
       modelName: "Role",
       tableName: "m_role",
       primaryKey: "id",
       relations: relations as ModelRelations,
-      columns: columns as ModelColumns
+      columns: columns as ModelColumns,
     });
   }
 
@@ -44,7 +49,7 @@ export class Role extends Model<PrismaRole> {
   }
 
   formatCount(count: number): string {
-    return `${count} item${count > 1 ? 's' : ''}`;
+    return `${count} item${count > 1 ? "s" : ""}`;
   }
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {

@@ -35,7 +35,7 @@ export class Model<T extends BaseRecord = any> {
     data: null,
     mode: "server",
     currentUser: null,
-    modelCache: new ModelCache(), // Initialize with debug off
+    modelCache: new ModelCache(true),
   };
   private cacheManager!: ModelCacheManager<T>;
   private queryManager!: ModelQuery<T>;
@@ -46,7 +46,8 @@ export class Model<T extends BaseRecord = any> {
   private initialized = false;
   private initPromise: Promise<void>;
 
-  constructor() {
+  constructor(config: ModelConfig) {
+    this.state.config = config;
     this.initPromise = this.initialize();
   }
 
@@ -60,6 +61,15 @@ export class Model<T extends BaseRecord = any> {
 
   private async initialize() {
     if (this.initialized) return;
+
+    // Initialize basic config for frontend cache first
+    if (typeof window !== "undefined") {
+      this.state.config = {
+        ...this.state.config,
+        cache: { ttl: 60 },
+      };
+    }
+
     await this.initializePrisma();
     await this.setupManagers();
     this.initialized = true;
@@ -85,9 +95,13 @@ export class Model<T extends BaseRecord = any> {
 
     dataManagers.forEach((manager) => {
       Object.defineProperty(manager, "state", {
-        get: () => this.state,
+        get: () => {
+          return this.state;
+        },
       });
     });
+
+    this.cacheManager._friend.initializeCache(this.state.modelCache);
 
     // Create concrete implementation of ModelCrud
     class ConcreteCrud extends ModelCrud<T> {
@@ -152,12 +166,6 @@ export class Model<T extends BaseRecord = any> {
   private async initializePrisma(): Promise<void> {
     if (typeof window !== "undefined") {
       this.state.mode = "client";
-      if (!this.state.config?.cache) {
-        this.state.config = {
-          ...this.state.config,
-          cache: { ttl: 60 },
-        };
-      }
       this.state.prisma = prismaFrontendProxy() as PrismaClient;
     } else {
       this.state.mode = "server";

@@ -1,6 +1,8 @@
 import type { PaginationParams, PaginationResult } from "../../../types";
 import type { BaseRecord } from "../model-base";
 import { ModelManager } from "../model-manager";
+import type { ModelState } from "../../model";
+import type { CacheEntry } from "../model-cache";
 
 type FilterNotStartingWith<
   Set,
@@ -10,23 +12,26 @@ type FilterNotStartingWith<
 export abstract class ModelCrud<
   T extends BaseRecord = any
 > extends ModelManager<T> {
+  protected state!: ModelState<T>;
+
   protected abstract ensurePrimaryKeys(
     select: Record<string, any>
   ): Record<string, any>;
-  protected abstract getSelectFields(select?: Record<string, any>): string[];
+  protected abstract getSelectFields(
+    select?: Record<string, any> | string[]
+  ): string[];
   protected abstract invalidateCache(): void;
   protected abstract cacheRecordAndRelations(
     record: Record<string, any>,
-    select?: Record<string, any>
+    select?: Record<string, any> | string[]
   ): Promise<void>;
   protected abstract attachCachedRelations(
     record: Record<string, any>
   ): Promise<any>;
   protected abstract notifySubscribers(id: string): void;
 
-  // Helper method to check if caching should be used
   protected shouldUseCache(): boolean {
-    return this.state.mode === "client" && !!this.config.cache;
+    return this.state.mode === "client" && !!this.state.config?.cache?.ttl;
   }
 
   get prismaTable() {
@@ -38,89 +43,88 @@ export abstract class ModelCrud<
   }
 
   async findFirst(
-    idOrParams:
-      | string
-      | Partial<
-          PaginationParams & {
-            select?: Record<string, any>;
-            include?: Record<string, any>;
-          }
-        >
+    idOrParams: string | Partial<PaginationParams>
   ): Promise<T | null> {
-    // Handle string ID case
-    if (typeof idOrParams === "string") {
-      // Check cache first when an ID is provided (client-side only)
-      if (this.shouldUseCache()) {
-        const cachedRecord = this.modelCache.getCachedRecord(
-          this.config.tableName,
-          idOrParams
+    const isString = typeof idOrParams === "string";
+    const stringId = isString ? idOrParams : undefined;
+    const params = isString ? { where: { id: stringId } } : idOrParams;
+
+    // Check for ID in either string parameter or where clause
+    const id = stringId || (params.where?.id as string | undefined);
+
+    if (id && this.shouldUseCache()) {
+      try {
+        const cachedItem = this.state.modelCache.get<T>(
+          this.state.config.modelName,
+          id
         );
-
-        if (cachedRecord) {
-          return this.attachCachedRelations(cachedRecord) as Promise<T>;
+        if (cachedItem) {
+          return cachedItem;
         }
+      } catch (error) {
+        console.error("Cache read error:", error);
       }
-
-      // Set up standard query for single ID
-      const where = { [this.config.primaryKey]: idOrParams };
-      this.prismaTable;
-      const result = await this.prismaTable.findFirst({
-        where,
-      });
-
-      if (result && this.shouldUseCache()) {
-        await this.cacheRecordAndRelations(result);
-      }
-
-      return result as T | null;
     }
 
-    // Handle params case
-    const { where, select, include, ...rest } = idOrParams as any;
+    let queryParams = { ...params };
 
-    // Ensure we're selecting primary keys for caching
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
-
-    const result = await this.prismaTable.findFirst({
-      where,
-      select: enhancedSelect,
-      include,
-      ...rest,
-    });
-
-    if (result && this.shouldUseCache()) {
-      await this.cacheRecordAndRelations(result, select);
+    if (Array.isArray(params.select)) {
+      queryParams.select = params.select.reduce(
+        (acc: Record<string, boolean>, field: string) => {
+          acc[field] = true;
+          return acc;
+        },
+        {}
+      );
     }
 
-    return result as T | null;
+    console.log(`Querying database for ${this.state.config.modelName}`);
+
+    const record = await this.prismaTable.findFirst(queryParams);
+
+    if (record && this.shouldUseCache()) {
+      try {
+        await this.cacheRecordAndRelations(record, params.select);
+      } catch (error) {}
+    }
+
+    return record as T | null;
   }
 
   async findMany(
     params: Partial<
       Omit<PaginationParams, "page" | "perPage"> & {
-        select?: Record<string, any>;
+        select?: Record<string, any> | string[];
         include?: Record<string, any>;
         orderBy?: any;
       }
     > = {}
   ): Promise<T[]> {
-    const { where, select, include, orderBy, ...rest } = params as any;
+    let queryParams = { ...params };
 
-    // Ensure we're selecting primary keys for caching
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
+    if (Array.isArray(params.select)) {
+      queryParams.select = params.select.reduce(
+        (acc: Record<string, boolean>, field: string) => {
+          acc[field] = true;
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const enhancedSelect = queryParams.select
+      ? this.ensurePrimaryKeys(queryParams.select)
+      : undefined;
 
     const results = await this.prismaTable.findMany({
-      where,
+      ...queryParams,
       select: enhancedSelect,
-      include,
-      orderBy,
-      ...rest,
     });
 
     if (this.shouldUseCache() && results.length) {
       await Promise.all(
         results.map((record: any) =>
-          this.cacheRecordAndRelations(record, select)
+          this.cacheRecordAndRelations(record, params.select)
         )
       );
     }
@@ -131,45 +135,46 @@ export abstract class ModelCrud<
   async findList(
     params: Partial<
       PaginationParams & {
-        select?: Record<string, any>;
+        select?: Record<string, any> | string[];
         include?: Record<string, any>;
         orderBy?: any;
       }
     > = {}
   ): Promise<PaginationResult<T>> {
-    const {
-      page = 1,
-      perPage = 10,
-      where,
-      select,
-      include,
-      orderBy,
-      ...rest
-    } = params as any;
+    let queryParams = { ...params };
+    const page = queryParams.page || 1;
+    const perPage = queryParams.perPage || 10;
 
-    // Ensure we're selecting primary keys for caching
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
+    if (Array.isArray(queryParams.select)) {
+      queryParams.select = queryParams.select.reduce(
+        (acc: Record<string, boolean>, field: string) => {
+          acc[field] = true;
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const enhancedSelect = queryParams.select
+      ? this.ensurePrimaryKeys(queryParams.select)
+      : undefined;
 
     const skip = (page - 1) * perPage;
 
-    // Run both queries in parallel
     const [records, totalCount] = await Promise.all([
       this.prismaTable.findMany({
-        where,
+        ...queryParams,
         select: enhancedSelect,
-        include,
-        orderBy,
         skip,
         take: perPage,
-        ...rest,
       }),
-      this.prismaTable.count({ where }),
+      this.prismaTable.count({ where: queryParams.where }),
     ]);
 
     if (this.shouldUseCache() && records.length) {
       await Promise.all(
         records.map((record: any) =>
-          this.cacheRecordAndRelations(record, select)
+          this.cacheRecordAndRelations(record, queryParams.select)
         )
       );
     }
@@ -185,7 +190,7 @@ export abstract class ModelCrud<
 
   async create(params: {
     data: Partial<T>;
-    select?: Record<string, any>;
+    select?: Record<string, any> | string[];
   }): Promise<T> {
     const { data, select } = params;
 
@@ -196,13 +201,11 @@ export abstract class ModelCrud<
       select: enhancedSelect,
     });
 
-    // Invalidate model cache since we're adding a new record (client-side only)
     if (this.shouldUseCache()) {
       this.invalidateCache();
       await this.cacheRecordAndRelations(result, select);
     }
 
-    // Notify subscribers
     const id = result[this.config.primaryKey].toString();
     this.notifySubscribers(id);
 
@@ -212,7 +215,7 @@ export abstract class ModelCrud<
   async update(params: {
     where: { [key: string]: any };
     data: Partial<T>;
-    select?: Record<string, any>;
+    select?: Record<string, any> | string[];
   }): Promise<T> {
     const { where, data, select } = params;
 
@@ -225,11 +228,9 @@ export abstract class ModelCrud<
     });
 
     if (this.shouldUseCache()) {
-      // Update cache with the new data (client-side only)
       await this.cacheRecordAndRelations(result, select);
     }
 
-    // Notify subscribers
     const id = result[this.config.primaryKey].toString();
     this.notifySubscribers(id);
 
@@ -238,7 +239,7 @@ export abstract class ModelCrud<
 
   async delete(params: {
     where: { [key: string]: any };
-    select?: Record<string, any>;
+    select?: Record<string, any> | string[];
   }): Promise<T> {
     const { where, select } = params;
 
@@ -250,11 +251,9 @@ export abstract class ModelCrud<
     });
 
     if (this.shouldUseCache()) {
-      // Invalidate cache for this model (client-side only)
       this.invalidateCache();
     }
 
-    // Notify subscribers
     const id = result[this.config.primaryKey].toString();
     this.notifySubscribers(id);
 

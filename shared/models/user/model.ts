@@ -9,8 +9,7 @@ import {
 
 export class User extends Model<PrismaUser> {
   constructor() {
-    super();
-    this.setConfig({
+    super({
       modelName: "User",
       tableName: "m_user",
       primaryKey: "id",

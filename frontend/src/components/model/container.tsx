@@ -84,6 +84,7 @@ const ContainerBreadcrumb = ({}: {}) => {
             } else {
               const data = (await model.findFirst(id)) as any;
               const updateBreadcrumb = (data: any) => {
+                // console.log(data)
                 const newTitle = model.title(data);
                 const newBreads = [...breads];
                 newBreads.push({
