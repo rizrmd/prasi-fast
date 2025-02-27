@@ -44,36 +44,67 @@ export const prismaFrontendProxy = () => {
 
                 clearTimeout(pending[modelName].timeout);
                 pending[modelName].timeout = setTimeout(async () => {
-                  const url = new URL(config.backend.url);
-                  url.pathname = `/_system/models/${modelName.toLowerCase()}`;
-                  const response = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/x-msgpack",
-                    },
-                    body: pack(pending[modelName].ops),
-                  });
-                  const result = await response.json();
-                  let i = 0;
-                  for (const promise of pending[modelName].promises) {
-                    if (result instanceof Array) {
-                      const value = result.shift();
-
-                      pending[modelName].cached[
-                        JSON.stringify(pending[modelName].ops[i])
-                      ] = { ts: Date.now(), value };
-
-                      if (value && value.error) {
-                        promise.reject(value);
-                      } else {
-                        promise.resolve(value);
-                      }
-                    }
-                    i++;
-                  }
-
+                  // Create local copies of the arrays we need to process
+                  // This prevents race conditions if new operations come in while processing
+                  const ops = [...pending[modelName].ops];
+                  const promises = [...pending[modelName].promises];
+                  
+                  // Clear the arrays early to allow new operations to be added
                   pending[modelName].ops = [];
                   pending[modelName].promises = [];
+                  
+                  // Only proceed if we have operations to execute
+                  if (ops.length > 0) {
+                    try {
+                      const url = new URL(config.backend.url);
+                      url.pathname = `/_system/models/${modelName.toLowerCase()}`;
+                      const response = await fetch(url, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/x-msgpack",
+                        },
+                        body: pack(ops),
+                      });
+                      
+                      const result = await response.json();
+                      
+                      // Process results and resolve promises
+                      for (let i = 0; i < promises.length; i++) {
+                        const promise = promises[i];
+                        const op = ops[i];
+                        
+                        if (result instanceof Array && result.length > 0) {
+                          const value = result.shift();
+                          
+                          // Cache the result
+                          pending[modelName].cached[JSON.stringify(op)] = { 
+                            ts: Date.now(), 
+                            value 
+                          };
+
+                          if (value && value.error) {
+                            promise.reject(value);
+                          } else {
+                            promise.resolve(value);
+                          }
+                        } else {
+                          // If we don't have a result, resolve with null to avoid hanging promises
+                          promise.resolve(null);
+                        }
+                      }
+                    } catch (error) {
+                      // If an error occurs, reject all promises
+                      for (const promise of promises) {
+                        promise.reject(error);
+                      }
+                    }
+                  } else {
+                    // No operations to execute, but we still need to resolve promises
+                    // to avoid hanging the UI
+                    for (const promise of promises) {
+                      promise.resolve(null);
+                    }
+                  }
                 }, 300);
 
                 return new Promise<any>((resolve, reject) => {

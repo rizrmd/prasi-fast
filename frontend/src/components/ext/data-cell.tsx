@@ -53,6 +53,11 @@ export const DataCell: FC<{
             cell.popover = cell.popover === cellId ? "" : cellId;
             render({});
           }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            cell.popover = cellId;
+            render({});
+          }}
         >
           <div
             className={cn(
@@ -95,6 +100,9 @@ const CellAction: FC<{
     <Command
       onClick={(e) => {
         e.stopPropagation();
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
       }}
     >
       <CommandList>
