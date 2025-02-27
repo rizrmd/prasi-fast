@@ -26,7 +26,7 @@ export const MDetailTabs: FC<{
   const reader = useReader(writer);
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 select-none">
       <Tabs detail={detail} writer={writer} />
       <div className="flex flex-col p-3">
         {children({

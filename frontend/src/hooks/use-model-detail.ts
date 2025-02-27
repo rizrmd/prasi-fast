@@ -1,5 +1,5 @@
 import { useParams } from "@/lib/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { layouts } from "shared/layouts";
 import { ModelName } from "shared/types";
 import { Fields, LayoutDetail } from "system/model/layout/types";
@@ -23,6 +23,10 @@ export const useModelDetail = ({
   const detail = useLocal({
     prevId: null as string | null,
     nextId: null as string | null,
+    loading: false,
+    available: false,
+    data: null as any,
+    current: null as null | LayoutDetail<ModelName>,
     findBefore: async (currentId: string) => {
       if (!model.instance || NotID.includes(currentId)) return null;
       type WhereInput = {
@@ -61,10 +65,6 @@ export const useModelDetail = ({
       });
       return record?.id || null;
     },
-    loading: false,
-    available: false,
-    data: null as any,
-    current: null as null | LayoutDetail<ModelName>,
     del: async (data: ModelRecord) => {
       if (!model.instance || !data.id) {
         return { success: false };
@@ -113,18 +113,16 @@ export const useModelDetail = ({
     model.name
   ] as (typeof layouts)[keyof typeof layouts];
 
-  useEffect(() => {
-    if (model.ready) {
-      detail.loading = false;
-      if (layout && layout.detail) {
-        detail.available = true;
-        detail.current = layout.detail;
-      }
-    } else {
-      detail.loading = false;
+
+  if (model.ready) {
+    detail.loading = false;
+    if (layout && layout.detail) {
+      detail.available = true;
+      detail.current = layout.detail;
     }
-    detail.render();
-  }, [model.ready, layout]);
+  } else {
+    detail.loading = false;
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -240,14 +238,18 @@ export const useModelDetail = ({
 
           // After loading current record, fetch prev/next IDs
           if (detail.data?.id) {
-            const [prevId, nextId] = await Promise.all([
-              detail.findBefore(detail.data.id),
-              detail.findAfter(detail.data.id),
-            ]);
-            if (isMounted) {
-              detail.prevId = prevId;
-              detail.nextId = nextId;
-            }
+            (async () => {
+              const [prevId, nextId] = await Promise.all([
+                detail.findBefore(detail.data.id),
+                detail.findAfter(detail.data.id),
+              ]);
+              if (isMounted) {
+                detail.prevId = prevId;
+                detail.nextId = nextId;
+              }
+
+              detail.render();
+            })();
           }
         }
       } catch (error) {

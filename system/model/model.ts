@@ -251,7 +251,7 @@ export class Model<T extends BaseRecord = any> {
   }): Promise<T> {
     await this.ensureInitialized();
     const result = await this.crudManager.update(params);
-    this.state.updateCallbacks.forEach(callback => callback(result));
+    this.state.updateCallbacks.forEach((callback) => callback(result));
     return result;
   }
 

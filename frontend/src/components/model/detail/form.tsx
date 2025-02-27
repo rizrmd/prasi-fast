@@ -11,6 +11,7 @@ import { navigate, useParams } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -118,7 +119,19 @@ export const DetailForm: FC<{
             `,
           });
         } else {
-          toast("Data Berhasil Tersimpan !", { dismissible: true });
+          toast(
+            <div className="flex items-center space-x-1 cursor-default select-none">
+              <Check /> <div>Data Berhasil Tersimpan !</div>
+            </div>,
+            {
+              dismissible: true,
+              richColors: true,
+              className: css`
+                border: 0 !important;
+                background: #1fa316 !important;
+              `,
+            }
+          );
         }
 
         if (res.newId) {
@@ -326,8 +339,22 @@ const Toolbar: FC<{
                     if (confirmed) {
                       writer.saving = true;
                       writer.deleting = true;
+                      const data = snapshot(writer.data);
                       await del(snapshot(writer.data));
-                      toast("Data terhapus", { dismissible: true });
+                      if (!(window as any).DO_NOT_WARN_RECORD_DELETE) {
+                        const warn = await Alert.info(
+                          `${model.config.modelName} ${model.title(
+                            data
+                          )}: Berhasil dihapus!`,
+                          {
+                            checkbox: "Jangan tampilkan lagi",
+                          }
+                        );
+
+                        if (warn) {
+                          (window as any).DO_NOT_WARN_RECORD_DELETE = true;
+                        }
+                      }
                       writer.saving = false;
                       writer.deleting = false;
 

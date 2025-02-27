@@ -9,6 +9,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./alert-dialog";
+import { Label } from "./label";
+import { Checkbox } from "./checkbox";
 
 interface AlertState {
   isOpen: boolean;
@@ -16,6 +18,10 @@ interface AlertState {
   onConfirm: () => void;
   onCancel: () => void;
   mode: "confirm" | "info";
+  checkbox?: {
+    label: string;
+    checked: boolean;
+  };
 }
 
 const alertState = proxy<AlertState>({
@@ -42,14 +48,26 @@ export const Alert = {
       };
     });
   },
-  info: (message: string): Promise<void> => {
+  info: (
+    message: string,
+    option?: { checkbox: string }
+  ): Promise<boolean | void> => {
     return new Promise((resolve) => {
       alertState.mode = "info";
       alertState.isOpen = true;
       alertState.message = message;
+      if (option?.checkbox) {
+        alertState.checkbox = {
+          label: option.checkbox,
+          checked: false,
+        };
+      } else {
+        alertState.checkbox = undefined;
+      }
       alertState.onConfirm = () => {
         alertState.isOpen = false;
-        resolve();
+        resolve(alertState.checkbox ? alertState.checkbox.checked : undefined);
+        alertState.checkbox = undefined;
       };
       // No cancel for info mode
       alertState.onCancel = () => {};
@@ -67,7 +85,21 @@ export function GlobalAlert() {
           <AlertDialogTitle>
             {snap.mode === "confirm" ? "Konfirmasi" : "Informasi"}
           </AlertDialogTitle>
-          <AlertDialogDescription className="whitespace-pre-wrap">{snap.message}</AlertDialogDescription>
+          <AlertDialogDescription className="whitespace-pre-wrap">
+            {snap.message}
+            {snap.checkbox && (
+              <span className="flex items-center space-x-2 absolute bottom-[35px]">
+                <Checkbox
+                  id="checkbox"
+                  checked={snap.checkbox.checked}
+                  onCheckedChange={(checked) => {
+                    alertState.checkbox!.checked = checked as boolean;
+                  }}
+                />
+                <Label htmlFor="checkbox" className="font-normal text-xs">{snap.checkbox.label}</Label>
+              </span>
+            )}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           {snap.mode === "confirm" ? (

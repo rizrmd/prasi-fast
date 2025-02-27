@@ -69,49 +69,50 @@ export class ModelCacheManager<T extends BaseRecord = any> {
       select?: Record<string, any>
     ): Promise<void> => {
       if (!this.isCachingEnabled() || !record?.id) {
-        return Promise.resolve();
+        return;
       }
 
       const modelName = this.state?.config?.modelName;
       const ttl = this.state?.config?.cache?.ttl || 60;
 
       if (!modelName) {
-        return Promise.resolve();
+        return;
       }
 
       try {
         // Cache the main record
-        this.cache?.cacheRecord(modelName, record.id, record, ttl);
+        await this.cache?.cacheRecord(modelName, record.id, record, ttl);
 
         // Cache relation IDs if any are selected
         if (select) {
-          for (const [relationName, relationSelect] of Object.entries(select)) {
-            if (typeof relationSelect !== 'object') continue;
+          await Promise.all(
+            Object.entries(select).map(async ([relationName, relationSelect]) => {
+              if (typeof relationSelect !== 'object') return;
 
-            const relationData = record[relationName];
-            if (relationData === undefined) continue;
+              const relationData = record[relationName];
+              if (relationData === undefined) return;
 
-            const relationIds = Array.isArray(relationData)
-              ? relationData.map((r: Record<string, any>) => r.id)
-              : (relationData as Record<string, any>)?.id || null;
+              const relationIds = Array.isArray(relationData)
+                ? relationData.map((r: Record<string, any>) => r.id)
+                : (relationData as Record<string, any>)?.id || null;
 
-            this.cache?.cacheRelationIds(
-              modelName,
-              record.id,
-              relationName,
-              relationIds,
-              ttl
-            );
-          }
+              await this.cache?.cacheRelationIds(
+                modelName,
+                record.id,
+                relationName,
+                relationIds,
+                ttl
+              );
+            })
+          );
         }
 
         this.debugLog(
           `Cached record and relations for ${modelName}:${record.id}`
         );
-        return Promise.resolve();
       } catch (error) {
         this.errorLog(`Cache error for ${modelName}:${record.id}:`, error);
-        return Promise.reject(error);
+        throw error;
       }
     },
 

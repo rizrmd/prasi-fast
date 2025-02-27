@@ -52,22 +52,27 @@ export class ModelCache {
   }
 
   get<T>(modelName: string, id: string): T | null {
+    if (typeof id !== "string") {
+      if (this.debug) console.log(`Cache MISS: ${JSON.stringify(id)}`);
+      return null;
+    }
+
     const key = this.getCacheKey(modelName, id);
     const entry = this.cache.get(key);
 
     if (!entry) {
-      if (this.debug) console.log(`Cache MISS: ${key}`);
+      if (this.debug) console.log(`Cache MISS: ${JSON.stringify(key)}`);
       return null;
     }
 
     // Check if entry is expired
     if (entry.expiry < Date.now()) {
-      if (this.debug) console.log(`Cache EXPIRED: ${key}`);
+      if (this.debug) console.log(`Cache EXPIRED: ${JSON.stringify(key)}`);
       this.cache.delete(key);
       return null;
     }
 
-    if (this.debug) console.log(`Cache HIT: ${key}`);
+    if (this.debug) console.log(`Cache HIT: ${JSON.stringify(key)}`);
     return entry.value as T;
   }
 
@@ -129,12 +134,12 @@ export class ModelCache {
   }
 
   // Record operations
-  cacheRecord(
+  async cacheRecord(
     tableName: string,
     id: string,
     record: Record<string, any>,
     ttl: number
-  ): void {
+  ): Promise<void> {
     try {
       const recordData = this.stripRelations(record);
       const key = this.getRecordKey(tableName, id);
@@ -150,9 +155,10 @@ export class ModelCache {
             expiry: Date.now() + ttl * 1000,
           };
 
-      this.cache.set(key, entry);
+      await Promise.resolve(this.cache.set(key, entry));
     } catch (error) {
       console.error(`Cache record error for ${tableName}:${id}:`, error);
+      throw error;
     }
   }
 
@@ -182,22 +188,24 @@ export class ModelCache {
   }
 
   // Relation operations
-  cacheRelationIds(
+  async cacheRelationIds(
     tableName: string,
     id: string,
     relationName: string,
     ids: number[] | number | null,
     ttl: number
-  ): void {
+  ): Promise<void> {
     try {
       const key = this.getRelationsKey(tableName, id);
       const existing = this.cache.get(key);
       const currentRelations = (existing?.value as RelationCache) || {};
 
-      this.cache.set(key, {
-        value: { ...currentRelations, [relationName]: ids },
-        expiry: Date.now() + ttl * 1000,
-      });
+      await Promise.resolve(
+        this.cache.set(key, {
+          value: { ...currentRelations, [relationName]: ids },
+          expiry: Date.now() + ttl * 1000,
+        })
+      );
 
       if (this.debug) {
         console.log(
@@ -209,6 +217,7 @@ export class ModelCache {
         `Cache relation error for ${tableName}:${id}:${relationName}:`,
         error
       );
+      throw error;
     }
   }
 
