@@ -10,7 +10,7 @@ import { DetailForm } from "./form";
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
   const detail = useModelDetail({ model });
-  if (!model.ready || detail.loading)
+  if (!model.ready || !detail.current)
     return (
       <div className="flex-1 flex items-center justify-center">
         <Spinner />
@@ -36,14 +36,10 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
               model.instance &&
               detail.current
             ) {
-              if (detail.data === null) return null;
               return (
                 <DetailForm
                   model={model.instance}
-                  fields={detail.current.fields}
-                  save={detail.save}
-                  del={detail.del}
-                  data={detail.data}
+                  detail={detail}
                   unsavedData={writer.unsavedTabs[writer.idx]}
                   onChanged={(data) => {
                     writer.unsavedTabs[writer.idx] = data;

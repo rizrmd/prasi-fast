@@ -20,6 +20,46 @@ export const useModelDetail = ({
 }) => {
   const params = useParams();
   const detail = useLocal({
+    prevId: null as string | null,
+    nextId: null as string | null,
+    findBefore: async (currentId: string) => {
+      if (!model.instance) return null;
+      type WhereInput = {
+        id: {
+          lt: string;
+        };
+      };
+      const record = await model.instance.findFirst({
+        where: {
+          id: {
+            lt: currentId
+          }
+        } as WhereInput,
+        orderBy: {
+          id: 'desc'
+        },
+      });
+      return record?.id || null;
+    },
+    findAfter: async (currentId: string) => {
+      if (!model.instance) return null;
+      type WhereInput = {
+        id: {
+          gt: string;
+        };
+      };
+      const record = await model.instance.findFirst({
+        where: {
+          id: {
+            gt: currentId
+          }
+        } as WhereInput,
+        orderBy: {
+          id: 'asc'
+        },
+      });
+      return record?.id || null;
+    },
     loading: false,
     available: false,
     data: null as any,
@@ -89,6 +129,10 @@ export const useModelDetail = ({
     let isMounted = true;
 
     const fetchData = async () => {
+      // Reset navigation IDs
+      detail.prevId = null;
+      detail.nextId = null;
+
       if (!model.instance || !layout?.detail) return;
 
       let id = params.id;
@@ -127,41 +171,26 @@ export const useModelDetail = ({
             // Convert Fields to Prisma select
             const convertFieldsToPrismaSelect = <T extends ModelName>(
               fields: Fields<T>
-            ): Record<
-              string,
-              boolean | { select: Record<string, boolean | object> }
-            > => {
+            ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
               const processFields = (
                 input: Fields<T>
-              ): Record<
-                string,
-                boolean | { select: Record<string, boolean | object> }
-              > => {
+              ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
                 if (Array.isArray(input)) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
                   for (const item of input) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("vertical" in input) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
                   for (const item of input.vertical) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("horizontal" in input) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
                   for (const item of input.horizontal) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
@@ -173,8 +202,7 @@ export const useModelDetail = ({
                 return {};
               };
 
-              const result = processFields(fields);
-              return result;
+              return processFields(fields);
             };
 
             // Add detail fields
@@ -193,14 +221,29 @@ export const useModelDetail = ({
         const data = await model.instance.findMany(findManyParams);
         if (isMounted && data) {
           detail.data = data[0] || null;
+
+          // After loading current record, fetch prev/next IDs
+          if (detail.data?.id) {
+            const [prevId, nextId] = await Promise.all([
+              detail.findBefore(detail.data.id),
+              detail.findAfter(detail.data.id),
+            ]);
+            if (isMounted) {
+              detail.prevId = prevId;
+              detail.nextId = nextId;
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching model detail:", error);
       }
 
-      detail.loading = false;
-      detail.render();
+      if (isMounted) {
+        detail.loading = false;
+        detail.render();
+      }
     };
+
     fetchData();
     return () => {
       isMounted = false;

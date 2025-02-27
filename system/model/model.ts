@@ -209,6 +209,26 @@ export class Model<T extends BaseRecord = any> {
     return this.crudManager.findList(params);
   }
 
+  public async findBefore(params: {
+    id: string;
+    perPage?: number;
+    select?: Record<string, any>;
+    where?: Record<string, any>;
+  }): Promise<T[]> {
+    await this.ensureInitialized();
+    return this.crudManager.findBefore(params);
+  }
+
+  public async findAfter(params: {
+    id: string;
+    perPage?: number;
+    select?: Record<string, any>;
+    where?: Record<string, any>;
+  }): Promise<T[]> {
+    await this.ensureInitialized();
+    return this.crudManager.findAfter(params);
+  }
+
   public async findMany(
     params: Partial<
       Omit<PaginationParams, "page" | "perPage"> & {

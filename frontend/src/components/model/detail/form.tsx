@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/global-alert";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { useModelDetail } from "@/hooks/use-model-detail";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { parseHash } from "@/lib/parse-hash";
 import { navigate, useParams } from "@/lib/router";
@@ -28,30 +29,39 @@ type FormWriter = {
   resetting: boolean;
   saving: boolean;
   deleting: boolean;
+  prevId: string | null;
+  nextId: string | null;
 };
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
-  save: (
-    data: any
-  ) => Promise<{ success: boolean; error?: string; newId?: string }>;
-  del: (data: any) => Promise<{ success: boolean; error?: string }>;
-  fields: Fields<ModelName>;
-  data: any;
+  detail: ReturnType<typeof useModelDetail>;
   onChanged?: (changedData: any) => void;
   unsavedData?: any;
-}> = ({ model, fields, data, save, onChanged, unsavedData, del }) => {
+}> = ({ model, onChanged, unsavedData, detail }) => {
+  const { del, save, data, prevId, nextId } = detail;
+  const fields = detail.current?.fields;
   const params = useParams();
   const writer = useWriter({
     data: {} as any,
     unsaved: false,
     resetting: false,
     saving: false,
+    prevId: prevId || null,
+    nextId: nextId || null,
   } as FormWriter);
+  const form = useReader(writer);
 
-  if (!fields) return null;
+  const isLoading = detail.loading || detail.data === null || form.saving;
 
   useEffect(() => {
+    writer.nextId = nextId;
+    writer.prevId = prevId;
+  }, [prevId, nextId]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
     if (params.id === "clone") {
       const prev_id = parseHash()["prev"];
       if (!prev_id) {
@@ -75,7 +85,9 @@ export const DetailForm: FC<{
       writer.unsaved = false;
       onChanged?.(undefined);
     }
-  }, [data]);
+  }, [data, isLoading]);
+
+  if (!fields) return null;
 
   return (
     <form
@@ -123,14 +135,20 @@ export const DetailForm: FC<{
         }}
       />
       <div className="flex flex-1 relative flex-col items-stretch">
-        <RecursiveFields
-          model={model}
-          fields={fields}
-          writer={writer}
-          onChange={({ col, value }) => {
-            onChanged?.(snapshot(writer.data));
-          }}
-        />
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Spinner />
+          </div>
+        ) : (
+          <RecursiveFields
+            model={model}
+            fields={fields}
+            writer={writer}
+            onChange={({ col, value }) => {
+              onChanged?.(snapshot(writer.data));
+            }}
+          />
+        )}
       </div>
     </form>
   );
@@ -164,8 +182,17 @@ const Toolbar: FC<{
             size="sm"
             asDiv
             variant={"outline"}
-            disabled
+            disabled={!form.prevId || form.unsaved}
             className={cn("text-xs rounded-sm cursor-pointer")}
+            onClick={() => {
+              if (form.prevId) {
+                navigate(
+                  `/model/${model.config.modelName.toLowerCase()}/detail/${
+                    form.prevId
+                  }`
+                );
+              }
+            }}
           >
             <ChevronLeft />
           </Button>
@@ -175,8 +202,17 @@ const Toolbar: FC<{
             asDiv
             size="sm"
             variant={"outline"}
-            disabled
+            disabled={!form.nextId || form.unsaved}
             className={cn("text-xs rounded-sm cursor-pointer")}
+            onClick={() => {
+              if (form.nextId) {
+                navigate(
+                  `/model/${model.config.modelName.toLowerCase()}/detail/${
+                    form.nextId
+                  }`
+                );
+              }
+            }}
           >
             <ChevronRight />
           </Button>
@@ -278,6 +314,24 @@ const Toolbar: FC<{
                       toast("Data terhapus", { dismissible: true });
                       writer.saving = false;
                       writer.deleting = false;
+
+                      if (form.nextId) {
+                        navigate(
+                          `/model/${model.config.modelName.toLowerCase()}/detail/${
+                            form.nextId
+                          }`
+                        );
+                      } else if (form.prevId) {
+                        navigate(
+                          `/model/${model.config.modelName.toLowerCase()}/detail/${
+                            form.prevId
+                          }`
+                        );
+                      } else {
+                        navigate(
+                          `/model/${model.config.modelName.toLowerCase()}`
+                        );
+                      }
                     }
                   }}
                 >

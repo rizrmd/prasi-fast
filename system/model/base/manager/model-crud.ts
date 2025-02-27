@@ -364,4 +364,100 @@ export abstract class ModelCrud<
 
     return result as T;
   }
+
+  async findBefore(params: {
+    id: string;
+    perPage?: number;
+    select?: Record<string, any> | string[];
+    where?: Record<string, any>;
+    useCache?: boolean;
+  }): Promise<T[]> {
+    const perPage = params.perPage || 10;
+    let queryParams = {
+      take: perPage,
+      cursor: { id: params.id },
+      skip: 1, // Skip the cursor
+      orderBy: { id: 'desc' as const },
+      where: params.where,
+      select: params.select,
+    };
+
+    if (Array.isArray(queryParams.select)) {
+      queryParams.select = queryParams.select.reduce(
+        (acc: Record<string, boolean>, field: string) => {
+          acc[field] = true;
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const enhancedSelect = queryParams.select
+      ? this.ensurePrimaryKeys(queryParams.select)
+      : undefined;
+
+    const records = await this.prismaTable.findMany({
+      ...queryParams,
+      select: enhancedSelect,
+    });
+
+    const shouldCache = params.useCache ?? this.shouldUseCache();
+    if (shouldCache && records.length) {
+      await Promise.all(
+        records.map((record: any) =>
+          this.cacheRecordAndRelations(record, params.select)
+        )
+      );
+    }
+
+    return records as T[];
+  }
+
+  async findAfter(params: {
+    id: string;
+    perPage?: number;
+    select?: Record<string, any> | string[];
+    where?: Record<string, any>;
+    useCache?: boolean;
+  }): Promise<T[]> {
+    const perPage = params.perPage || 10;
+    let queryParams = {
+      take: perPage,
+      cursor: { id: params.id },
+      skip: 1, // Skip the cursor
+      orderBy: { id: 'asc' as const },
+      where: params.where,
+      select: params.select,
+    };
+
+    if (Array.isArray(queryParams.select)) {
+      queryParams.select = queryParams.select.reduce(
+        (acc: Record<string, boolean>, field: string) => {
+          acc[field] = true;
+          return acc;
+        },
+        {}
+      );
+    }
+
+    const enhancedSelect = queryParams.select
+      ? this.ensurePrimaryKeys(queryParams.select)
+      : undefined;
+
+    const records = await this.prismaTable.findMany({
+      ...queryParams,
+      select: enhancedSelect,
+    });
+
+    const shouldCache = params.useCache ?? this.shouldUseCache();
+    if (shouldCache && records.length) {
+      await Promise.all(
+        records.map((record: any) =>
+          this.cacheRecordAndRelations(record, params.select)
+        )
+      );
+    }
+
+    return records as T[];
+  }
 }

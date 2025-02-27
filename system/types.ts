@@ -49,8 +49,7 @@ export type ModelConfig = {
 export interface PaginationParams {
   page?: number;
   perPage?: number;
-  orderBy?: string;
-  orderDirection?: "asc" | "desc";
+  orderBy?: Record<string, "asc" | "desc">;
   search?: string;
   where?: Record<string, any>;
   select?: Record<string, any>;
