@@ -13,7 +13,7 @@ export default () => {
   if (!modelName) modelName = params.name as any;
 
   return (
-    <ModelContainer>
+    <ModelContainer modelName={modelName}>
       <MDetail modelName={modelName} />
     </ModelContainer>
   );

@@ -23,7 +23,6 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
     );
   }
 
-
   return (
     <DataTable
       columns={table.columns}

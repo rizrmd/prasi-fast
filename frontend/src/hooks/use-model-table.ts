@@ -161,7 +161,12 @@ export const useModelTable = ({
 
     const fetchData = async () => {
       const layout = { table: table.current };
-      if (!model.instance || !layout.table) return;
+      if (!model.instance || !layout.table) {
+        table.available = false;
+        table.loading = false;
+        table.render();
+        return;
+      }
 
       table.loading = true;
       table.render();
@@ -265,6 +270,7 @@ export const useModelTable = ({
           table.render();
         }
       } catch (error) {
+        console.error(error);
         if (isMounted) {
           console.error("Error fetching table data:", error);
           table.loading = false;
