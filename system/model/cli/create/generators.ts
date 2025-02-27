@@ -65,6 +65,8 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
       // Check if field type exists as a model name (relation)
       const isRelation = allModelNames.includes(field.fieldType);
 
+      if (defaultColumns.includes(field.name)) return;
+
       if (isRelation) {
         // Field is a relation - determine type based on array property
         const relationType = field.array ? "hasMany" : "belongsTo";
@@ -77,8 +79,6 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
           label: capitalize(field.name),
         } as RelationConfig;
       } else {
-        if (defaultColumns.includes(field.name)) return false;
-
         // Regular field - add as column
         columns[field.name] = {
           type: getFieldType(field.fieldType),
@@ -88,9 +88,13 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
       }
     });
 
-  const titleColumn = sortByEstimatedImportance(Object.keys(columns))[0];
+  // Get the primary key and determine title column
+  const primaryKey = models[modelName].pk;
+  const columnKeys = Object.keys(columns);
+  const titleColumn = columnKeys.length > 0 ? sortByEstimatedImportance(columnKeys)[0] : primaryKey;
   // Prepare the model file content using the shared model sample as reference
   const className = capitalize(modelName);
+
   const fileContent = `import type { Prisma, ${className} as Prisma${className} } from "@prisma/client";
 import { Model, DefaultColumns } from "system/model/model";
 import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns } from "system/types";
@@ -98,13 +102,16 @@ import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns
 export class ${className} extends Model<Prisma${className}> {
   constructor() {
     super({
-       relations: relations as ModelRelations,
+      modelName: "${modelName}",
+      tableName: "${tableName}",
+      primaryKey: "${primaryKey}",
+      relations: relations as ModelRelations,
       columns: columns as ModelColumns
     });
   }
 
   title(data: Partial<Prisma${className}>): string {
-    return \`\${data.${titleColumn}}\`;
+    return data['${titleColumn}'] ? String(data['${titleColumn}']) : '';
   }
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {
@@ -129,14 +136,14 @@ ${Object.entries(columns)
 
 /** Relations **/
 const relations: Record<string, RelationConfig> = {
-  ${Object.entries(relations)
-    .map(([key, value]) => {
-      return `  ${key}: ${JSON.stringify(value, null, 2)
-        .split("\n")
-        .join("\n  ")}`;
-    })
-    .join(",\n")}
-  };
+${Object.entries(relations)
+  .map(([key, value]) => {
+    return `  ${key}: ${JSON.stringify(value, null, 2)
+      .split("\n")
+      .join("\n  ")}`;
+  })
+  .join(",\n")}
+};
 `;
 
   // Write the model file to the appropriate directory

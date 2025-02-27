@@ -4,5 +4,6 @@ export const table: LayoutTable<"User"> = {
   columns: [
     { col: "username" },
     { col: "email" },
+    { rel: "role", col: "name" }
   ],
 };

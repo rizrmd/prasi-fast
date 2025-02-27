@@ -2,10 +2,7 @@ import { LayoutDetail } from "system/model/layout/types";
 
 export const detail: LayoutDetail<"Role"> = {
   fields: {
-    vertical: [
-      { horizontal: [{ col: "name" }, { col: "name" }] },
-      { horizontal: [{ col: "name" }, { col: "name" }] },
-    ],
+    vertical: [{ horizontal: [{ col: "name" }] }],
   },
   tabs: [
     { title: "Detail", type: "default" },

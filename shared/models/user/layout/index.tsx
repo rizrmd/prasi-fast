@@ -1,2 +1,2 @@
 export { table } from "./table";
-export { detail } from "./detail";
+export * as detail from "./detail";

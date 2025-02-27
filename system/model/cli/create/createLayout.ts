@@ -1,39 +1,38 @@
-import { writeFileSync, mkdirSync, readFileSync } from "fs";
+import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { createLayoutTable } from "./createLayoutTable";
+import { createLayoutDetail } from "./createLayoutDetail";
 
-async function updateLayoutsRegistry(modelName: string) {
+async function updateLayoutsRegistry() {
   const layoutsPath = "shared/layouts.ts";
+  const modelsDir = "shared/models";
+  let imports = "";
+  let exports = "";
+
   try {
-    let content = "";
-    try {
-      content = readFileSync(layoutsPath, "utf-8");
-    } catch {
-      // File doesn't exist, create initial content
-      content = `export const layouts = {};\n`;
+    const modelDirs = readdirSync(modelsDir, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
+
+    for (const modelName of modelDirs) {
+      const layoutDir = join(modelsDir, modelName, "layout");
+      try {
+        // Check if layout directory exists
+        readdirSync(layoutDir);
+        const capitalizedModelName =
+          modelName.charAt(0).toUpperCase() + modelName.slice(1);
+        imports += `import * as ${capitalizedModelName} from "./models/${modelName}/layout";\n`;
+        exports += `  ${capitalizedModelName},\n`;
+      } catch {
+        // Layout directory doesn't exist, skip
+      }
     }
 
-    // Check if import already exists
-    if (
-      !content.includes(
-        `import * as ${modelName} from "./models/${modelName.toLowerCase()}/layout"`
-      )
-    ) {
-      // Add new import at the top of the file
-      const imports = content.split("\n\n")[0];
-      const rest = content.split("\n\n").slice(1).join("\n\n");
-      content = `${imports}
-import * as ${modelName} from "./models/${modelName.toLowerCase()}/layout";\n\n${rest}`;
-    }
-
-    // Check if model exists in layouts object
-    if (!content.includes(`${modelName},`)) {
-      // Add model to layouts object
-      content = content.replace(
-        /export const layouts = {/,
-        `export const layouts = {\n  ${modelName},`
-      );
-    }
+    const content = `${imports}
+export const layouts = {
+${exports.trim()}
+};
+`;
 
     writeFileSync(layoutsPath, content);
     return true;
@@ -50,19 +49,26 @@ export async function createLayout(modelName: string) {
     return false;
   }
 
+  // Create layout table first
+  const detailCreated = await createLayoutDetail(modelName);
+  if (!detailCreated) {
+    return false;
+  }
+
   const layoutDir = join("shared/models", modelName.toLowerCase(), "layout");
-  const layoutPath = join(layoutDir, "index.tsx");
+  const layoutIndexPath = join(layoutDir, "index.tsx");
 
   // Create layout directory if it doesn't exist
   mkdirSync(layoutDir, { recursive: true });
 
-  const content = `export { table } from "./table";`;
+  const indexContent = `export { table } from "./table";\nexport * as detail from "./detail";`;
 
   try {
-    writeFileSync(layoutPath, content);
-    console.log(`Created layout index at ${layoutPath}`);
+    writeFileSync(layoutIndexPath, indexContent);
+    console.log(`Created layout index at ${layoutIndexPath}`);
+
     // Update layouts registry
-    const registryUpdated = await updateLayoutsRegistry(modelName);
+    const registryUpdated = await updateLayoutsRegistry();
     if (!registryUpdated) {
       return false;
     }
