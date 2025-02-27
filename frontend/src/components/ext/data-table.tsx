@@ -23,6 +23,7 @@ import { css } from "goober";
 import { ChevronDown, Ellipsis } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutTable } from "system/model/layout/types";
+import { AppLoading } from "../app/app-loading";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -40,8 +41,10 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
   status,
   result,
   onRowClick,
+  primaryKey,
   checkbox,
 }: DataTableProps<TData, TValue> & {
+  primaryKey: string;
   status: "init" | "loading" | "ready";
   result: PaginationResult<any> | null;
   checkbox?: LayoutTable<any>["checkbox"];
@@ -169,7 +172,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                             columnName={meta.columnName ?? cell.column.id}
                             type={meta.type ?? ""}
                             value={value}
-                            rowId={row.id}
+                            rowId={row.original[primaryKey]}
                           />
                         );
                       })()}
@@ -195,10 +198,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                 className="h-24 opacity-50 text-center select-none"
               >
                 {status === "loading" ? (
-                  <div className="flex items-center justify-center space-x-1">
-                    <Spinner className="h-4 w-4 " />
-                    <div>Loading...</div>
-                  </div>
+                  <AppLoading />
                 ) : (
                   <WarnFull size={35}>Data Kosong</WarnFull>
                 )}

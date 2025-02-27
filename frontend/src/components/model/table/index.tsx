@@ -26,6 +26,7 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
   return (
     <DataTable
       columns={table.columns}
+      primaryKey={model.instance?.config.primaryKey || 'id'}
       status={table.loading ? "loading" : "ready"}
       result={table.result}
       onRowClick={(row) => {

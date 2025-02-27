@@ -6,16 +6,12 @@ import { FC } from "react";
 import { ModelName } from "shared/types";
 import { MDetailTabs } from "./detail-tabs";
 import { DetailForm } from "./form";
+import { AppLoading } from "@/components/app/app-loading";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
   const detail = useModelDetail({ model });
-  if (!model.ready || !detail.current)
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
+  if (!model.ready || !detail.current) return <AppLoading />;
 
   if (!model.instance || !detail.current) {
     return (

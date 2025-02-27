@@ -68,6 +68,16 @@ function matchRoute(path: string, routePattern: RoutePattern): Params | null {
   return params;
 }
 
+export function parseRouteParams(path: string): Params | null {
+  for (let pattern in pageModules) {
+    const params = matchRoute(path, parsePattern(pattern));
+    if (params) {
+      return params;
+    }
+  }
+  return null;
+}
+
 const router = {
   currentPath: window.location.pathname,
   params: {} as Params,

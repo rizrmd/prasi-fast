@@ -33,6 +33,7 @@ import { css } from "goober";
 export interface Tab {
   id: string;
   label: string;
+  url: string;
   pinned?: boolean;
   closable?: boolean;
 }
@@ -178,7 +179,11 @@ const DraggableTab = ({
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent
+          onContextMenu={(e) => {
+            e.preventDefault();
+          }}
+        >
           <ContextMenuItem onClick={onClose}>Close Tab</ContextMenuItem>
           {onCloseOthers && (
             <ContextMenuItem onClick={onCloseOthers}>
@@ -211,8 +216,8 @@ const DraggableTab = ({
 
 interface DraggableTabsProps {
   tabs: Tab[];
-  activeTab: string;
-  onTabChange: (value: string) => void;
+  activeIndex: number;
+  onTabChange: (index: number) => void;
   onTabsReorder: (tabs: Tab[]) => void;
   onTabClose: (tabId: string) => void;
   className?: string;
@@ -220,7 +225,7 @@ interface DraggableTabsProps {
 
 export const DraggableTabs = ({
   tabs,
-  activeTab,
+  activeIndex,
   onTabChange,
   onTabsReorder,
   onTabClose,
@@ -293,8 +298,20 @@ export const DraggableTabs = ({
     }),
   };
 
+  // Helper function to convert tab id to index
+  const getTabIndexById = (id: string): number => {
+    return tabs.findIndex((tab) => tab.id === id);
+  };
+
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange}>
+    <Tabs
+      value={tabs[activeIndex]?.id}
+      onValueChange={(value) => {
+        // Convert the selected tab ID to its index
+        const index = getTabIndexById(value);
+        onTabChange(index);
+      }}
+    >
       <TabsList
         className={cn(
           "flex w-full mx-auto overflow-x-auto overflow-y-hidden rounded-none",
@@ -329,7 +346,10 @@ export const DraggableTabs = ({
                   tabLength={tabs.length}
                   tab={tab}
                   onClose={() => onTabClose(tab.id)}
-                  onSelect={onTabChange}
+                  onSelect={(id) => {
+                    const index = getTabIndexById(id);
+                    onTabChange(index);
+                  }}
                   onCloseOthers={() => handleCloseOthers(tab.id)}
                   onCloseRight={() => handleCloseRight(tab.id)}
                   onPin={() => handlePinTab(tab.id)}
@@ -346,7 +366,10 @@ export const DraggableTabs = ({
                 tab={draggedTab}
                 tabLength={tabs.length}
                 onClose={() => onTabClose(draggedTab.id)}
-                onSelect={onTabChange}
+                onSelect={(id) => {
+                  const index = getTabIndexById(id);
+                  onTabChange(index);
+                }}
                 isDragging={true}
               />
             ) : null}

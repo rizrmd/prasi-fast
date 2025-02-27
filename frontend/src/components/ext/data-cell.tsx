@@ -6,16 +6,12 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { PopoverTrigger } from "@radix-ui/react-popover";
-import {
-  ArrowRight,
-  ExternalLink,
-  Filter,
-  Pencil
-} from "lucide-react";
+import { ArrowRight, ExternalLink, Filter, Pencil } from "lucide-react";
 import { FC, Fragment, useState } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { Popover, PopoverContent } from "../ui/popover";
+import { openInNewTab } from "../model/nav-tabs";
 
 const cell = { popover: "" };
 
@@ -32,6 +28,10 @@ export const DataCell: FC<{
   const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
 
   const select = (action: string) => {
+    if (action === "new-tab") {
+      openInNewTab(`/model/${modelName.toLowerCase()}/detail/${rowId}`);
+    }
+
     cell.popover = "";
     render({});
   };
@@ -120,7 +120,7 @@ const CellAction: FC<{
                         const rel = lastModel?.config.relations[e];
                         if (rel) {
                           label = rel.label || label;
-                          lastModel = lastModel[rel.model];
+                          lastModel = (lastModel as any)[rel.model];
                         }
                       }
                     }

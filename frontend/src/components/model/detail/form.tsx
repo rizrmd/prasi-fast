@@ -1,3 +1,4 @@
+import { AppLoading } from "@/components/app/app-loading";
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/global-alert";
@@ -136,9 +137,7 @@ export const DetailForm: FC<{
       />
       <div className="flex flex-1 relative flex-col items-stretch">
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Spinner />
-          </div>
+          <AppLoading />
         ) : (
           <RecursiveFields
             model={model}
