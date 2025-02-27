@@ -61,7 +61,7 @@ export async function createLayout(modelName: string) {
   // Create layout directory if it doesn't exist
   mkdirSync(layoutDir, { recursive: true });
 
-  const indexContent = `export { table } from "./table";\nexport * as detail from "./detail";`;
+  const indexContent = `export { table } from "./table";\nexport { detail } from "./detail";`;
 
   try {
     writeFileSync(layoutIndexPath, indexContent);
