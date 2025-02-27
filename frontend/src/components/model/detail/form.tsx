@@ -23,6 +23,7 @@ import { ModelName, Models } from "shared/types";
 import { toast } from "sonner";
 import { Fields } from "system/model/layout/types";
 import { snapshot } from "valtio";
+import { NotID } from "./utils";
 
 type FormWriter = {
   data: any;
@@ -102,7 +103,23 @@ export const DetailForm: FC<{
         writer.unsaved = false;
         onChanged?.(undefined);
 
-        toast("Data berhasil tersimpan", { dismissible: true });
+        if (!res.success) {
+          toast("Data Gagal Tersimpan !", {
+            dismissible: true,
+            richColors: true,
+            duration: 10000,
+            action: {
+              label: "Info Teknis",
+              onClick: () => Alert.info(res.error.message),
+            },
+            className: css`
+              border: 0 !important;
+              background: #a31616 !important;
+            `,
+          });
+        } else {
+          toast("Data Berhasil Tersimpan !", { dismissible: true });
+        }
 
         if (res.newId) {
           navigate(
@@ -216,7 +233,7 @@ const Toolbar: FC<{
             <ChevronRight />
           </Button>
         </SimpleTooltip>
-        {!form.unsaved && !["new", "clone"].includes(params.id) && (
+        {!form.unsaved && !NotID.includes(params.id) && (
           <SimpleTooltip content="Duplikat data ini">
             <Button
               size="sm"
@@ -232,7 +249,7 @@ const Toolbar: FC<{
           </SimpleTooltip>
         )}
 
-        {!form.unsaved && !["new", "clone"].includes(params.id) && (
+        {!form.unsaved && !NotID.includes(params.id) && (
           <SimpleTooltip content="Tambah data baru">
             <Button
               size="sm"
@@ -293,7 +310,7 @@ const Toolbar: FC<{
         )}
         {!form.saving && (
           <>
-            {!["new", "clone"].includes(params.id) && (
+            {!NotID.includes(params.id) && (
               <SimpleTooltip content="Hapus data ini">
                 <Button
                   size="icon"

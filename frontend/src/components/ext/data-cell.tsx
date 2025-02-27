@@ -29,6 +29,33 @@ export const DataCell: FC<{
 
   const select = (action: string) => {
     if (action === "new-tab") {
+      if (type === "hasMany") {
+        const model = models[modelName];
+        const parts = columnName.split(".");
+
+        const rel = model.config.relations[parts[0]];
+
+        const relModel = models[rel.model];
+        if (relModel) {
+          const col = relModel.config.columns[parts[1]];
+
+          if (col) {
+            for (const [k, v] of Object.entries(relModel.config.relations)) {
+              if (v.model === modelName) {
+                openInNewTab(
+                  `/model/${rel.model.toLowerCase()}#filter#${
+                    v.prismaField
+                  }=${rowId}`
+                );
+              }
+            }
+          }
+        }
+
+        cell.popover = "";
+        render({});
+        return;
+      }
       openInNewTab(`/model/${modelName.toLowerCase()}/detail/${rowId}`);
     }
 

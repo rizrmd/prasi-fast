@@ -5,10 +5,8 @@ import { ModelName } from "shared/types";
 
 export const useModel = <M extends ModelName>({
   modelName,
-  onInit,
 }: {
   modelName: M;
-  onInit?: () => void;
 }) => {
   const local = useLocal({
     name: "",
@@ -26,8 +24,11 @@ export const useModel = <M extends ModelName>({
         local.instance = model;
         local.ready = true;
         local.render();
-        onInit?.();
       } else {
+        local.name = "";
+        local.instance = null;
+        local.ready = true;
+        local.render();
         console.warn("Model not found", modelName);
       }
     }

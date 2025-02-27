@@ -58,7 +58,8 @@ function parsePattern(pattern: string): RoutePattern {
 }
 
 function matchRoute(path: string, routePattern: RoutePattern): Params | null {
-  const match = path.match(routePattern.regex);
+
+  const match = (path.split('#').shift() || "").match(routePattern.regex);
   if (!match) return null;
 
   const params: Params = {};

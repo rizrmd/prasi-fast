@@ -67,7 +67,7 @@ export function GlobalAlert() {
           <AlertDialogTitle>
             {snap.mode === "confirm" ? "Konfirmasi" : "Informasi"}
           </AlertDialogTitle>
-          <AlertDialogDescription>{snap.message}</AlertDialogDescription>
+          <AlertDialogDescription className="whitespace-pre-wrap">{snap.message}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           {snap.mode === "confirm" ? (

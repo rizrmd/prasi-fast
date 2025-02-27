@@ -17,7 +17,7 @@ import { SimpleTooltip } from "../ext/simple-tooltip";
 import { Button } from "../ui/button";
 import { useModel } from "@/hooks/use-model";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Plus, TriangleAlert } from "lucide-react";
 import { css } from "goober";
 
 export const ModelContainer: FC<{
@@ -30,36 +30,56 @@ export const ModelContainer: FC<{
     <ProtectedRoute>
       <div className="flex flex-col flex-1 bg-slate-100">
         <ModelNavTabs modelName={modelName} />
-        <div className="flex border-b  bg-white items-stretch justify-between">
-          <ContainerBreadcrumb />
-          <div
-            className={cn(
-              "flex px-2 py-1",
-              css`
-                .button {
-                  height: auto;
-                  min-height: 0;
-                  padding: 0px 6px;
-                }
-              `
-            )}
-          >
-            {!params.id && (
-              <SimpleTooltip content="Tambah data baru">
-                <Button
-                  size="sm"
-                  asDiv
-                  href={`/model/${model.instance?.config.modelName.toLowerCase()}/detail/new`}
-                  className={cn("text-xs rounded-sm cursor-pointer")}
-                >
-                  <Plus strokeWidth={1.5} />
-                  <div className="-ml-1">Tambah</div>
-                </Button>
-              </SimpleTooltip>
-            )}
+
+        {modelName ? (
+          <>
+            <div className="flex border-b  bg-white items-stretch justify-between">
+              <ContainerBreadcrumb />
+              <div
+                className={cn(
+                  "flex px-2 py-1",
+                  css`
+                    .button {
+                      height: auto;
+                      min-height: 0;
+                      padding: 0px 6px;
+                    }
+                  `
+                )}
+              >
+                {!params.id && (
+                  <SimpleTooltip content="Tambah data baru">
+                    <Button
+                      size="sm"
+                      asDiv
+                      href={`/model/${model.instance?.config.modelName.toLowerCase()}/detail/new`}
+                      className={cn("text-xs rounded-sm cursor-pointer")}
+                    >
+                      <Plus strokeWidth={1.5} />
+                      <div className="-ml-1">Tambah</div>
+                    </Button>
+                  </SimpleTooltip>
+                )}
+              </div>
+            </div>
+            <div className="p-2 flex flex-1 items-stretch flex-col">
+              {children}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center flex-col space-x-1 bg-white">
+            <TriangleAlert size={40} strokeWidth={1} />
+            <div className="text-center flex flex-col">
+              <div>404: Not Found</div>
+              <hr className="my-1 w-[170px] border-t border-t-slate-300 border-b border-b-slate-200" />
+              <small className="">
+                Halaman yang dituju
+                <br />
+                tidak dapat ditemukan
+              </small>
+            </div>
           </div>
-        </div>
-        <div className="p-2 flex flex-1 items-stretch flex-col">{children}</div>
+        )}
       </div>
     </ProtectedRoute>
   );

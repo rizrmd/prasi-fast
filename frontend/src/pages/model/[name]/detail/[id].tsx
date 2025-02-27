@@ -10,7 +10,6 @@ export default () => {
       return true;
     }
   }) as ModelName;
-  if (!modelName) modelName = params.name as any;
 
   return (
     <ModelContainer modelName={modelName}>

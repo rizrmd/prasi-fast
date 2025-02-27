@@ -28,9 +28,9 @@ export const modelRoute = async (req: BunRequest<"/_system/models/:model">) => {
       try {
         const done = await prisma[post.method](...post.args);
         result.push(done);
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
-        result.push({ error: e });
+        result.push({ error: { ...e, message: e.message } });
       }
     }
 

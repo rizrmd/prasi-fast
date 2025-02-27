@@ -7,6 +7,7 @@ import { defaultColumns } from "system/model/model";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { parseHash } from "@/lib/parse-hash";
+import { NotID } from "@/components/model/detail/utils";
 
 type ModelRecord = {
   id: string;
@@ -23,7 +24,7 @@ export const useModelDetail = ({
     prevId: null as string | null,
     nextId: null as string | null,
     findBefore: async (currentId: string) => {
-      if (!model.instance) return null;
+      if (!model.instance || NotID.includes(currentId)) return null;
       type WhereInput = {
         id: {
           lt: string;
@@ -32,17 +33,17 @@ export const useModelDetail = ({
       const record = await model.instance.findFirst({
         where: {
           id: {
-            lt: currentId
-          }
+            lt: currentId,
+          },
         } as WhereInput,
         orderBy: {
-          id: 'desc'
+          id: "desc",
         },
       });
       return record?.id || null;
     },
     findAfter: async (currentId: string) => {
-      if (!model.instance) return null;
+      if (!model.instance || NotID.includes(currentId)) return null;
       type WhereInput = {
         id: {
           gt: string;
@@ -51,11 +52,11 @@ export const useModelDetail = ({
       const record = await model.instance.findFirst({
         where: {
           id: {
-            gt: currentId
-          }
+            gt: currentId,
+          },
         } as WhereInput,
         orderBy: {
-          id: 'asc'
+          id: "asc",
         },
       });
       return record?.id || null;
@@ -101,9 +102,9 @@ export const useModelDetail = ({
           }
         }
         return { success: true, newId };
-      } catch (error) {
-        console.error("Error saving record:", error);
-        return { success: false };
+      } catch (msg: any) {
+        console.error("Error saving record:", msg.error);
+        return { success: false, error: msg.error };
       }
     },
   });
@@ -171,26 +172,41 @@ export const useModelDetail = ({
             // Convert Fields to Prisma select
             const convertFieldsToPrismaSelect = <T extends ModelName>(
               fields: Fields<T>
-            ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
+            ): Record<
+              string,
+              boolean | { select: Record<string, boolean | object> }
+            > => {
               const processFields = (
                 input: Fields<T>
-              ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
+              ): Record<
+                string,
+                boolean | { select: Record<string, boolean | object> }
+              > => {
                 if (Array.isArray(input)) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("vertical" in input) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input.vertical) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("horizontal" in input) {
-                  const result = {} as Record<string, boolean | { select: Record<string, boolean | object> }>;
+                  const result = {} as Record<
+                    string,
+                    boolean | { select: Record<string, boolean | object> }
+                  >;
                   for (const item of input.horizontal) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);

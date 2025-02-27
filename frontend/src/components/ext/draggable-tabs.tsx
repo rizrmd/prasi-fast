@@ -286,6 +286,7 @@ export const DraggableTabs = ({
       const newIndex = tabs.findIndex((tab) => tab.id === over.id);
       const newTabs = arrayMove(tabs, oldIndex, newIndex);
       onTabsReorder(newTabs);
+      onTabChange(newIndex);
     }
     setDraggedTab(null);
   };

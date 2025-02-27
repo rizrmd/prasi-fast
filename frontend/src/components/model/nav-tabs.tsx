@@ -7,6 +7,8 @@ import { FC, useEffect, useState } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
 import { DraggableTabs, Tab as DraggableTabType } from "../ext/draggable-tabs";
+import { TriangleAlert } from "lucide-react";
+import { NotID } from "./detail/utils";
 
 const STORAGE_KEY = "nav_tabs_state";
 
@@ -47,7 +49,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
     if (params && modelName && params.id) {
       const model = Models[modelName];
 
-      if (model) {
+      if (model && !NotID.includes(params.id)) {
         const data = await model.findFirst(params.id);
         if (data) {
           const title = model.title(data);
@@ -61,10 +63,10 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
   };
   // Handle URL changes after initial load
   useEffect(() => {
-    if (nav.tabs.length === 0) return;
+    if (nav.tabs.length === 0 || !modelName) return;
 
     const currentTab = nav.tabs[nav.activeIdx];
-    if (currentTab) {
+    if (currentTab && !currentTab.label.includes("⚠")) {
       loadLabel(currentPath).then((label) => {
         currentTab.url = currentPath;
         currentTab.label = label || modelName;
@@ -75,7 +77,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
         nav.render();
       });
     }
-  }, [currentPath]);
+  }, [currentPath, modelName]);
 
   // Load saved tabs on component mount - only run once
   useEffect(() => {
@@ -110,11 +112,11 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
         const newTab: DraggableTabType = {
           id: cuid(),
           url: currentPath,
-          label: modelName,
+          label: modelName || "Not Found ⚠",
           closable: true,
         };
-        nav.tabs.push(newTab);
-        nav.activeIdx = nav.tabs.length - 1;
+        nav.tabs.unshift(newTab);
+        nav.activeIdx = 0;
       }
     } else {
       // Initialize with current URL as first tab
@@ -169,7 +171,6 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
           `
         )}
         onTabChange={(index) => {
-          console.log("on Tab Change");
           nav.activeIdx = index;
           localStorage.setItem(
             STORAGE_KEY,
