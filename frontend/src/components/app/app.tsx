@@ -1,13 +1,13 @@
 import { GlobalAlert } from "@/components/ui/global-alert";
 import "@/index.css";
 import { AuthProvider } from "@/lib/auth";
-import { useRouter } from "@/lib/router";
+import { useRoot } from "@/lib/router";
 import { Toaster } from "../ui/sonner";
 import { AppLoading } from "./app-loading";
 import { Layout } from "./layout";
 
 function AppContent() {
-  const { Page, currentPath, isLoading } = useRouter();
+  const { Page, currentPath, isLoading } = useRoot();
 
   if (isLoading) {
     return <AppLoading />;

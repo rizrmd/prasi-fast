@@ -39,6 +39,7 @@ export interface Tab {
 
 interface DraggableTabProps {
   tab: Tab;
+  tabLength: number;
   onClose: () => void;
   onSelect: (value: string) => void;
   onPin?: () => void;
@@ -61,6 +62,7 @@ const restrictToHorizontalAxis: Modifier = ({ transform }) => {
 
 const DraggableTab = ({
   tab,
+  tabLength,
   onClose,
   onSelect,
   onPin,
@@ -150,7 +152,7 @@ const DraggableTab = ({
               <Pin size={14} className="mr-1 text-muted-foreground" />
             )}
             <span>{tab.label}</span>
-            {!tab.pinned && tab.closable !== false && (
+            {!tab.pinned && tab.closable !== false && tabLength > 1 && (
               <span
                 role="button"
                 onPointerDown={(e) => {
@@ -324,6 +326,7 @@ export const DraggableTabs = ({
               .map((tab) => (
                 <DraggableTab
                   key={tab.id}
+                  tabLength={tabs.length}
                   tab={tab}
                   onClose={() => onTabClose(tab.id)}
                   onSelect={onTabChange}
@@ -341,6 +344,7 @@ export const DraggableTabs = ({
             {draggedTab ? (
               <DraggableTab
                 tab={draggedTab}
+                tabLength={tabs.length}
                 onClose={() => onTabClose(draggedTab.id)}
                 onSelect={onTabChange}
                 isDragging={true}

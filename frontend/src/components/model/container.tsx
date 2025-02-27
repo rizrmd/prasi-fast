@@ -29,7 +29,7 @@ export const ModelContainer: FC<{
   return (
     <ProtectedRoute>
       <div className="flex flex-col flex-1 bg-slate-100">
-        <ModelNavTabs />
+        <ModelNavTabs modelName={modelName} />
         <div className="flex border-b  bg-white items-stretch justify-between">
           <ContainerBreadcrumb />
           <div

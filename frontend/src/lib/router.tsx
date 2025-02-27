@@ -68,17 +68,20 @@ function matchRoute(path: string, routePattern: RoutePattern): Params | null {
   return params;
 }
 
-export function useRouter() {
+const router = {
+  currentPath: window.location.pathname,
+  params: {} as Params,
+};
+
+export function useRoot() {
   const { user, isLoading } = useAuth();
   const local = useLocal({
-    currentPath: window.location.pathname,
     Page: null as React.ComponentType | null,
-    params: {} as Params,
   });
 
   useEffect(() => {
     const handlePathChange = () => {
-      local.currentPath = window.location.pathname;
+      router.currentPath = window.location.pathname;
       local.render();
     };
 
@@ -94,9 +97,9 @@ export function useRouter() {
     const loadPage = async () => {
       // Always strip basePath if it exists, since the route definitions don't include it
       const withoutBase =
-        basePath !== "/" && local.currentPath.startsWith(basePath)
-          ? local.currentPath.slice(basePath.length)
-          : local.currentPath;
+        basePath !== "/" && router.currentPath.startsWith(basePath)
+          ? router.currentPath.slice(basePath.length)
+          : router.currentPath;
       // Ensure path starts with slash and handle trailing slashes
       const path =
         (withoutBase.startsWith("/") ? withoutBase : "/" + withoutBase).replace(
@@ -127,28 +130,28 @@ export function useRouter() {
         try {
           const module = await pageLoader();
           local.Page = module.default;
-          local.params = matchedParams;
+          router.params = matchedParams;
         } catch (err) {
           console.error("Failed to load page:", err);
           local.Page = null;
-          local.params = {};
+          router.params = {};
         }
       } else {
         // Load 404 page
         try {
           const module = await pageModules["/404"]();
           local.Page = module.default;
-          local.params = {};
+          router.params = {};
         } catch {
           local.Page = null;
-          local.params = {};
+          router.params = {};
         }
       }
       local.render();
     };
 
     loadPage();
-  }, [local.currentPath]);
+  }, [router.currentPath]);
 
   const navigate = (to: string) => {
     const fullPath = buildPath(to);
@@ -157,18 +160,22 @@ export function useRouter() {
   };
 
   return {
-    Page: local.params
+    Page: router.params
       ? (props: any) => (
-          <ParamsContext.Provider value={local.params}>
+          <ParamsContext.Provider value={router.params}>
             {local.Page && <local.Page {...props} />}
           </ParamsContext.Provider>
         )
       : null,
-    currentPath: local.currentPath,
+    currentPath: router.currentPath,
     navigate,
-    params: local.params,
+    params: router.params,
     isLoading,
   };
+}
+
+export function useRouter() {
+  return router;
 }
 
 export function useParams<T extends Record<string, string>>(): T {
