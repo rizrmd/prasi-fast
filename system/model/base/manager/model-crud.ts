@@ -1,13 +1,8 @@
 import type { PaginationParams, PaginationResult } from "../../../types";
+import type { ModelState } from "../../model";
 import type { BaseRecord } from "../model-base";
 import { ModelManager } from "../model-manager";
-import type { ModelState } from "../../model";
-import type { CacheEntry } from "../model-cache";
 
-type FilterNotStartingWith<
-  Set,
-  Needle extends string
-> = Set extends `${Needle}${infer _X}` ? never : Set;
 
 export abstract class ModelCrud<
   T extends BaseRecord = any
@@ -28,7 +23,6 @@ export abstract class ModelCrud<
   protected abstract attachCachedRelations(
     record: Record<string, any>
   ): Promise<any>;
-  protected abstract notifySubscribers(id: string): void;
 
   protected shouldUseCache(): boolean {
     return this.state.mode === "client" && !!this.state.config?.cache?.ttl;
@@ -52,7 +46,8 @@ export abstract class ModelCrud<
     // Check for ID in either string parameter or where clause
     const id = stringId || (params.where?.id as string | undefined);
 
-    if (id && this.shouldUseCache()) {
+    const shouldCache = params.useCache ?? this.shouldUseCache();
+    if (id && shouldCache) {
       try {
         const cachedItem = this.state.modelCache.get<T>(
           this.state.config.modelName,
@@ -82,7 +77,7 @@ export abstract class ModelCrud<
 
     const record = await this.prismaTable.findFirst(queryParams);
 
-    if (record && this.shouldUseCache()) {
+    if (record && shouldCache) {
       try {
         await this.cacheRecordAndRelations(record, params.select);
       } catch (error) {}
@@ -116,8 +111,9 @@ export abstract class ModelCrud<
     let results: T[] = [];
     const uncachedIds: string[] = [];
 
+    const shouldCache = params.useCache ?? this.shouldUseCache();
     // Check cache if we can identify specific records
-    if (this.shouldUseCache() && ids) {
+    if (shouldCache && ids) {
       for (const id of ids) {
         try {
           const cachedItem = this.state.modelCache.get<T>(
@@ -155,7 +151,7 @@ export abstract class ModelCrud<
       results = ids ? [...results, ...dbResults] : dbResults;
     }
 
-    if (this.shouldUseCache() && results.length) {
+    if (shouldCache && results.length) {
       await Promise.all(
         results.map((record: any) =>
           this.cacheRecordAndRelations(record, params.select)
@@ -194,8 +190,9 @@ export abstract class ModelCrud<
     const uncachedIds: string[] = [];
     let totalCount = 0;
     
+    const shouldCache = params.useCache ?? this.shouldUseCache();
     // Check cache if we can identify specific records
-    if (this.shouldUseCache() && ids) {
+    if (shouldCache && ids) {
       for (const id of ids) {
         try {
           const cachedItem = this.state.modelCache.get<T>(
@@ -241,7 +238,7 @@ export abstract class ModelCrud<
       totalCount = count;
     }
 
-    if (this.shouldUseCache() && records.length) {
+    if (shouldCache && records.length) {
       await Promise.all(
         records.map((record: any) =>
           this.cacheRecordAndRelations(record, queryParams.select)
@@ -261,8 +258,9 @@ export abstract class ModelCrud<
   async create(params: {
     data: Partial<T>;
     select?: Record<string, any> | string[];
+    useCache?: boolean;
   }): Promise<T> {
-    const { data, select } = params;
+    const { data, select, useCache } = params;
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
@@ -271,13 +269,11 @@ export abstract class ModelCrud<
       select: enhancedSelect,
     });
 
-    if (this.shouldUseCache()) {
+    const shouldCache = useCache ?? this.shouldUseCache();
+    if (shouldCache) {
       this.invalidateCache();
       await this.cacheRecordAndRelations(result, select);
     }
-
-    const id = result[this.config.primaryKey].toString();
-    this.notifySubscribers(id);
 
     return result as T;
   }
@@ -286,8 +282,9 @@ export abstract class ModelCrud<
     where: { [key: string]: any };
     data: Partial<T>;
     select?: Record<string, any> | string[];
+    useCache?: boolean;
   }): Promise<T> {
-    const { where, data, select } = params;
+    const { where, data, select, useCache } = params;
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
@@ -297,12 +294,10 @@ export abstract class ModelCrud<
       select: enhancedSelect,
     });
 
-    if (this.shouldUseCache()) {
+    const shouldCache = useCache ?? this.shouldUseCache();
+    if (shouldCache) {
       await this.cacheRecordAndRelations(result, select);
     }
-
-    const id = result[this.config.primaryKey].toString();
-    this.notifySubscribers(id);
 
     return result as T;
   }
@@ -310,8 +305,9 @@ export abstract class ModelCrud<
   async delete(params: {
     where: { [key: string]: any };
     select?: Record<string, any> | string[];
+    useCache?: boolean;
   }): Promise<T> {
-    const { where, select } = params;
+    const { where, select, useCache } = params;
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
@@ -320,12 +316,10 @@ export abstract class ModelCrud<
       select: enhancedSelect,
     });
 
-    if (this.shouldUseCache()) {
+    const shouldCache = useCache ?? this.shouldUseCache();
+    if (shouldCache) {
       this.invalidateCache();
     }
-
-    const id = result[this.config.primaryKey].toString();
-    this.notifySubscribers(id);
 
     return result as T;
   }

@@ -26,9 +26,6 @@ export abstract class ModelManager<T extends BaseRecord = any> extends ModelBase
     return this.attachCachedRelations(record);
   }
 
-  public _notifySubscribers(id: string): void {
-    this.notifySubscribers(id);
-  }
 
   // Abstract methods to be implemented
   protected abstract ensurePrimaryKeys(select: Record<string, any>): Record<string, any>;
@@ -39,5 +36,4 @@ export abstract class ModelManager<T extends BaseRecord = any> extends ModelBase
     select?: Record<string, any>
   ): Promise<void>;
   protected abstract attachCachedRelations(record: Record<string, any>): Promise<T>;
-  protected abstract notifySubscribers(id: string): void;
 }

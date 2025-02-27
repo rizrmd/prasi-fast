@@ -4,7 +4,6 @@ import { ModelCrud } from "./base/manager/model-crud";
 import { ModelCacheManager } from "./base/manager/model-cache";
 import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
-import { ModelSubscription } from "./base/manager/model-subscription";
 import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
 import { ModelCache } from "./base/model-cache";
@@ -35,12 +34,11 @@ export class Model<T extends BaseRecord = any> {
     data: null,
     mode: "server",
     currentUser: null,
-    modelCache: new ModelCache(true),
+    modelCache: new ModelCache(false),
   };
   private cacheManager!: ModelCacheManager<T>;
   private queryManager!: ModelQuery<T>;
   private relationsManager!: ModelRelations<T>;
-  private subscriptionManager!: ModelSubscription<T>;
   private crudManager!: ModelCrud<T>;
 
   private initialized = false;
@@ -83,14 +81,12 @@ export class Model<T extends BaseRecord = any> {
     this.cacheManager = new ModelCacheManager<T>();
     this.queryManager = new ModelQuery<T>();
     this.relationsManager = new ModelRelations<T>();
-    this.subscriptionManager = new ModelSubscription<T>();
 
     // Share state with data managers first
     const dataManagers = [
       this.cacheManager,
       this.queryManager,
       this.relationsManager,
-      this.subscriptionManager,
     ];
 
     dataManagers.forEach((manager) => {
@@ -137,10 +133,6 @@ export class Model<T extends BaseRecord = any> {
       protected async attachCachedRelations(record: Record<string, any>) {
         return this.model.cacheManager._friend.attachCachedRelations(record);
       }
-
-      protected notifySubscribers(id: string) {
-        this.model.subscriptionManager._friend.notifySubscribers(id);
-      }
     }
 
     this.crudManager = new ConcreteCrud(this);
@@ -153,7 +145,6 @@ export class Model<T extends BaseRecord = any> {
       this.cacheManager,
       this.queryManager,
       this.relationsManager,
-      this.subscriptionManager,
     ];
 
     managers.forEach((manager) => {
@@ -200,12 +191,6 @@ export class Model<T extends BaseRecord = any> {
   }
 
   // Public API delegating to managers
-
-  // Subscription methods
-  public async subscribe(ids: string[]): Promise<() => void> {
-    await this.ensureInitialized();
-    return this.subscriptionManager.subscribe(ids);
-  }
 
   // CRUD methods
   public async findFirst(

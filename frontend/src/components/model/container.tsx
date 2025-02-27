@@ -9,7 +9,7 @@ import { useLocal } from "@/hooks/use-local";
 import { ProtectedRoute } from "@/lib/auth";
 import { parseHash } from "@/lib/parse-hash";
 import { Link } from "@/lib/router";
-import { FC, Fragment, ReactNode, useEffect, useRef } from "react";
+import { FC, Fragment, ReactNode, useEffect } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { ModelNavTabs } from "./nav-tabs";
@@ -34,9 +34,7 @@ const ContainerBreadcrumb = ({}: {}) => {
     breads: [] as { title: string; url: string }[],
   });
 
-  const modelRef = useRef<any>(null);
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
     (async () => {
       try {
         const parts = location.pathname
@@ -51,7 +49,6 @@ const ContainerBreadcrumb = ({}: {}) => {
         }) as ModelName;
 
         const model = models[modelName];
-        modelRef.current = model;
         if (model) {
           const breads = [] as typeof local.breads;
           breads.push({
@@ -83,34 +80,11 @@ const ContainerBreadcrumb = ({}: {}) => {
               });
             } else {
               const data = (await model.findFirst(id)) as any;
-              const updateBreadcrumb = (data: any) => {
-                // console.log(data)
-                const newTitle = model.title(data);
-                const newBreads = [...breads];
-                newBreads.push({
-                  title: newTitle,
-                  url: `/model/${parts[0]}/detail/${id}`,
-                });
-                local.breads = newBreads;
-                local.render();
-              };
-              updateBreadcrumb(data);
-              let currentId = id;
-              const subscribeToModel = (modelId: string) => {
-                model.subscribe([modelId]).then(async (unsub) => {
-                  unsubscribe = unsub;
-                  const newData = await model.findFirst(modelId);
-                  if (newData) {
-                    updateBreadcrumb(newData);
-                  }
-                });
-              };
-              subscribeToModel(currentId);
-              return () => {
-                if (unsubscribe) {
-                  unsubscribe();
-                }
-              };
+              const newTitle = model.title(data);
+              breads.push({
+                title: newTitle,
+                url: `/model/${parts[0]}/detail/${id}`,
+              });
             }
           }
           local.breads = breads;
@@ -122,7 +96,6 @@ const ContainerBreadcrumb = ({}: {}) => {
         local.render();
       }
     })();
-    return () => {};
   }, [location.pathname, location.hash]);
 
   return (

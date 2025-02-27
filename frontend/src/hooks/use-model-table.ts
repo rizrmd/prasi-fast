@@ -253,7 +253,6 @@ export const useModelTable = ({
           }
         });
 
-        console.log("find list");
         // Log the final select object
         const result = await model.instance.findList({
           select,
