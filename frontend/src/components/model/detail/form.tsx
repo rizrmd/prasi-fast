@@ -295,12 +295,20 @@ const Toolbar: FC<{
                   "text-xs rounded-sm px-2 cursor-pointer text-black"
                 )}
                 onClick={async () => {
-                  const confirmed = await Alert.confirm(
-                    "Apakah anda yakin ingin me-reset data ini seperti awal?"
-                  );
-
-                  if (confirmed) {
+                  if ((window as any).DO_NOT_CONFIRM_RECORD_RESET) {
                     onReset("reset");
+                  } else {
+                    const confirmed = await Alert.confirm(
+                      "Apakah anda yakin ingin me-reset data ini seperti awal?",
+                      { checkbox: "Selanjutnya jangan tampilkan lagi" }
+                    );
+
+                    if (confirmed.confirm) {
+                      if (confirmed.checkbox) {
+                        (window as any).DO_NOT_CONFIRM_RECORD_RESET = true;
+                      }
+                      onReset("reset");
+                    }
                   }
                 }}
               >
@@ -333,27 +341,31 @@ const Toolbar: FC<{
                     "text-xs rounded-sm cursor-pointer text-red-400  border-red-100 hover:border-red-300 hover:text-red-500 transition-all border"
                   )}
                   onClick={async () => {
-                    const confirmed = await Alert.confirm(
-                      "Apakah anda yakin ingin menghapus data ini?"
-                    );
-                    if (confirmed) {
+                    const executeDelete = async () => {
                       writer.saving = true;
                       writer.deleting = true;
                       const data = snapshot(writer.data);
                       await del(snapshot(writer.data));
                       if (!(window as any).DO_NOT_WARN_RECORD_DELETE) {
                         const warn = await Alert.info(
-                          `${model.config.modelName} ${model.title(
-                            data
-                          )}: Berhasil dihapus!`,
+                          `${model.config.modelName} ${model
+                            .title(data)
+                            .trim()}: Berhasil dihapus!`,
                           {
-                            checkbox: "Jangan tampilkan lagi",
+                            checkbox: "Selanjutnya jangan tampilkan lagi",
                           }
                         );
 
                         if (warn) {
                           (window as any).DO_NOT_WARN_RECORD_DELETE = true;
                         }
+                      } else {
+                        toast(
+                          `${model.config.modelName} ${model
+                            .title(data)
+                            .trim()}: Berhasil dihapus!`,
+                          { dismissible: true }
+                        );
                       }
                       writer.saving = false;
                       writer.deleting = false;
@@ -374,6 +386,22 @@ const Toolbar: FC<{
                         navigate(
                           `/model/${model.config.modelName.toLowerCase()}`
                         );
+                      }
+                    };
+
+                    if ((window as any).DO_NOT_CONFIRM_RECORD_DELETE) {
+                      executeDelete();
+                    } else {
+                      const confirmed = await Alert.confirm(
+                        "Apakah anda yakin ingin menghapus data ini?",
+                        { checkbox: "Selanjutnya jangan tampilkan lagi" }
+                      );
+
+                      if (confirmed.confirm) {
+                        if (confirmed.checkbox) {
+                          (window as any).DO_NOT_CONFIRM_RECORD_DELETE = true;
+                        }
+                        executeDelete();
                       }
                     }
                   }}

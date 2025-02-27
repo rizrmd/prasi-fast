@@ -33,18 +33,43 @@ const alertState = proxy<AlertState>({
 });
 
 export const Alert = {
-  confirm: (message: string): Promise<boolean> => {
+  confirm: (
+    message: string,
+    option?: { checkbox: string }
+  ): Promise<{ confirm: boolean; checkbox?: boolean }> => {
     return new Promise((resolve) => {
       alertState.mode = "confirm";
       alertState.isOpen = true;
       alertState.message = message;
+
+      console.log(option);
+      if (option?.checkbox) {
+        alertState.checkbox = {
+          label: option.checkbox,
+          checked: false,
+        };
+      } else {
+        alertState.checkbox = undefined;
+      }
       alertState.onConfirm = () => {
         alertState.isOpen = false;
-        resolve(true);
+        resolve({
+          confirm: true,
+          checkbox: alertState.checkbox
+            ? alertState.checkbox.checked
+            : undefined,
+        });
+        alertState.checkbox = undefined;
       };
       alertState.onCancel = () => {
         alertState.isOpen = false;
-        resolve(false);
+        resolve({
+          confirm: false,
+          checkbox: alertState.checkbox
+            ? alertState.checkbox.checked
+            : undefined,
+        });
+        alertState.checkbox = undefined;
       };
     });
   },
@@ -96,7 +121,9 @@ export function GlobalAlert() {
                     alertState.checkbox!.checked = checked as boolean;
                   }}
                 />
-                <Label htmlFor="checkbox" className="font-normal text-xs">{snap.checkbox.label}</Label>
+                <Label htmlFor="checkbox" className="font-normal text-xs">
+                  {snap.checkbox.label}
+                </Label>
               </span>
             )}
           </AlertDialogDescription>
