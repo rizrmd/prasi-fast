@@ -10,8 +10,9 @@ import { ArrowRight, ExternalLink, Filter, Pencil } from "lucide-react";
 import { FC, Fragment, useState } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
-import { Popover, PopoverContent } from "../ui/popover";
 import { openInNewTab } from "../model/nav-tabs";
+import { Popover, PopoverContent } from "../ui/popover";
+import { getRelation } from "../model/utils/get-relation";
 
 const cell = { popover: "" };
 
@@ -30,26 +31,13 @@ export const DataCell: FC<{
   const select = (action: string) => {
     if (action === "new-tab") {
       if (type === "hasMany") {
-        const model = models[modelName];
-        const parts = columnName.split(".");
-
-        const rel = model.config.relations[parts[0]];
-
-        const relModel = models[rel.model];
-        if (relModel) {
-          const col = relModel.config.columns[parts[1]];
-
-          if (col) {
-            for (const [k, v] of Object.entries(relModel.config.relations)) {
-              if (v.model === modelName) {
-                openInNewTab(
-                  `/model/${rel.model.toLowerCase()}#filter#${
-                    v.prismaField
-                  }=${rowId}`
-                );
-              }
-            }
-          }
+        const rel = getRelation(modelName, columnName);
+        if (rel) {
+          openInNewTab(
+            `/model/${rel.relation.model.toLowerCase()}#filter#${
+              rel.relation.prismaField
+            }=${rowId}`
+          );
         }
 
         cell.popover = "";

@@ -24,6 +24,7 @@ import { ChevronDown, Ellipsis } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutTable } from "system/model/layout/types";
 import { AppLoading } from "../app/app-loading";
+import { ModelTableHead } from "../model/table/table-head";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -36,6 +37,7 @@ interface DataTableProps<TData extends { type: ModelName }, TValue> {
   columns: ColumnDef<TData, TValue>[];
   onRowClick: (row: any) => void;
 }
+
 export function DataTable<TData extends { type: ModelName }, TValue>({
   columns,
   status,
@@ -90,20 +92,30 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header, idx) => {
+                const meta = (header.column.columnDef as any)
+                  ?.meta as ColumnMetaData;
                 return (
                   <TableHead
                     key={header.id}
                     className={cn(
                       "select-none",
-                      idx === 0 && !checkbox?.enabled && "pl-3"
+                      css`
+                        padding: 0;
+                        height: auto;
+                      `
                     )}
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
+                    {header.isPlaceholder ? null : (
+                      <ModelTableHead
+                        colIdx={idx}
+                        rows={result?.data}
+                        columnName={meta.columnName}
+                        modelName={meta.modelName}
+                        className={cn(
+                          idx === 0 && !checkbox?.enabled && "pl-3"
                         )}
+                      />
+                    )}
                   </TableHead>
                 );
               })}
