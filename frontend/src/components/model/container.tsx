@@ -32,10 +32,11 @@ const ContainerBreadcrumb = ({}: {}) => {
   const local = useLocal({
     loading: false,
     breads: [] as { title: string; url: string }[],
+    model: null as any,
+    modelData: null as any,
   });
 
-  useEffect(() => {
-    (async () => {
+  const loadBreadcrumbs = async () => {
       try {
         const parts = location.pathname
           .substring("/model".length)
@@ -95,8 +96,40 @@ const ContainerBreadcrumb = ({}: {}) => {
         local.loading = false;
         local.render();
       }
-    })();
-  }, [location.pathname, location.hash]);
+  };
+
+  useEffect(() => {
+    loadBreadcrumbs();
+  }, [location.pathname, location.hash, local.modelData]);
+
+  useEffect(() => {
+    if (local.model) {
+      const unsubscribe = local.model.onUpdate((data: Record<string, any>) => {
+        local.modelData = data;
+        local.render();
+      });
+      return () => unsubscribe();
+    }
+  }, [local.model]);
+
+  useEffect(() => {
+    const parts = location.pathname
+      .substring("/model".length)
+      .split("/")
+      .filter((e) => e);
+
+    let modelName = Object.keys(models).find((name) => {
+      if (name.toLowerCase() === parts[0]) {
+        return name;
+      }
+    }) as ModelName;
+
+    const model = models[modelName];
+    if (model) {
+      local.model = model;
+      local.render();
+    }
+  }, [location.pathname]);
 
   return (
     <Breadcrumb className="p-2 border-b bg-white select-none">

@@ -97,12 +97,8 @@ import { ModelRelations, RelationConfig, ColumnConfig, ModelConfig, ModelColumns
 
 export class ${className} extends Model<Prisma${className}> {
   constructor() {
-    super();
-    this.setConfig({
-      modelName: "${className}",
-      tableName: "${tableName}",
-      primaryKey: "${models[modelName].pk}",
-      relations: relations as ModelRelations,
+    super({
+       relations: relations as ModelRelations,
       columns: columns as ModelColumns
     });
   }
@@ -111,16 +107,12 @@ export class ${className} extends Model<Prisma${className}> {
     return \`\${data.${titleColumn}}\`;
   }
 
-  formatCount(count: number): string {
-    return \`\${count} item\$\{count > 1 ? 's' : ''}\`; 
-  }
-
   get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.config.columns);
+    return Object.keys(this.state.config.columns);
   }
 
   get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.config.relations);
+    return Object.keys(this.state.config.relations);
   }
 }
 

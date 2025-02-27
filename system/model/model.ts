@@ -25,7 +25,7 @@ export interface ModelState<T extends BaseRecord> {
   mode: "client" | "server";
   currentUser: User | null;
   modelCache: ModelCache;
-  onUpdateCallback?: (data: T) => void;
+  updateCallbacks: Set<(data: T) => void>;
 }
 
 export class Model<T extends BaseRecord = any> {
@@ -36,6 +36,7 @@ export class Model<T extends BaseRecord = any> {
     mode: "server",
     currentUser: null,
     modelCache: new ModelCache(false),
+    updateCallbacks: new Set(),
   };
   private cacheManager!: ModelCacheManager<T>;
   private queryManager!: ModelQuery<T>;
@@ -230,14 +231,15 @@ export class Model<T extends BaseRecord = any> {
   }): Promise<T> {
     await this.ensureInitialized();
     const result = await this.crudManager.update(params);
-    if (this.state.onUpdateCallback) {
-      this.state.onUpdateCallback(result);
-    }
+    this.state.updateCallbacks.forEach(callback => callback(result));
     return result;
   }
 
-  public onUpdate(callback: (data: T) => void): void {
-    this.state.onUpdateCallback = callback;
+  public onUpdate(callback: (data: T) => void): () => void {
+    this.state.updateCallbacks.add(callback);
+    return () => {
+      this.state.updateCallbacks.delete(callback);
+    };
   }
 
   public async delete(params: { where: { [key: string]: any } }): Promise<T> {
