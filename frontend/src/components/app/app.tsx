@@ -12,6 +12,7 @@ function AppContent() {
   if (isLoading) {
     return <AppLoading />;
   }
+
   if (currentPath.startsWith("/auth")) {
     return <>{Page ? <Page /> : <div>Page not found</div>}</>;
   }

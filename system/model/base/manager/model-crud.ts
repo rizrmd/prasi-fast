@@ -72,8 +72,6 @@ export abstract class ModelCrud<
       );
     }
 
-    console.log(`Querying database for ${this.state.config.modelName}`);
-
     const record = await this.prismaTable.findFirst(queryParams);
 
     if (record && shouldCache) {
