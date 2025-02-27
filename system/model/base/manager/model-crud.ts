@@ -3,7 +3,6 @@ import type { ModelState } from "../../model";
 import type { BaseRecord } from "../model-base";
 import { ModelManager } from "../model-manager";
 
-
 export abstract class ModelCrud<
   T extends BaseRecord = any
 > extends ModelManager<T> {
@@ -15,7 +14,7 @@ export abstract class ModelCrud<
   protected abstract getSelectFields(
     select?: Record<string, any> | string[]
   ): string[];
-  protected abstract invalidateCache(): void;
+  protected abstract invalidateCache(id?: string): void;
   protected abstract cacheRecordAndRelations(
     record: Record<string, any>,
     select?: Record<string, any> | string[]
@@ -138,7 +137,7 @@ export abstract class ModelCrud<
 
     // Query database for uncached items or when no specific IDs
     if (!ids || uncachedIds.length > 0) {
-      const whereClause = ids 
+      const whereClause = ids
         ? { ...queryParams.where, id: { in: uncachedIds } }
         : queryParams.where;
 
@@ -189,7 +188,7 @@ export abstract class ModelCrud<
     let records: T[] = [];
     const uncachedIds: string[] = [];
     let totalCount = 0;
-    
+
     const shouldCache = params.useCache ?? this.shouldUseCache();
     // Check cache if we can identify specific records
     if (shouldCache && ids) {
@@ -219,7 +218,7 @@ export abstract class ModelCrud<
 
     // Query database for uncached items or when no specific IDs
     if (!ids || uncachedIds.length > 0) {
-      const whereClause = ids 
+      const whereClause = ids
         ? { ...queryParams.where, id: { in: uncachedIds } }
         : queryParams.where;
 
@@ -264,14 +263,34 @@ export abstract class ModelCrud<
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
+    // Cleanse data by removing unwanted fields
+    const cleanData = { ...data };
+    
+    // Remove the primary key from data if it exists
+    delete cleanData[this.config.primaryKey];
+    
+    // Remove empty relation arrays
+    for (const relation of Object.keys(this.state.config.relations || {})) {
+      if (Array.isArray(cleanData[relation]) && cleanData[relation].length === 0) {
+        delete cleanData[relation];
+      }
+    }
+
+    // Only keep fields that are defined in the model columns
+    const validFields = Object.keys(this.state.config.columns);
+    Object.keys(cleanData).forEach(key => {
+      if (!validFields.includes(key)) {
+        delete cleanData[key];
+      }
+    });
+
     const result = await this.prismaTable.create({
-      data,
+      data: cleanData,
       select: enhancedSelect,
     });
 
     const shouldCache = useCache ?? this.shouldUseCache();
     if (shouldCache) {
-      this.invalidateCache();
       await this.cacheRecordAndRelations(result, select);
     }
 
@@ -288,9 +307,30 @@ export abstract class ModelCrud<
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
+    // Cleanse data by removing unwanted fields
+    const cleanData = { ...data };
+    
+    // Remove the primary key from data if it exists
+    delete cleanData[this.config.primaryKey];
+    
+    // Remove empty relation arrays
+    for (const relation of Object.keys(this.state.config.relations || {})) {
+      if (Array.isArray(cleanData[relation]) && cleanData[relation].length === 0) {
+        delete cleanData[relation];
+      }
+    }
+
+    // Only keep fields that are defined in the model columns
+    const validFields = Object.keys(this.state.config.columns);
+    Object.keys(cleanData).forEach(key => {
+      if (!validFields.includes(key)) {
+        delete cleanData[key];
+      }
+    });
+
     const result = await this.prismaTable.update({
       where,
-      data,
+      data: cleanData,
       select: enhancedSelect,
     });
 
@@ -311,6 +351,7 @@ export abstract class ModelCrud<
 
     const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
 
+    const pk = where[this.config.primaryKey];
     const result = await this.prismaTable.delete({
       where,
       select: enhancedSelect,
@@ -318,7 +359,7 @@ export abstract class ModelCrud<
 
     const shouldCache = useCache ?? this.shouldUseCache();
     if (shouldCache) {
-      this.invalidateCache();
+      this.invalidateCache(pk);
     }
 
     return result as T;

@@ -25,6 +25,7 @@ export interface ModelState<T extends BaseRecord> {
   mode: "client" | "server";
   currentUser: User | null;
   modelCache: ModelCache;
+  onUpdateCallback?: (data: T) => void;
 }
 
 export class Model<T extends BaseRecord = any> {
@@ -228,7 +229,15 @@ export class Model<T extends BaseRecord = any> {
     data: Partial<T>;
   }): Promise<T> {
     await this.ensureInitialized();
-    return this.crudManager.update(params);
+    const result = await this.crudManager.update(params);
+    if (this.state.onUpdateCallback) {
+      this.state.onUpdateCallback(result);
+    }
+    return result;
+  }
+
+  public onUpdate(callback: (data: T) => void): void {
+    this.state.onUpdateCallback = callback;
   }
 
   public async delete(params: { where: { [key: string]: any } }): Promise<T> {

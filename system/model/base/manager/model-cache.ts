@@ -49,18 +49,18 @@ export class ModelCacheManager<T extends BaseRecord = any> {
       this.debugLog(`Initialized for model ${this.state?.config?.modelName}`);
     },
 
-    invalidateCache: (): void => {
+    invalidateCache: (id?: string): void => {
       if (!this.isCachingEnabled()) return;
 
       const modelName = this.state?.config?.modelName;
       if (!modelName) return;
 
-      this.debugLog(`Invalidating cache for ${modelName}`);
+      this.debugLog(`Invalidating cache for ${modelName} ${id || ""}`);
 
       try {
-        this.cache?.invalidate(modelName);
+        this.cache?.invalidate(modelName, id);
       } catch (error) {
-        this.errorLog(`Invalidation error for ${modelName}:`, error);
+        this.errorLog(`Invalidation error for ${modelName} ${id || ""}:`, error);
       }
     },
 
