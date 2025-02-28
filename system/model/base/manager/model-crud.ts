@@ -135,8 +135,17 @@ export abstract class ModelCrud<
 
     // Query database for uncached items or when no specific IDs
     if (!ids || uncachedIds.length > 0) {
+      // Get all cached IDs for this model if we're using cache
+      const cachedIds = shouldCache ? this.state.modelCache.getAllKeys(this.state.config.modelName) : [];
+      
+      // If we have specific IDs to look up, filter out cached ones
       const whereClause = ids
-        ? { ...queryParams.where, id: { in: uncachedIds } }
+        ? {
+            ...queryParams.where,
+            id: shouldCache
+              ? { notIn: cachedIds }
+              : { in: uncachedIds },
+          }
         : queryParams.where;
 
       const dbResults = await this.prismaTable.findMany({
@@ -216,8 +225,17 @@ export abstract class ModelCrud<
 
     // Query database for uncached items or when no specific IDs
     if (!ids || uncachedIds.length > 0) {
+      // Get all cached IDs for this model if we're using cache
+      const cachedIds = shouldCache ? this.state.modelCache.getAllKeys(this.state.config.modelName) : [];
+      
+      // If we have specific IDs to look up, filter out cached ones
       const whereClause = ids
-        ? { ...queryParams.where, id: { in: uncachedIds } }
+        ? {
+            ...queryParams.where,
+            id: shouldCache
+              ? { notIn: cachedIds }
+              : { in: uncachedIds },
+          }
         : queryParams.where;
 
       const [dbRecords, count] = await Promise.all([

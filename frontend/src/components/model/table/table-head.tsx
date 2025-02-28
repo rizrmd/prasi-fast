@@ -12,17 +12,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useModelTable } from "@/hooks/model-table/use-model-table";
 import { useLocal } from "@/hooks/use-local";
-import { useModelTable } from "@/hooks/use-model-table";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import get from "lodash.get";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronDown
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
 import { FC } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
@@ -34,8 +28,7 @@ export const ModelTableHead: FC<{
   columnName: string;
   colIdx: number;
   className?: string;
-  rows?: any[];
-}> = ({ modelName, columnName, colIdx, className, rows, tableModel }) => {
+}> = ({ modelName, columnName, colIdx, className, tableModel }) => {
   const local = useLocal({ open: false });
   const rootModel = models[modelName];
   let model = rootModel;
@@ -56,8 +49,11 @@ export const ModelTableHead: FC<{
   const sortBy = tableModel?.sortBy[columnName];
   return (
     <Popover
-      onOpenChange={(open) => {
+      onOpenChange={async (open) => {
         local.open = open;
+        if (open && tableModel) {
+          await tableModel.fetchUniqueValues(columnName);
+        }
         local.render();
       }}
     >
@@ -110,7 +106,7 @@ export const ModelTableHead: FC<{
             <Button
               size={"icon"}
               variant={sortBy ? "default" : "outline"}
-              onClick={() => {
+              onClick={async () => {
                 if (!tableModel) return;
                 if (sortBy) {
                   if (sortBy === "asc") {
@@ -121,7 +117,7 @@ export const ModelTableHead: FC<{
                 } else {
                   tableModel.sortBy = { [columnName]: "asc" };
                 }
-                tableModel.render();
+                await tableModel.fetchData({ filtering: true });
               }}
             >
               {sortBy ? (
@@ -138,53 +134,77 @@ export const ModelTableHead: FC<{
               }
             `}
           >
-            <CommandEmpty>Data tidak ditemukan</CommandEmpty>
+            {tableModel?.loadingUniqueValues[columnName] ? (
+              <div className="flex items-center justify-center py-4">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span className="ml-2">Loading...</span>
+              </div>
+            ) : (
+              <>
+                <CommandEmpty>Data tidak ditemukan</CommandEmpty>
 
-            {(rows || []).map((item, idx) => {
-              let base = item;
-              return (
-                <CommandItem
-                  asChild
-                  value={item[model.config.primaryKey]}
-                  key={idx}
-                >
-                  <label>
-                    <Checkbox
-                      onCheckedChange={(checked) => {
-                        if (!tableModel) return;
-                        const value = get(base, columnName);
+                {(Array.isArray(tableModel?.uniqueValues[columnName])
+                  ? tableModel.uniqueValues[columnName]
+                  : []
+                ).map((item: any, idx: number) => {
+                  return (
+                    <CommandItem asChild value={String(item)} key={idx}>
+                      <label>
+                        <Checkbox
+                          onCheckedChange={async (checked) => {
+                            if (!tableModel) return;
 
-                        if (!tableModel.filterBy[columnName]) {
-                          tableModel.filterBy[columnName] = [];
-                        }
+                            if (!tableModel.filterBy[columnName]) {
+                              tableModel.filterBy[columnName] = [];
+                            }
 
-                        const filterValues = tableModel.filterBy[columnName];
-                        const valueExists = filterValues.includes(value);
+                            const filterValues =
+                              tableModel.filterBy[columnName];
+                            const valueExists = filterValues.includes(item);
 
-                        if (checked && !valueExists) {
-                          filterValues.push(value);
-                        } else if (!checked && valueExists) {
-                          tableModel.filterBy[columnName] = filterValues.filter(
-                            (v) => v !== value
-                          );
-                          if (tableModel.filterBy[columnName].length === 0) {
-                            delete tableModel.filterBy[columnName];
+                            if (checked && !valueExists) {
+                              filterValues.push(item);
+                            } else if (!checked && valueExists) {
+                              tableModel.filterBy[columnName] =
+                                filterValues.filter((v) => v !== item);
+                              if (
+                                tableModel.filterBy[columnName].length === 0
+                              ) {
+                                delete tableModel.filterBy[columnName];
+                              }
+                            }
+
+                            await (
+                              tableModel.debouncedFetchData ||
+                              tableModel.fetchData
+                            )({ filtering: true });
+                          }}
+                          checked={
+                            !!tableModel?.filterBy[columnName]?.includes(item)
                           }
-                        }
-
-                        tableModel.render();
-                      }}
-                      checked={
-                        !!tableModel?.filterBy[columnName]?.includes(
-                          get(base, columnName)
-                        )
-                      }
-                    />
-                    <span>{get(base, columnName)}</span>
-                  </label>
-                </CommandItem>
-              );
-            })}
+                        />
+                        <span>{String(item)}</span>
+                      </label>
+                    </CommandItem>
+                  );
+                })}
+              </>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

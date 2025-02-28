@@ -395,6 +395,29 @@ export class ModelCache {
     }
   }
 
+  // Get all cached IDs for a specific model
+  getAllKeys(modelName: string): string[] {
+    const prefix = `${modelName}:`;
+    const keys: string[] = [];
+    
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) {
+        // Extract the ID part after the prefix
+        const id = key.slice(prefix.length);
+        // Only add if it's a direct record (not relations or lists)
+        if (!id.includes(':')) {
+          keys.push(id);
+        }
+      }
+    }
+    
+    if (this.debug) {
+      console.log(`Retrieved ${keys.length} cached keys for model ${modelName}`);
+    }
+    
+    return keys;
+  }
+
   // Enhanced debugging methods
   dumpStatus(): void {
     const now = Date.now();

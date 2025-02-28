@@ -1,9 +1,8 @@
 import { AppLoading } from "@/components/app/app-loading";
 import { WarnFull } from "@/components/app/warn-full";
 import { DataTable } from "@/components/ext/data-table";
-import { Spinner } from "@/components/ui/spinner";
+import { useModelTable } from "@/hooks/model-table/use-model-table";
 import { useModel } from "@/hooks/use-model";
-import { useModelTable } from "@/hooks/use-model-table";
 import { navigate } from "@/lib/router";
 import { FC } from "react";
 import { ModelName } from "shared/types";
@@ -26,7 +25,7 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
   return (
     <DataTable
       modelTable={table}
-      primaryKey={model.instance?.config.primaryKey || 'id'}
+      primaryKey={model.instance?.config.primaryKey || "id"}
       status={table.loading ? "loading" : "ready"}
       onRowClick={(row) => {
         navigate("/model/" + modelName.toLowerCase() + "/detail/" + row.id);
