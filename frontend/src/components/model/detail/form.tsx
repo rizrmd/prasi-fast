@@ -90,7 +90,6 @@ export const DetailForm: FC<{
         const newData = structuredClone(data);
         writer.data = newData;
         delete writer.data[model.config.primaryKey];
-        resetError();
         writer.unsaved = true;
         onChanged?.(newData);
       }
