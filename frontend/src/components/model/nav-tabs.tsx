@@ -6,7 +6,7 @@ import { FC, useEffect, useState } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
 import { DraggableTabs, Tab as DraggableTabType } from "../ext/draggable-tabs";
-import { NotID } from "./detail/utils";
+import { DetailHash } from "./utils/hash-type";
 
 const STORAGE_KEY = "nav_tabs_state";
 
@@ -47,7 +47,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
     if (params && modelName && params.id) {
       const model = Models[modelName];
 
-      if (model && !NotID.includes(params.id)) {
+      if (model && !DetailHash.includes(params.id)) {
         const data = await model.findFirst(params.id);
         if (data) {
           const title = model.title(data);

@@ -19,7 +19,7 @@ import { Models } from "shared/types";
 import { toast } from "sonner";
 import { snapshot } from "valtio";
 import { FormWriter } from "../types";
-import { NotID } from "../utils";
+import { DetailHash } from "../../utils/hash-type";
 
 export const Toolbar: FC<{
   writer: FormWriter;
@@ -80,7 +80,7 @@ export const Toolbar: FC<{
             <ChevronRight />
           </Button>
         </SimpleTooltip>
-        {!form.unsaved && !NotID.includes(params.id) && (
+        {!form.unsaved && !DetailHash.includes(params.id) && (
           <SimpleTooltip content="Duplikat data ini">
             <Button
               size="sm"
@@ -97,7 +97,7 @@ export const Toolbar: FC<{
           </SimpleTooltip>
         )}
 
-        {!form.unsaved && !NotID.includes(params.id) && (
+        {!form.unsaved && !DetailHash.includes(params.id) && (
           <SimpleTooltip content="Tambah data baru">
             <Button
               size="sm"
@@ -200,7 +200,7 @@ export const Toolbar: FC<{
         )}
         {!form.saving && (
           <>
-            {!NotID.includes(params.id) && (
+            {!DetailHash.includes(params.id) && (
               <SimpleTooltip content="Hapus data ini">
                 <Button
                   size="icon"

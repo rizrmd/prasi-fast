@@ -1,14 +1,14 @@
+import { DetailHash } from "@/components/model/utils/hash-type";
+import { parseHash } from "@/lib/parse-hash";
 import { navigate, useParams } from "@/lib/router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { layouts } from "shared/layouts";
 import { ModelName } from "shared/types";
 import { Fields, LayoutDetail } from "system/model/layout/types";
 import { defaultColumns } from "system/model/model";
+import { validate as isUUID } from "uuid";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
-import { parseHash } from "@/lib/parse-hash";
-import { DetailHash, NotID } from "@/components/model/detail/utils";
-import { validate as isUUID } from "uuid";
 type ModelRecord = {
   id: string;
   [key: string]: any;
@@ -28,7 +28,7 @@ export const useModelDetail = ({
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
     findBefore: async (currentId: string) => {
-      if (!model.instance || NotID.includes(currentId) || !isUUID(currentId))
+      if (!model.instance || DetailHash.includes(currentId) || !isUUID(currentId))
         return null;
       type WhereInput = {
         id: {
@@ -48,7 +48,7 @@ export const useModelDetail = ({
       return record?.id || null;
     },
     findAfter: async (currentId: string) => {
-      if (!model.instance || NotID.includes(currentId) || !isUUID(currentId))
+      if (!model.instance || DetailHash.includes(currentId) || !isUUID(currentId))
         return null;
       type WhereInput = {
         id: {
