@@ -29,7 +29,7 @@ type RoutePattern = {
   paramNames: string[];
 };
 
-const ParamsContext = createContext<Params>({});
+export const ParamsContext = createContext<Params>({});
 
 function parsePattern(pattern: string): RoutePattern {
   const paramNames: string[] = [];
@@ -58,8 +58,7 @@ function parsePattern(pattern: string): RoutePattern {
 }
 
 function matchRoute(path: string, routePattern: RoutePattern): Params | null {
-
-  const match = (path.split('#').shift() || "").match(routePattern.regex);
+  const match = (path.split("#").shift() || "").match(routePattern.regex);
   if (!match) return null;
 
   const params: Params = {};
@@ -88,8 +87,8 @@ export function useRoot() {
   const { user, isLoading } = useAuth();
   const local = useLocal({
     Page: null as React.ComponentType | null,
+    routePath: "",
   });
-
   useEffect(() => {
     const handlePathChange = () => {
       router.currentPath = window.location.pathname;
@@ -140,25 +139,33 @@ export function useRoot() {
       if (pageLoader) {
         try {
           const module = await pageLoader();
+          local.routePath = path;
           local.Page = module.default;
           router.params = matchedParams;
         } catch (err) {
           console.error("Failed to load page:", err);
           local.Page = null;
+          local.routePath;
           router.params = {};
         }
       } else {
         // Load 404 page
         try {
-          const module = await pageModules["/404"]();
-          local.Page = module.default;
-          router.params = {};
+          if (local.routePath !== path) {
+            const module = await pageModules["/404"]();
+            const Page = module.default;
+            local.routePath = path;
+            local.Page = local.Page;
+            router.params = {};
+            local.render();
+          }
         } catch {
           local.Page = null;
+          local.routePath = "";
           router.params = {};
+          local.render();
         }
       }
-      local.render();
     };
 
     loadPage();
@@ -171,13 +178,7 @@ export function useRoot() {
   };
 
   return {
-    Page: router.params
-      ? (props: any) => (
-          <ParamsContext.Provider value={router.params}>
-            {local.Page && <local.Page {...props} />}
-          </ParamsContext.Provider>
-        )
-      : null,
+    Page: local.Page ? local.Page : null,
     currentPath: router.currentPath,
     navigate,
     params: router.params,

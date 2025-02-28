@@ -169,30 +169,26 @@ export const ModelTableHead: FC<{
                           onCheckedChange={async (checked) => {
                             if (!tableModel) return;
 
-                            if (!tableModel.filterBy[columnName]) {
-                              tableModel.filterBy[columnName] = [];
+                            const newFilterBy = { ...tableModel.filterBy };
+                            
+                            if (!newFilterBy[columnName]) {
+                              newFilterBy[columnName] = [];
                             }
 
-                            const filterValues =
-                              tableModel.filterBy[columnName];
-                            const valueExists = filterValues.includes(item);
-
-                            if (checked && !valueExists) {
-                              filterValues.push(item);
-                            } else if (!checked && valueExists) {
-                              tableModel.filterBy[columnName] =
-                                filterValues.filter((v) => v !== item);
-                              if (
-                                tableModel.filterBy[columnName].length === 0
-                              ) {
-                                delete tableModel.filterBy[columnName];
+                            if (checked) {
+                              if (!newFilterBy[columnName].includes(item)) {
+                                newFilterBy[columnName] = [...newFilterBy[columnName], item];
+                              }
+                            } else {
+                              newFilterBy[columnName] = newFilterBy[columnName].filter((v) => v !== item);
+                              if (newFilterBy[columnName].length === 0) {
+                                delete newFilterBy[columnName];
                               }
                             }
 
-                            await (
-                              tableModel.debouncedFetchData ||
-                              tableModel.fetchData
-                            )({ filtering: true });
+                            tableModel.filtering = true;
+                            tableModel.filterBy = newFilterBy;
+                            tableModel.render();
                           }}
                           checked={
                             !!tableModel?.filterBy[columnName]?.includes(item)

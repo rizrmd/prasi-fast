@@ -5,6 +5,22 @@ import { useEffect } from "react";
 import { debounce } from "../utils/debounce";
 import { createFetchData, createFetchUniqueValues } from "./fetch-data";
 import { ModelTableState } from "./types";
+import { generateHash, loadHash } from "@/components/model/utils/object-hash";
+
+const saveStateToHash = async (filterBy: any, sortBy: any) => {
+  if (Object.keys(filterBy).length === 0 && Object.keys(sortBy).length === 0) {
+    return;
+  }
+  const hash = await generateHash({ filterBy, sortBy });
+  location.hash = "#filter#" + hash;
+};
+
+const loadStateFromHash = async () => {
+  const hash = location.hash.replace("#filter#", "");
+  if (!hash) return null;
+
+  return loadHash(hash);
+};
 
 export const useModelTable = ({
   model,
@@ -13,10 +29,11 @@ export const useModelTable = ({
 }) => {
   const table = useLocal<ModelTableState>({
     available: false,
-    loading: true,
+    loading: false,
     filtering: false,
     columns: [],
     result: null,
+    unfilteredResult: null, // Store unfiltered data
     current: null,
     sortBy: {},
     filterBy: {},
@@ -28,10 +45,31 @@ export const useModelTable = ({
     render: () => {},
   });
 
+  // Load state from hash on initial render
+  useEffect(() => {
+    if (location.hash.startsWith("#filter#")) {
+      loadStateFromHash().then((state) => {
+        if (state) {
+          table.filterBy = state.filterBy || {};
+          table.sortBy = state.sortBy || {};
+          table.render();
+        }
+      });
+    }
+  }, []);
+
+  // Save state to hash when filterBy or sortBy changes
+  useEffect(() => {
+    saveStateToHash(table.filterBy, table.sortBy);
+  }, [table.filterBy, table.sortBy]);
+
   if (!table.debouncedFetchData) {
-    table.debouncedFetchData = debounce(async (opt?: { filtering: boolean }) => {
-      await table.fetchData(opt);
-    }, 300);
+    table.debouncedFetchData = debounce(
+      async (opt?: { filtering: boolean }) => {
+        await table.fetchData(opt);
+      },
+      300
+    );
   }
 
   if (model.ready) {
@@ -47,7 +85,10 @@ export const useModelTable = ({
 
   useEffect(() => {
     let isMounted = true;
-    if (!model.ready) return;
+
+    if (!model.ready || table.result) {
+      return;
+    }
 
     table.fetchData = createFetchData(model, table);
     table.fetchUniqueValues = createFetchUniqueValues(model, table);
@@ -56,7 +97,38 @@ export const useModelTable = ({
     return () => {
       isMounted = false;
     };
-  }, [table.current, table.sortBy, table.filterBy, model.ready]);
+  }, []);
+
+  // Apply filtering whenever filterBy or data changes
+  useEffect(() => {
+    if (!table.unfilteredResult?.data) return;
+
+    table.filtering = true;
+    table.render();
+    const data = table.unfilteredResult;
+    const hasFilters = Object.keys(table.filterBy).length > 0;
+
+    // Apply filters
+    const filtered = hasFilters
+      ? {
+          ...data,
+          data: data.data.filter((row: any) =>
+            Object.entries(table.filterBy).every(([column, filterValues]) => {
+              if (!Array.isArray(filterValues) || filterValues.length === 0)
+                return true;
+              const value = column
+                .split(".")
+                .reduce((obj, key) => obj?.[key], row);
+              return filterValues.includes(value);
+            })
+          ),
+        }
+      : data;
+
+    // Update result
+    table.result = filtered;
+    table.render();
+  }, [table.filterBy, table.unfilteredResult]);
 
   return table;
 };

@@ -15,6 +15,7 @@ export type ModelTableState = {
   filtering: boolean;
   columns: ColumnDef<any, any>[];
   result: any | null;
+  unfilteredResult: any | null;
   current: LayoutTable<ModelName> | null;
   sortBy: Record<string, "asc" | "desc">;
   filterBy: Record<string, any[]>;

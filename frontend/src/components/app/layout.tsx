@@ -6,9 +6,7 @@ export const Layout: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 flex flex-col">
-        {children}
-      </main>
+      <main className="flex-1 flex flex-col">{children}</main>
     </SidebarProvider>
   );
 };

@@ -105,22 +105,14 @@ export const createFetchData = (model: any, table: ModelTableState) => {
       });
 
       const orderBy = table.sortBy;
-      const unfilteredResult = await model.instance.findList({
+      const data = await model.instance.findList({
         select,
         orderBy,
       });
 
-      const filteredResult =
-        Object.keys(table.filterBy).length > 0
-          ? await model.instance.findList({
-              select,
-              orderBy,
-              where: buildWhereClause(table.filterBy),
-            })
-          : unfilteredResult;
-
+      table.unfilteredResult = data;
+      table.result = data;
       table.columns = mappedColumns;
-      table.result = filteredResult;
       setLoading(false);
       table.render();
     } catch (error) {
@@ -136,37 +128,19 @@ export const createFetchData = (model: any, table: ModelTableState) => {
 
 export const createFetchUniqueValues = (model: any, table: ModelTableState) => {
   const fetchUniqueValues = async (columnName: string) => {
-    if (!model.instance) return;
+    if (!model.instance || !table.unfilteredResult?.data) return;
 
     table.loadingUniqueValues[columnName] = true;
     table.render();
 
     try {
       const parts = columnName.split(".");
-      const select = parts.reduce((acc, part, idx) => {
-        if (idx === parts.length - 1) {
-          return {
-            ...acc,
-            [part]: true,
-          };
-        }
-        return {
-          [part]: {
-            select: {},
-          },
-        };
-      }, {});
-
-      const result: { data: any[] } = await model.instance.findList({ select });
-
-      if (!result?.data) return;
-
-      const values = result.data.map((row) => {
+      const values = table.unfilteredResult.data.map((row: any) => {
         return parts.reduce((obj: any, part) => obj?.[part], row);
       });
 
       const uniqueValues = Array.from(
-        new Set(values.filter((v) => v !== null && v !== undefined))
+        new Set(values.filter((v: any) => v !== null && v !== undefined))
       );
 
       table.uniqueValues[columnName] = uniqueValues;
