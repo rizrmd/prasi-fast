@@ -73,7 +73,6 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
       // Find and activate tab for current URL
       const currentTabIndex = findTabIndexByUrl(currentPath);
-      console.log(currentPath, currentTabIndex, nav.tabs);
 
       if (currentTabIndex !== -1) {
         nav.activeIdx = currentTabIndex;

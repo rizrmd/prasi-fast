@@ -28,7 +28,11 @@ export const useModelDetail = ({
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
     findBefore: async (currentId: string) => {
-      if (!model.instance || DetailHash.includes(currentId) || !isUUID(currentId))
+      if (
+        !model.instance ||
+        DetailHash.includes(currentId) ||
+        !isUUID(currentId)
+      )
         return null;
       type WhereInput = {
         id: {
@@ -48,7 +52,11 @@ export const useModelDetail = ({
       return record?.id || null;
     },
     findAfter: async (currentId: string) => {
-      if (!model.instance || DetailHash.includes(currentId) || !isUUID(currentId))
+      if (
+        !model.instance ||
+        DetailHash.includes(currentId) ||
+        !isUUID(currentId)
+      )
         return null;
       type WhereInput = {
         id: {
@@ -244,7 +252,7 @@ export const useModelDetail = ({
             detail.data = data[0];
             detail.prevId = prevId;
             detail.nextId = nextId;
-            
+
             detail.render();
           }
         }

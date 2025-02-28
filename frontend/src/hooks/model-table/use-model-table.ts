@@ -7,6 +7,7 @@ import { createFetchData, createFetchUniqueValues } from "./fetch-data";
 import { ModelTableState } from "./types";
 import { generateHash, loadHash } from "@/components/model/utils/object-hash";
 import { composeHash, extractHash, parseHash } from "@/lib/parse-hash";
+import { useRouter } from "@/lib/router";
 
 const saveStateToHash = async (filterBy: any, sortBy: any) => {
   if (Object.keys(filterBy).length === 0 && Object.keys(sortBy).length === 0) {
@@ -28,6 +29,7 @@ export const useModelTable = ({
 }: {
   model: ReturnType<typeof useModel>;
 }) => {
+  const { currentFullPath } = useRouter();
   const table = useLocal<ModelTableState>({
     available: false,
     loading: false,
@@ -46,28 +48,31 @@ export const useModelTable = ({
     render: () => {},
   });
 
-  // Load state from hash on initial render
-  useEffect(() => {
+  // Function to load state from hash
+  const loadStateFromHashParams = async () => {
     const hashes = parseHash();
     if (hashes.filter) {
-      loadStateFromHash().then((state) => {
-        if (state) {
-          table.filterBy = state.filterBy || {};
-          table.sortBy = state.sortBy || {};
-          table.render();
-        }
-      });
+      const state = await loadStateFromHash();
+      if (state && state.filterBy && state.sortBy) {
+        table.filterBy = state.filterBy;
+        table.sortBy = state.sortBy;
+        table.render();
+      }
     } else if (hashes.parent) {
       const parentId = hashes.parent;
-      loadHash(parentId).then((parentData) => {
-        if (parentData?.parent) {
-          const { modelName, columnName, rowId } = parentData.parent;
-          // Store parent filter info in the table state
-          table.parentFilter = { modelName, columnName, rowId };
-          table.render();
-        }
-      });
+      const parentData = await loadHash(parentId);
+      if (parentData?.parent) {
+        const { modelName, columnName, rowId } = parentData.parent;
+        // Store parent filter info in the table state
+        table.parentFilter = { modelName, columnName, rowId };
+        table.render();
+      }
     }
+  };
+
+  // Load state from hash on initial render
+  useEffect(() => {
+    loadStateFromHashParams();
   }, []);
 
   // Save state to hash when filterBy or sortBy changes
@@ -110,6 +115,38 @@ export const useModelTable = ({
       isMounted = false;
     };
   }, [model.instance, table.current]);
+
+  // Reset and re-fetch data when path changes
+  useEffect(() => {
+    // Clear all state and data immediately
+    const clearState = () => {
+      table.filterBy = {};
+      table.sortBy = {};
+      table.parentFilter = undefined;
+      table.result = null;
+      table.unfilteredResult = null;
+      table.columns = [];
+      table.uniqueValues = {};
+      table.loadingUniqueValues = {};
+      table.filtering = false;
+      table.loading = true;
+    };
+
+    // Clear state first
+    clearState();
+    table.render(); // Render immediately to clear the view
+
+    // Wait a tick to ensure old data is cleared from view
+    setTimeout(() => {
+      // Load new state from hash parameters and fetch new data
+      loadStateFromHashParams().then(() => {
+        table.fetchData().finally(() => {
+          table.loading = false;
+          table.render();
+        });
+      });
+    }, 0);
+  }, [currentFullPath]);
 
   // Apply filtering whenever filterBy, parentFilter, or data changes
   useEffect(() => {
@@ -156,7 +193,7 @@ export const useModelTable = ({
     // Update result
     table.result = filtered;
     table.render();
-  }, [table.filterBy, table.unfilteredResult]);
+  }, [table.filterBy, table.parentFilter, table.unfilteredResult]);
 
   return table;
 };

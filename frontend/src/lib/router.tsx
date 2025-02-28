@@ -187,7 +187,6 @@ export function useRoot() {
 }
 
 export function useRouter() {
-  console.log(router.currentFullPath);
   return router;
 }
 
