@@ -16,6 +16,7 @@ export const CellAction: FC<{
 }> = ({ select, columnName, modelName }) => {
   const model = models[modelName];
   const parts = columnName.split(".");
+  const isRelation = columnName.includes(".");
   let lastModel = null as typeof model | null;
   return (
     <Command
@@ -71,18 +72,22 @@ export const CellAction: FC<{
             </div>
           }
         >
-          <CommandItem value="filter" onSelect={select}>
-            <Filter />
-            Filter berdasarkan ini
-          </CommandItem>
+          {!isRelation && (
+            <CommandItem value="filter" onSelect={select}>
+              <Filter />
+              Filter berdasarkan ini
+            </CommandItem>
+          )}
           <CommandItem value="new-tab" onSelect={select}>
             <ExternalLink />
             Buka di tab baru
           </CommandItem>
-          <CommandItem value="edit" onSelect={select}>
-            <Pencil />
-            Edit data
-          </CommandItem>
+          {!isRelation && (
+            <CommandItem value="edit" onSelect={select}>
+              <Pencil />
+              Edit data
+            </CommandItem>
+          )}
         </CommandGroup>
       </CommandList>
     </Command>

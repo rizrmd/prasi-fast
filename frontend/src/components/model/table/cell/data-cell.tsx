@@ -24,7 +24,6 @@ export const DataCell: FC<{
     props;
   const render = useState({})[1];
   const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
-
   const select = (action: "filter" | "new-tab" | "edit") => {
     cell.popover = "";
     render({});
@@ -54,7 +53,7 @@ export const DataCell: FC<{
         const rel = getRelation(modelName, columnName);
         if (rel) {
           openInNewTab(
-            `/model/${rel.relation.model.toLowerCase()}#filter#${
+            `/model/${rel.relation.model.toLowerCase()}#parent#${
               rel.relation.prismaField
             }=${rowId}`
           );
@@ -77,6 +76,7 @@ export const DataCell: FC<{
             render({});
           }
         }}
+        open={cell.popover === cellId}
       >
         <PopoverTrigger
           onClick={(e) => {
