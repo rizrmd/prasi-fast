@@ -1,6 +1,6 @@
 import { AppLoading } from "@/components/app/app-loading";
 import { WarnFull } from "@/components/app/warn-full";
-import { DataTable } from "@/components/ext/data-table";
+import { DataTable } from "@/components/model/table/data-table";
 import { useModelTable } from "@/hooks/model-table/use-model-table";
 import { useModel } from "@/hooks/use-model";
 import { navigate } from "@/lib/router";

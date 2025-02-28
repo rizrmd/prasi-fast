@@ -1,4 +1,3 @@
-import { useModel } from "@/hooks/use-model";
 import { navigate, parseRouteParams, useRouter } from "@/lib/router";
 import { cn } from "@/lib/utils";
 import cuid from "@bugsnag/cuid";
@@ -7,7 +6,6 @@ import { FC, useEffect, useState } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
 import { DraggableTabs, Tab as DraggableTabType } from "../ext/draggable-tabs";
-import { TriangleAlert } from "lucide-react";
 import { NotID } from "./detail/utils";
 
 const STORAGE_KEY = "nav_tabs_state";

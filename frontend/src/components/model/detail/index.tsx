@@ -5,7 +5,7 @@ import { useModelDetail } from "@/hooks/use-model-detail";
 import { FC } from "react";
 import { ModelName } from "shared/types";
 import { MDetailTabs } from "./detail-tabs";
-import { DetailForm } from "./form";
+import { DetailForm } from "./form/form";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });

@@ -7,7 +7,7 @@ import { defaultColumns } from "system/model/model";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { parseHash } from "@/lib/parse-hash";
-import { NotID } from "@/components/model/detail/utils";
+import { DetailHash, NotID } from "@/components/model/detail/utils";
 import { validate as isUUID } from "uuid";
 type ModelRecord = {
   id: string;

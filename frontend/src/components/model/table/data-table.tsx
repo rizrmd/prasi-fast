@@ -7,25 +7,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Spinner } from "../ui/spinner";
-import { WarnFull } from "../app/warn-full";
-import { DataCell } from "./data-cell";
-import { ModelName } from "shared/types";
-import { PaginationResult } from "system/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useModelTable } from "@/hooks/model-table/use-model-table";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import { ChevronDown, Ellipsis } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
+import { ModelName } from "shared/types";
 import { LayoutTable } from "system/model/layout/types";
-import { AppLoading } from "../app/app-loading";
-import { ModelTableHead } from "../model/table/table-head";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { AppLoading } from "../../app/app-loading";
+import { WarnFull } from "../../app/warn-full";
+import { DataCell } from "./cell/data-cell";
+import { ModelTableHead } from "./head/table-head";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -178,6 +175,7 @@ export function DataTable({
                         return (
                           <DataCell
                             colIdx={idx}
+                            modelTable={modelTable}
                             modelName={meta.modelName ?? row.original.type}
                             columnName={meta.columnName ?? cell.column.id}
                             type={meta.type ?? ""}
