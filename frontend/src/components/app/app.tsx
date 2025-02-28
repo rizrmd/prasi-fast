@@ -5,9 +5,7 @@ import { useRoot } from "@/lib/router";
 import { Toaster } from "../ui/sonner";
 import { AppLoading } from "./app-loading";
 import { Layout } from "./layout";
-import { generateHash } from "../model/utils/object-hash";
 
-console.log(generateHash({ a: 1, date: new Date() }));
 function AppContent() {
   const { Page, currentPath, isLoading } = useRoot();
 

@@ -17,7 +17,7 @@ async function generateAPICode(apiFiles: string[]): Promise<string> {
   for (const file of apiFiles) {
     const name = file.replace(".ts", "");
     const camelName = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    
+
     try {
       const module = await import(`../../backend/src/api/${name}`);
       const { path } = module.default;
@@ -48,7 +48,7 @@ export async function buildApis() {
   for (const file of apiFiles) {
     const name = file.replace(".ts", "");
     const camelName = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    backendExports += `import ${camelName} from "../api/${name}";\n`;
+    backendExports += `import ${camelName} from "../../api/${name}";\n`;
   }
   backendExports += `\nexport { ${apiFiles
     .map((f) =>

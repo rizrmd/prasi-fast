@@ -1,48 +1,100 @@
-import hash from "hash-object";
+import stableHash from "stable-hash";
+import { api } from "@generated/api";
 
-/**
- * Generates a stable hash from an object
- * @param obj - The object to generate a hash from
- * @returns A stable hash string
- */
-export const generateHash = (obj: Record<string, any>): string => {
-  const hashValue = hash(obj);
-  // Store the hash and its corresponding object in localStorage
-  localStorage.setItem(`hash_${hashValue}`, JSON.stringify(obj));
-  return hashValue;
+const DB_NAME = "objectHashDB";
+const STORE_NAME = "hashStore";
+
+let db: IDBDatabase | null = null;
+
+const initDB = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (db) return resolve();
+
+    const request = indexedDB.open(DB_NAME, 1);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      db = request.result;
+      resolve();
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+  });
 };
 
-/**
- * Parses a hash string into an object
- * @param hashStr - The hash string to parse
- * @returns The parsed object
- */
-export const parseHash = (hashStr: string): Record<string, any> => {
-  if (!hashStr) return {};
-
-  // Try to get the value from localStorage first
-  const storedValue = localStorage.getItem(`hash_${hashStr}`);
-  if (storedValue) {
-    try {
-      return JSON.parse(storedValue);
-    } catch (error) {
-      console.error("Error parsing stored hash value:", error);
-    }
-  }
+export const generateHash = async (
+  obj: Record<string, any>
+): Promise<string> => {
+  const hashValue = stableHash(obj);
+  const finalHash = hash33(hashValue);
+  const hashStr = finalHash + "";
 
   try {
-    // Remove any leading '#' if present
-    const cleanHash = hashStr.startsWith("#") ? hashStr.substring(1) : hashStr;
+    await initDB();
+    const transaction = db!.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    await new Promise((resolve, reject) => {
+      const request = store.put(obj, hashStr);
+      request.onsuccess = () => resolve(undefined);
+      request.onerror = () => reject(request.error);
+    });
 
-    // Split the hash string into key-value pairs
-    return Object.fromEntries(
-      cleanHash.split("&").map((pair) => {
-        const [key, value] = pair.split("=");
-        return [key, decodeURIComponent(value)];
-      })
-    );
+    api.objectHash(hashStr, obj);
   } catch (error) {
-    console.error("Error parsing hash:", error);
-    return {};
+    console.error("Error storing hash:", error);
+  }
+
+  return hashStr;
+};
+
+export const loadHash = async (hashStr: string): Promise<any> => {
+  try {
+    await initDB();
+    const transaction = db!.transaction(STORE_NAME, "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const localResult = await new Promise((resolve, reject) => {
+      const request = store.get(hashStr);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    if (localResult) {
+      return localResult;
+    }
+
+    // Fallback to API if not found in IndexedDB
+    const apiResult = await api.objectHash(hashStr);
+    if (apiResult) {
+      // Store the API result in IndexedDB for future use
+      const transaction = db!.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      await new Promise((resolve, reject) => {
+        const request = store.put(apiResult, hashStr);
+        request.onsuccess = () => resolve(undefined);
+        request.onerror = () => reject(request.error);
+      });
+      return apiResult;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error loading hash:", error);
+    return null;
   }
 };
+
+function hash33(text: string) {
+  var hash = 5381,
+    index = text.length;
+
+  while (index) {
+    hash = (hash * 33) ^ text.charCodeAt(--index);
+  }
+
+  return hash >>> 0;
+}

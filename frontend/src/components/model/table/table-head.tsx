@@ -21,16 +21,18 @@ import { getRelation } from "../utils/get-relation";
 import { Button } from "@/components/ui/button";
 import { useLocal } from "@/hooks/use-local";
 import get from "lodash.get";
+import { useModelDetail } from "@/hooks/use-model-detail";
 import { useModelTable } from "@/hooks/use-model-table";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
   table: ReturnType<typeof useModelTable>;
+  detail?: ReturnType<typeof useModelDetail>;
   columnName: string;
   colIdx: number;
   className?: string;
   rows?: any[];
-}> = ({ modelName, columnName, colIdx, className, rows }) => {
+}> = ({ modelName, columnName, colIdx, className, rows, detail }) => {
   const local = useLocal({ open: false });
   const rootModel = models[modelName];
   let model = rootModel;
@@ -102,15 +104,17 @@ export const ModelTableHead: FC<{
               className="flex-1 px-0"
               placeholder={`Filter ${title}...`}
             />
-            <Button
-              size={"icon"}
-              variant="outline"
-              onClick={() => {
-                // sort
-              }}
-            >
-              <ArrowUpDown />
-            </Button>
+              <Button
+                size={"icon"}
+                variant="outline"
+                onClick={() => {
+                  if (!detail) return;
+                  detail.sortBy = detail.sortBy === "asc" ? "desc" : "asc";
+                  detail.render();
+                }}
+              >
+                <ArrowUpDown className={detail?.sortBy === "desc" ? "rotate-180" : ""} />
+              </Button>
           </div>
           <CommandList
             className={css`
@@ -130,7 +134,14 @@ export const ModelTableHead: FC<{
                   key={idx}
                 >
                   <label>
-                    <Checkbox onCheckedChange={() => {}} />
+                    <Checkbox 
+                      onCheckedChange={() => {
+                        if (!detail) return;
+                        detail.filterBy = item[model.config.primaryKey];
+                        detail.render();
+                      }} 
+                      checked={detail?.filterBy === item[model.config.primaryKey]}
+                    />
                     <span>{get(base, columnName)}</span>
                   </label>
                 </CommandItem>

@@ -27,6 +27,8 @@ export const useModelDetail = ({
     available: false,
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
+    sortBy: "asc" as "asc" | "desc",
+    filterBy: null as string | null,
     findBefore: async (currentId: string) => {
       if (!model.instance || NotID.includes(currentId)) return null;
       type WhereInput = {

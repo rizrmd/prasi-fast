@@ -10,6 +10,7 @@
   "dependencies": {
     "better-auth": "^1.1.19",
     "bun": "latest",
+    "bun-sqlite-key-value": "^1.13.1",
     "msgpackr": "^1.11.2"
   },
   "devDependencies": {

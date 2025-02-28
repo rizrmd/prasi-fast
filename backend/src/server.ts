@@ -4,15 +4,20 @@ import { join } from "path";
 import { modelRoute } from "system/model/model-route";
 import config from "../../config.json";
 import { parseServerUrl } from "../../shared/types/config";
-import * as api from "./generated/api";
+import * as api from "./lib/generated/api";
 
 const { port: PORT, host: HOST } = process.env.PORT
   ? { port: parseInt(process.env.PORT), host: "localhost" }
   : parseServerUrl(config.backend.url);
 const STATIC_DIR = "../../frontend/dist";
 
+const invalidPath = new Set<string>();
+
 function serveStatic(path: string) {
   try {
+    if (invalidPath.has(path)) {
+      return null;
+    }
     const fullPath = join(import.meta.dir, STATIC_DIR, path);
     const stat = statSync(fullPath);
 
@@ -21,7 +26,7 @@ function serveStatic(path: string) {
     }
     return null;
   } catch (e) {
-    console.error(e);
+    invalidPath.add(path);
     return null;
   }
 }
@@ -78,6 +83,7 @@ function addCorsHeaders(headers: Headers) {
   headers.set("Access-Control-Expose-Headers", "Set-Cookie");
   headers.set("Access-Control-Allow-Credentials", "true");
 }
+
 
 const server = serve({
   port: PORT,
