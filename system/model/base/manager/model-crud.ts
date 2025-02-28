@@ -2,6 +2,14 @@ import type { PaginationParams, PaginationResult } from "../../../types";
 import type { ModelState } from "../../model";
 import type { BaseRecord } from "../model-base";
 import { ModelManager } from "../model-manager";
+import { generateHash } from "../../../utils/object-hash";
+
+type ModelRecord = {
+  [key: string]: any;
+  id: string;
+};
+
+type CacheResult<T> = T | null;
 
 export abstract class ModelCrud<
   T extends BaseRecord = any
@@ -16,11 +24,11 @@ export abstract class ModelCrud<
   ): string[];
   protected abstract invalidateCache(id?: string): void;
   protected abstract cacheRecordAndRelations(
-    record: Record<string, any>,
+    record: ModelRecord,
     select?: Record<string, any> | string[]
   ): Promise<void>;
   protected abstract attachCachedRelations(
-    record: Record<string, any>
+    record: ModelRecord
   ): Promise<any>;
 
   protected shouldUseCache(): boolean {
@@ -52,7 +60,8 @@ export abstract class ModelCrud<
           this.state.config.modelName,
           id
         );
-        if (cachedItem) {
+        if (cachedItem && typeof cachedItem === 'object') {
+          // Ensure we're returning a properly structured record
           return cachedItem;
         }
       } catch (error) {
@@ -76,7 +85,7 @@ export abstract class ModelCrud<
 
     if (record && shouldCache) {
       try {
-        await this.cacheRecordAndRelations(record, params.select);
+        await this.cacheRecordAndRelations(record as ModelRecord, params.select);
       } catch (error) {}
     }
 
@@ -93,8 +102,38 @@ export abstract class ModelCrud<
     > = {}
   ): Promise<T[]> {
     let queryParams = { ...params };
-    const ids = params.where?.id ? [params.where.id] : params.where?.id?.in;
+    const shouldCache = params.useCache ?? this.shouldUseCache();
 
+    if (shouldCache) {
+      // Try to get cached query results first
+      const cachedIds = this.state.modelCache.getCachedQueryResults(
+        this.state.config.modelName,
+        {
+          where: queryParams.where,
+          orderBy: queryParams.orderBy,
+          select: queryParams.select
+        }
+      );
+
+      if (cachedIds) {
+        // If we have cached IDs, try to get records from cache
+        const cachedRecords = await Promise.all(
+          cachedIds.map((id: string) => 
+            this.state.modelCache.get<T>(
+              this.state.config.modelName,
+              id
+            )
+          )
+        ) as CacheResult<T>[];
+
+        const validRecords = cachedRecords.filter((r): r is T => r !== null);
+        if (validRecords.length === cachedRecords.length) {
+          return validRecords;
+        }
+      }
+    }
+
+    // Transform array select to object
     if (Array.isArray(params.select)) {
       queryParams.select = params.select.reduce(
         (acc: Record<string, boolean>, field: string) => {
@@ -105,23 +144,33 @@ export abstract class ModelCrud<
       );
     }
 
-    let results: T[] = [];
-    const shouldCache = params.useCache ?? this.shouldUseCache();
-
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
       : undefined;
 
-    results = await this.prismaTable.findMany({
+    const results = await this.prismaTable.findMany({
       ...queryParams,
       select: enhancedSelect,
-    });
+    }) as T[];
 
     if (shouldCache && results.length) {
+      // Cache individual records and their relations
       await Promise.all(
-        results.map((record: any) =>
-          this.cacheRecordAndRelations(record, params.select)
+        results.map((record: T) =>
+          this.cacheRecordAndRelations(record as ModelRecord, queryParams.select)
         )
+      );
+
+      // Cache the query results
+      await this.state.modelCache.cacheQueryResults(
+        this.state.config.modelName,
+        {
+          where: queryParams.where,
+          orderBy: queryParams.orderBy,
+          select: queryParams.select
+        },
+        results.map((record) => record[this.config.primaryKey]),
+        this.state.config.cache?.ttl || 300
       );
     }
 
@@ -137,13 +186,61 @@ export abstract class ModelCrud<
       }
     > = {}
   ): Promise<PaginationResult<T>> {
-    let queryParams = { ...params };
+    const queryParams = { ...params };
     const page = queryParams.page || 1;
     const perPage = queryParams.perPage || 10;
-    const ids = params.where?.id ? [params.where.id] : params.where?.id?.in;
+    const shouldCache = params.useCache ?? this.shouldUseCache();
+
+    // Generate cache key that includes pagination info
+    const cacheParams = {
+      where: queryParams.where,
+      orderBy: queryParams.orderBy,
+      select: queryParams.select,
+      page,
+      perPage
+    };
+
+    if (shouldCache) {
+      // Try to get cached query results
+      const cachedIds = this.state.modelCache.getCachedQueryResults(
+        this.state.config.modelName,
+        cacheParams
+      );
+
+      if (cachedIds) {
+        // Try to get cached records
+        const cachedRecords = await Promise.all(
+          cachedIds.map((id: string) => 
+            this.state.modelCache.get<T>(
+              this.state.config.modelName,
+              id
+            )
+          )
+        ) as CacheResult<T>[];
+
+        // Get total count from cached metadata
+        const countHash = await this.generateQueryHash(queryParams.where || {});
+        const cachedMeta = this.state.modelCache.get<{ total: number }>(
+          this.state.config.modelName,
+          `count:${countHash}`
+        );
+
+        // Check if all records are valid and metadata is available
+        const validRecords = cachedRecords.filter((r): r is T => r !== null);
+        if (validRecords.length === cachedRecords.length && cachedMeta?.total !== undefined) {
+          return {
+            data: validRecords,
+            page,
+            perPage,
+            total: cachedMeta.total,
+            totalPages: Math.ceil(cachedMeta.total / perPage),
+          };
+        }
+      }
+    }
 
     if (Array.isArray(queryParams.select)) {
-      queryParams.select = queryParams.select.reduce(
+      queryParams.select = params.select?.reduce(
         (acc: Record<string, boolean>, field: string) => {
           acc[field] = true;
           return acc;
@@ -151,11 +248,6 @@ export abstract class ModelCrud<
         {}
       );
     }
-
-    let records: T[] = [];
-    let totalCount = 0;
-
-    const shouldCache = params.useCache ?? this.shouldUseCache();
 
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
@@ -169,144 +261,46 @@ export abstract class ModelCrud<
         select: enhancedSelect,
         skip,
         take: perPage,
-      }),
+      }) as Promise<T[]>,
       this.prismaTable.count({ where: queryParams.where }),
     ]);
 
-    records = ids ? [...records, ...dbRecords] : dbRecords;
-    totalCount = count;
-
-    if (shouldCache && records.length) {
+    if (shouldCache && dbRecords.length) {
+      // Cache individual records and their relations
       await Promise.all(
-        records.map((record: any) =>
-          this.cacheRecordAndRelations(record, queryParams.select)
+        dbRecords.map((record: T) =>
+          this.cacheRecordAndRelations(record as ModelRecord, queryParams.select)
         )
+      );
+
+      // Cache the query results with pagination info
+      await this.state.modelCache.cacheQueryResults(
+        this.state.config.modelName,
+        cacheParams,
+        dbRecords.map((record) => record[this.config.primaryKey]),
+        this.state.config.cache?.ttl || 300
+      );
+
+      // Cache count result
+      const countHash = await this.generateQueryHash(queryParams.where || {});
+      await this.state.modelCache.set(
+        this.state.config.modelName,
+        `count:${countHash}`,
+        { total: count },
+        this.state.config.cache?.ttl || 300
       );
     }
 
     return {
-      data: records,
+      data: dbRecords,
       page,
       perPage,
-      total: totalCount,
-      totalPages: Math.ceil(totalCount / perPage),
+      total: count,
+      totalPages: Math.ceil(count / perPage),
     };
   }
 
-  async create(params: {
-    data: Partial<T>;
-    select?: Record<string, any> | string[];
-    useCache?: boolean;
-  }): Promise<T> {
-    const { data, select, useCache } = params;
-
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
-
-    // Cleanse data by removing unwanted fields
-    const cleanData = { ...data };
-
-    // Remove the primary key from data if it exists
-    delete cleanData[this.config.primaryKey];
-
-    // Remove empty relation arrays
-    for (const relation of Object.keys(this.state.config.relations || {})) {
-      if (
-        Array.isArray(cleanData[relation]) &&
-        cleanData[relation].length === 0
-      ) {
-        delete cleanData[relation];
-      }
-    }
-
-    // Only keep fields that are defined in the model columns
-    const validFields = Object.keys(this.state.config.columns);
-    Object.keys(cleanData).forEach((key) => {
-      if (!validFields.includes(key)) {
-        delete cleanData[key];
-      }
-    });
-
-    const result = await this.prismaTable.create({
-      data: cleanData,
-      select: enhancedSelect,
-    });
-
-    const shouldCache = useCache ?? this.shouldUseCache();
-    if (shouldCache) {
-      await this.cacheRecordAndRelations(result, select);
-    }
-
-    return result as T;
-  }
-
-  async update(params: {
-    where: { [key: string]: any };
-    data: Partial<T>;
-    select?: Record<string, any> | string[];
-    useCache?: boolean;
-  }): Promise<T> {
-    const { where, data, select, useCache } = params;
-
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
-
-    // Cleanse data by removing unwanted fields
-    const cleanData = { ...data };
-
-    // Remove the primary key from data if it exists
-    delete cleanData[this.config.primaryKey];
-
-    // Remove empty relation arrays
-    for (const relation of Object.keys(this.state.config.relations || {})) {
-      if (
-        Array.isArray(cleanData[relation]) &&
-        cleanData[relation].length === 0
-      ) {
-        delete cleanData[relation];
-      }
-    }
-
-    // Only keep fields that are defined in the model columns
-    const validFields = Object.keys(this.state.config.columns);
-    Object.keys(cleanData).forEach((key) => {
-      if (!validFields.includes(key)) {
-        delete cleanData[key];
-      }
-    });
-
-    const result = await this.prismaTable.update({
-      where,
-      data: cleanData,
-      select: enhancedSelect,
-    });
-
-    const shouldCache = useCache ?? this.shouldUseCache();
-    if (shouldCache) {
-      await this.cacheRecordAndRelations(result, select);
-    }
-
-    return result as T;
-  }
-
-  async delete(params: {
-    where: { [key: string]: any };
-    select?: Record<string, any> | string[];
-    useCache?: boolean;
-  }): Promise<T> {
-    const { where, select, useCache } = params;
-
-    const enhancedSelect = select ? this.ensurePrimaryKeys(select) : undefined;
-
-    const pk = where[this.config.primaryKey];
-    const result = await this.prismaTable.delete({
-      where,
-      select: enhancedSelect,
-    });
-
-    const shouldCache = useCache ?? this.shouldUseCache();
-    if (shouldCache) {
-      this.invalidateCache(pk);
-    }
-
-    return result as T;
+  protected async generateQueryHash(params: Record<string, any>): Promise<string> {
+    return generateHash(params);
   }
 }

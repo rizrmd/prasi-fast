@@ -1,15 +1,14 @@
-import { FC, useState } from "react";
+import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { composeHash } from "@/lib/parse-hash";
 import { PopoverTrigger } from "@radix-ui/react-popover";
+import { FC, useState } from "react";
 import { ModelName } from "shared/types";
-import { openInNewTab } from "../../nav-tabs";
+import { generateHash } from "system/utils/object-hash";
 import { Popover, PopoverContent } from "../../../ui/popover";
+import { openInNewTab } from "../../nav-tabs";
 import { getRelation } from "../../utils/get-relation";
 import { CellAction } from "./cell-action";
 import { CellContent } from "./cell-content";
-import { navigate } from "@/lib/router";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
-import { generateHash } from "../../utils/object-hash";
-import { composeHash } from "@/lib/parse-hash";
 
 const cell = { popover: "" };
 

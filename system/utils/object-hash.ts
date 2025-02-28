@@ -1,5 +1,5 @@
 import stableHash from "stable-hash";
-import { api } from "@generated/api";
+import { api } from "frontend/src/lib/generated/api";
 
 const DB_NAME = "objectHashDB";
 const STORE_NAME = "hashStore";

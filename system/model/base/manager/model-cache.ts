@@ -1,9 +1,17 @@
-import type { BaseRecord } from "../model-base";
 import type { ModelState } from "../../model";
+import type { BaseRecord } from "../model-base";
 import { ModelCache } from "../model-cache";
 
 // Extend existing ModelConfig from types
+import { generateHash } from "system/utils/object-hash";
 import type { ModelConfig as BaseModelConfig } from "../../../types";
+
+// Helper type for query parameters
+interface QueryParams {
+  where?: Record<string, any>;
+  orderBy?: Record<string, any>;
+  select?: Record<string, any> | string[];
+}
 interface ModelConfig extends BaseModelConfig {
   debug?: boolean;
 }
@@ -31,6 +39,33 @@ export class ModelCacheManager<T extends BaseRecord = any> {
   // Will be defined by Model class using our extended state type
   protected state!: ExtendedModelState<T>;
   private cache?: ModelCache;
+
+  // Generate a consistent hash for cache keys
+  private generateQueryHash(params: QueryParams): Promise<string> {
+    const sortedParams = {
+      where: params.where ? this.sortObject(params.where) : undefined,
+      orderBy: params.orderBy ? this.sortObject(params.orderBy) : undefined,
+      select: params.select ? this.sortObject(params.select) : undefined,
+    };
+
+    return generateHash(sortedParams); // Use first 16 chars for shorter keys
+  }
+
+  // Sort object keys for consistent hashing
+  private sortObject(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.sortObject(item)).sort();
+    }
+    if (obj !== null && typeof obj === "object") {
+      return Object.keys(obj)
+        .sort()
+        .reduce((result: any, key) => {
+          result[key] = this.sortObject(obj[key]);
+          return result;
+        }, {});
+    }
+    return obj;
+  }
 
   private debugLog(message: string, ...args: any[]) {
     if (this.state?.config?.debug) {
@@ -60,7 +95,10 @@ export class ModelCacheManager<T extends BaseRecord = any> {
       try {
         this.cache?.invalidate(modelName, id);
       } catch (error) {
-        this.errorLog(`Invalidation error for ${modelName} ${id || ""}:`, error);
+        this.errorLog(
+          `Invalidation error for ${modelName} ${id || ""}:`,
+          error
+        );
       }
     },
 
@@ -86,24 +124,43 @@ export class ModelCacheManager<T extends BaseRecord = any> {
         // Cache relation IDs if any are selected
         if (select) {
           await Promise.all(
-            Object.entries(select).map(async ([relationName, relationSelect]) => {
-              if (typeof relationSelect !== 'object') return;
+            Object.entries(select).map(
+              async ([relationName, relationSelect]) => {
+                if (typeof relationSelect !== "object") return;
 
-              const relationData = record[relationName];
-              if (relationData === undefined) return;
+                const relationData = record[relationName];
+                if (relationData === undefined) return;
 
-              const relationIds = Array.isArray(relationData)
-                ? relationData.map((r: Record<string, any>) => r.id)
-                : (relationData as Record<string, any>)?.id || null;
+                const relationIds = Array.isArray(relationData)
+                  ? relationData.map((r: Record<string, any>) => r.id)
+                  : (relationData as Record<string, any>)?.id || null;
 
-              await this.cache?.cacheRelationIds(
-                modelName,
-                record.id,
-                relationName,
-                relationIds,
-                ttl
-              );
-            })
+                const queryHash = await this.generateQueryHash({
+                  select: relationSelect,
+                });
+
+                await this.cache?.cacheRelationIds(
+                  modelName,
+                  record.id,
+                  `${relationName}:${queryHash}`,
+                  relationIds,
+                  ttl
+                );
+              }
+            )
+          );
+
+          // Cache the query parameters that led to this result
+          const queryHash = await this.generateQueryHash({
+            where: {},
+            orderBy: {},
+            select,
+          });
+          await this.cache?.set(
+            modelName,
+            `query:${queryHash}`,
+            { ids: [record.id], timestamp: Date.now() },
+            ttl
           );
         }
 
@@ -175,6 +232,60 @@ export class ModelCacheManager<T extends BaseRecord = any> {
 
   get _friend(): CacheManagerFriend {
     return this.friendMethods;
+  }
+
+  // New methods for query-based caching
+  async cacheQueryResult(
+    modelName: string,
+    params: QueryParams,
+    ids: string[],
+    ttl: number
+  ): Promise<void> {
+    if (!this.isCachingEnabled()) return;
+
+    const queryHash = await this.generateQueryHash(params);
+    await this.cache?.set(
+      modelName,
+      `query:${queryHash}`,
+      { ids, timestamp: Date.now() },
+      ttl
+    );
+  }
+
+  async getQueryResult(
+    modelName: string,
+    params: QueryParams
+  ): Promise<string[] | null> {
+    if (!this.isCachingEnabled()) return null;
+
+    const queryHash = await this.generateQueryHash(params);
+    const cached = this.cache?.get<{ ids: string[]; timestamp: number }>(
+      modelName,
+      `query:${queryHash}`
+    );
+
+    return cached?.ids || null;
+  }
+
+  async invalidateQueryCache(
+    modelName: string,
+    where?: Record<string, any>
+  ): Promise<void> {
+    if (!this.isCachingEnabled()) return;
+
+    try {
+      // If where is provided, only invalidate matching queries
+      if (where) {
+        const queryHash = await this.generateQueryHash({ where });
+        await this.cache?.invalidate(modelName, `query:${queryHash}`);
+      } else {
+        // Otherwise invalidate all query caches for this model
+        // Invalidate all query cache entries for this model
+        await this.cache?.invalidate(`${modelName}:query`);
+      }
+    } catch (error) {
+      this.errorLog(`Error invalidating query cache for ${modelName}:`, error);
+    }
   }
 
   async get(id: string): Promise<T | null> {

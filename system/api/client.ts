@@ -1,4 +1,7 @@
 export const apiClient = <T extends { handler: any }>(path: string) => {
+  if (typeof window === "undefined") {
+    return null as any;
+  }
   let cfg = (window as any).config as typeof config;
   return (async (...args: any[]) => {
     if (!cfg) {
@@ -19,8 +22,8 @@ export const apiClient = <T extends { handler: any }>(path: string) => {
       body: JSON.stringify(args),
       credentials: "include",
       headers: {
-        "Content-Type": "application/json"
-      }
+        "Content-Type": "application/json",
+      },
     });
 
     return await res.json();

@@ -5,9 +5,9 @@ import { useEffect } from "react";
 import { debounce } from "../utils/debounce";
 import { createFetchData, createFetchUniqueValues } from "./fetch-data";
 import { ModelTableState } from "./types";
-import { generateHash, loadHash } from "@/components/model/utils/object-hash";
 import { composeHash, extractHash, parseHash } from "@/lib/parse-hash";
 import { useRouter } from "@/lib/router";
+import { generateHash, loadHash } from "system/utils/object-hash";
 
 const saveStateToHash = async (filterBy: any, sortBy: any) => {
   if (Object.keys(filterBy).length === 0 && Object.keys(sortBy).length === 0) {

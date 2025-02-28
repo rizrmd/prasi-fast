@@ -73,22 +73,34 @@ export class ModelCache {
     }
 
     if (this.debug) console.log(`Cache HIT: ${JSON.stringify(key)}`);
-    return entry.value as T;
+    
+    // Extract data from CachedRecord structure
+    const cachedValue = entry.value as CachedRecord;
+    return cachedValue.data as T;
   }
 
-  set<T extends CacheValue>(
+  set<T extends Record<string, any>>(
     modelName: string,
     id: string,
     value: T,
     ttlSeconds: number
   ): void {
     try {
-      console.log("set", value);
-
       const key = this.getCacheKey(modelName, id);
       const expiry = Date.now() + ttlSeconds * 1000;
 
-      this.cache.set(key, { value, expiry });
+      // Create a proper CachedRecord structure
+      const cachedRecord: CachedRecord = {
+        fields: new Set(Object.keys(value)),
+        data: value
+      };
+
+      const entry: CacheEntry<CachedRecord> = {
+        value: cachedRecord,
+        expiry
+      };
+
+      this.cache.set(key, entry);
       if (this.debug)
         console.log(`Cache SET: ${key}, expires in ${ttlSeconds}s`);
     } catch (error) {
@@ -145,17 +157,23 @@ export class ModelCache {
       const key = this.getRecordKey(tableName, id);
       const existing = this.cache.get(key);
 
-      const entry: CacheEntry<Record<string, any>> = existing
+      // Create a proper CachedRecord structure
+      const cachedRecord: CachedRecord = existing
         ? {
-            value: { ...(existing.value as CachedRecord).data, ...recordData },
-            expiry: Date.now() + ttl * 1000,
+            fields: new Set(Object.keys(recordData)),
+            data: { ...(existing.value as CachedRecord).data, ...recordData }
           }
         : {
-            value: recordData,
-            expiry: Date.now() + ttl * 1000,
+            fields: new Set(Object.keys(recordData)),
+            data: recordData
           };
 
-      await Promise.resolve(this.cache.set(key, entry));
+      const entry: CacheEntry<CachedRecord> = {
+        value: cachedRecord,
+        expiry: Date.now() + ttl * 1000
+      };
+
+      this.cache.set(key, entry);
     } catch (error) {
       console.error(`Cache record error for ${tableName}:${id}:`, error);
       throw error;
@@ -293,15 +311,109 @@ export class ModelCache {
     }
   }
 
+  // Add a new method to generate a cache key for query-based caching
+  getQueryCacheKey(tableName: string, where: Record<string, any>, orderBy?: any): string {
+    // Create a stable representation of the where clause by sorting keys
+    const normalizedWhere = this.normalizeObject(where || {});
+    
+    // Create a stable representation of the orderBy
+    const normalizedOrderBy = this.normalizeObject(orderBy || { id: 'desc' });
+    
+    // Combine into a stable cache key
+    return `${tableName}:query:${JSON.stringify({
+      where: normalizedWhere,
+      orderBy: normalizedOrderBy
+    })}`;
+  }
+  
+  // Helper method to create a stable representation of objects for cache keys
+  private normalizeObject(obj: Record<string, any>): any {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.normalizeObject(item));
+    }
+    
+    // For objects, sort keys and normalize values
+    const sortedKeys = Object.keys(obj).sort();
+    const result: Record<string, any> = {};
+    
+    for (const key of sortedKeys) {
+      // Skip functions and undefined values
+      if (typeof obj[key] === 'function' || obj[key] === undefined) {
+        continue;
+      }
+      result[key] = this.normalizeObject(obj[key]);
+    }
+    
+    return result;
+  }
+
+  // Cache query results (IDs only) based on where conditions
+  cacheQueryResults(
+    tableName: string,
+    where: Record<string, any>,
+    ids: string[],
+    ttl: number,
+    orderBy?: any
+  ): void {
+    try {
+      const key = this.getQueryCacheKey(tableName, where, orderBy);
+      this.cache.set(key, {
+        value: ids,
+        expiry: Date.now() + ttl * 1000,
+      });
+  
+      if (this.debug) {
+        console.log(`Cached query results for ${tableName} with where:`, where);
+      }
+    } catch (error) {
+      console.error(`Cache query results error for ${tableName}:`, error);
+    }
+  }
+
+  // Get cached query results based on where conditions
+  getCachedQueryResults(
+    tableName: string,
+    where: Record<string, any>,
+    orderBy?: any
+  ): string[] | null {
+    try {
+      const key = this.getQueryCacheKey(tableName, where, orderBy);
+      const cached = this.cache.get(key);
+      return cached ? (cached.value as string[]) : null;
+    } catch (error) {
+      console.error(`Get cached query results error for ${tableName}:`, error);
+      return null;
+    }
+  }
+
+  // Invalidate query caches when records are modified
+  invalidateQueryCaches(tableName: string): void {
+    try {
+      this.invalidatePattern(new RegExp(`^${tableName}:query:`));
+      if (this.debug) {
+        console.log(`Invalidated all query caches for model: ${tableName}`);
+      }
+    } catch (error) {
+      console.error(`Query cache invalidation error for ${tableName}:`, error);
+    }
+  }
+
   invalidateRecord(tableName: string, id: string): void {
     try {
       // Invalidate record and its relations
       this.cache.delete(this.getRecordKey(tableName, id));
       this.cache.delete(this.getRelationsKey(tableName, id));
-
+  
       // Also need to invalidate lists as they might contain this record's ID
       this.invalidatePattern(new RegExp(`^${tableName}:list:`));
-
+      
+      // Invalidate query caches as they might be affected by this record change
+      this.invalidateQueryCaches(tableName);
+  
       if (this.debug) {
         console.log(
           `Invalidated record and related entries for ${tableName}:${id}`

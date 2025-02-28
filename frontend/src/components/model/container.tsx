@@ -9,7 +9,6 @@ import { useLocal } from "@/hooks/use-local";
 import { ProtectedRoute } from "@/lib/auth";
 import { extractHash, parseHash } from "@/lib/parse-hash";
 import { Link, useParams } from "@/lib/router";
-import { loadHash } from "@/components/model/utils/object-hash";
 import { FC, Fragment, ReactNode, useEffect } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
@@ -20,6 +19,7 @@ import { useModel } from "@/hooks/use-model";
 import { cn } from "@/lib/utils";
 import { Plus, TriangleAlert } from "lucide-react";
 import { css } from "goober";
+import { loadHash } from "system/utils/object-hash";
 
 export const ModelContainer: FC<{
   children: ReactNode;
