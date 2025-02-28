@@ -106,7 +106,7 @@ export function DataTable({
                     {header.isPlaceholder ? null : (
                       <ModelTableHead
                         colIdx={idx}
-                        table={modelTable}
+                        tableModel={modelTable}
                         rows={result?.data}
                         columnName={meta.columnName}
                         modelName={meta.modelName}

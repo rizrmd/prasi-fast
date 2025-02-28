@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -11,28 +12,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useLocal } from "@/hooks/use-local";
+import { useModelTable } from "@/hooks/use-model-table";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import { ArrowUpDown, ChevronDown, Plus } from "lucide-react";
+import get from "lodash.get";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown
+} from "lucide-react";
 import { FC } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { getRelation } from "../utils/get-relation";
-import { Button } from "@/components/ui/button";
-import { useLocal } from "@/hooks/use-local";
-import get from "lodash.get";
-import { useModelDetail } from "@/hooks/use-model-detail";
-import { useModelTable } from "@/hooks/use-model-table";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
-  table: ReturnType<typeof useModelTable>;
-  detail?: ReturnType<typeof useModelDetail>;
+  tableModel: ReturnType<typeof useModelTable>;
   columnName: string;
   colIdx: number;
   className?: string;
   rows?: any[];
-}> = ({ modelName, columnName, colIdx, className, rows, detail }) => {
+}> = ({ modelName, columnName, colIdx, className, rows, tableModel }) => {
   const local = useLocal({ open: false });
   const rootModel = models[modelName];
   let model = rootModel;
@@ -41,7 +44,6 @@ export const ModelTableHead: FC<{
   if (columnName.includes(".")) {
     const rel = getRelation(modelName, columnName);
     if (rel) {
-      console.log(rel.model.config.columns, rel.column);
       title = rel.model.config.columns[rel.column]?.label || rel.column;
       model = rel.model;
     } else {
@@ -51,6 +53,7 @@ export const ModelTableHead: FC<{
     title = rootModel.config.columns[columnName]?.label || columnName;
   }
 
+  const sortBy = tableModel?.sortBy[columnName];
   return (
     <Popover
       onOpenChange={(open) => {
@@ -104,17 +107,29 @@ export const ModelTableHead: FC<{
               className="flex-1 px-0"
               placeholder={`Filter ${title}...`}
             />
-              <Button
-                size={"icon"}
-                variant="outline"
-                onClick={() => {
-                  if (!detail) return;
-                  detail.sortBy = detail.sortBy === "asc" ? "desc" : "asc";
-                  detail.render();
-                }}
-              >
-                <ArrowUpDown className={detail?.sortBy === "desc" ? "rotate-180" : ""} />
-              </Button>
+            <Button
+              size={"icon"}
+              variant={sortBy ? "default" : "outline"}
+              onClick={() => {
+                if (!tableModel) return;
+                if (sortBy) {
+                  if (sortBy === "asc") {
+                    tableModel.sortBy = { [columnName]: "desc" };
+                  } else {
+                    tableModel.sortBy = {};
+                  }
+                } else {
+                  tableModel.sortBy = { [columnName]: "asc" };
+                }
+                tableModel.render();
+              }}
+            >
+              {sortBy ? (
+                <>{sortBy === "asc" ? <ArrowUp /> : <ArrowDown />}</>
+              ) : (
+                <ArrowUpDown />
+              )}
+            </Button>
           </div>
           <CommandList
             className={css`
@@ -134,13 +149,36 @@ export const ModelTableHead: FC<{
                   key={idx}
                 >
                   <label>
-                    <Checkbox 
-                      onCheckedChange={() => {
-                        if (!detail) return;
-                        detail.filterBy = item[model.config.primaryKey];
-                        detail.render();
-                      }} 
-                      checked={detail?.filterBy === item[model.config.primaryKey]}
+                    <Checkbox
+                      onCheckedChange={(checked) => {
+                        if (!tableModel) return;
+                        const value = get(base, columnName);
+
+                        if (!tableModel.filterBy[columnName]) {
+                          tableModel.filterBy[columnName] = [];
+                        }
+
+                        const filterValues = tableModel.filterBy[columnName];
+                        const valueExists = filterValues.includes(value);
+
+                        if (checked && !valueExists) {
+                          filterValues.push(value);
+                        } else if (!checked && valueExists) {
+                          tableModel.filterBy[columnName] = filterValues.filter(
+                            (v) => v !== value
+                          );
+                          if (tableModel.filterBy[columnName].length === 0) {
+                            delete tableModel.filterBy[columnName];
+                          }
+                        }
+
+                        tableModel.render();
+                      }}
+                      checked={
+                        !!tableModel?.filterBy[columnName]?.includes(
+                          get(base, columnName)
+                        )
+                      }
                     />
                     <span>{get(base, columnName)}</span>
                   </label>

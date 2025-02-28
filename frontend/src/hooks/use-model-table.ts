@@ -28,7 +28,7 @@ export const useModelTable = ({
       ReturnType<Exclude<(typeof model)["instance"], null>["findList"]>
     > | null,
     current: null as LayoutTable<ModelName> | null,
-    sortBy: [] as { column: string; direction: "asc" | "desc" }[],
+    sortBy: {} as Record<string, "asc" | "desc">,
     filterBy: {} as Record<string, any[]>,
   });
 
@@ -168,18 +168,21 @@ export const useModelTable = ({
       return processRelObject(column.rel);
     };
 
-    const buildNestedWhereClause = (path: string[], values: any[]): WhereClause => {
+    const buildNestedWhereClause = (
+      path: string[],
+      values: any[]
+    ): WhereClause => {
       if (path.length === 1) {
         return {
           [path[0]]: {
-            in: values
-          }
+            in: values,
+          },
         };
       }
 
       const [first, ...rest] = path;
       return {
-        [first]: buildNestedWhereClause(rest, values)
+        [first]: buildNestedWhereClause(rest, values),
       };
     };
 
@@ -193,8 +196,8 @@ export const useModelTable = ({
           // Handle direct column filters
           return {
             [key]: {
-              in: values
-            }
+              in: values,
+            },
           };
         }
       });
@@ -304,11 +307,7 @@ export const useModelTable = ({
         });
 
         // Convert sortBy array to orderBy object
-        const orderBy = table.sortBy.reduce((acc, sort) => {
-          acc[sort.column] = sort.direction;
-          return acc;
-        }, {} as Record<string, "asc" | "desc">);
-
+        const orderBy = table.sortBy;
         const result = await model.instance.findList({
           select,
           orderBy,
