@@ -2,6 +2,7 @@
 - create relation field
   - table
   - detail
+- enhance table multi select with actions
 - enhance caching
 - create list as tree
 - enhance form:

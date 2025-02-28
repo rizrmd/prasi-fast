@@ -98,7 +98,7 @@ const ContainerBreadcrumb = ({}: {}) => {
     try {
       // Always start with empty breadcrumbs
       let breads = [] as typeof local.breads;
-      
+
       const parts = location.pathname
         .substring("/model".length)
         .split("/")
@@ -155,11 +155,18 @@ const ContainerBreadcrumb = ({}: {}) => {
             });
           } else {
             const data = (await model.findFirst(id)) as any;
-            const newTitle = model.title(data);
-            breads.push({
-              title: newTitle,
-              url: `/model/${parts[0]}/detail/${id}`,
-            });
+            if (data) {
+              const newTitle = model.title(data);
+              breads.push({
+                title: newTitle,
+                url: `/model/${parts[0]}/detail/${id}`,
+              });
+            } else {
+              breads.push({
+                title: "Tidak Ditemukan ⚠",
+                url: `/model/${parts[0]}`,
+              });
+            }
           }
         }
         local.breads = breads;

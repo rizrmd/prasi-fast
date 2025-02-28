@@ -1,4 +1,6 @@
+import { WarnFull } from "@/components/app/warn-full";
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
+import { useModelDetail } from "@/hooks/use-model-detail";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { cn } from "@/lib/utils";
 import { TriangleAlert } from "lucide-react";
@@ -13,7 +15,7 @@ type TabWriter = {
 
 export const MDetailTabs: FC<{
   model: Models[keyof Models];
-  detail: LayoutDetail<ModelName>;
+  detail: ReturnType<typeof useModelDetail>;
   children: (arg: {
     activeTab: DetailTab<ModelName>;
     writer: TabWriter;
@@ -25,12 +27,21 @@ export const MDetailTabs: FC<{
   } as TabWriter);
   const reader = useReader(writer);
 
+  if (!detail.current) return null;
+
+  if (!detail.loading && detail.ready && !detail.data)
+    return (
+      <WarnFull size={35} className="py-[50px]">
+        Data Tidak Ditemukan
+      </WarnFull>
+    );
+
   return (
     <div className="flex flex-col flex-1 select-none">
-      <Tabs detail={detail} writer={writer} />
+      <Tabs detail={detail.current} writer={writer} />
       <div className="flex flex-col p-3">
         {children({
-          activeTab: detail.tabs[reader.idx],
+          activeTab: detail.current?.tabs[reader.idx],
           writer,
         })}
       </div>

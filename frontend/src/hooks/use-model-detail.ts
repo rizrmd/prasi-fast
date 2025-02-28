@@ -24,7 +24,7 @@ export const useModelDetail = ({
     prevId: null as string | null,
     nextId: null as string | null,
     loading: false,
-    available: false,
+    ready: false,
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
     findBefore: async (currentId: string) => {
@@ -125,7 +125,7 @@ export const useModelDetail = ({
 
   if (model.ready) {
     if (layout && layout.detail) {
-      detail.available = true;
+      detail.ready = true;
       detail.current = layout.detail;
     }
   }

@@ -1,8 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Models } from "shared/types";
-import { FC } from "react";
+import { FC, useEffect } from "react";
 import { FormWriter } from "../types";
 import { useReader } from "@/hooks/use-read-write";
+import { useLocal } from "@/hooks/use-local";
 
 export const Field: FC<{
   model: Models[keyof Models];
@@ -11,6 +12,13 @@ export const Field: FC<{
   onChange: (value: any) => void;
 }> = ({ model, col, writer, onChange }) => {
   const form = useReader(writer);
+  const local = useLocal({ ready: false });
+  useEffect(() => {
+    setTimeout(() => {
+      local.ready = true;
+      local.render();
+    }, 100);
+  }, []);
 
   const config = model.config.columns[col];
   const value = form.data[col];
@@ -21,7 +29,9 @@ export const Field: FC<{
         asDiv={form.resetting}
         type="text"
         className="bg-white"
-        defaultValue={value || ""}
+        {...(!local.ready
+          ? { value: value || "" }
+          : { defaultValue: value || "" })}
         onInput={(e) => {
           const value = (e.target as HTMLInputElement).value;
           writer.data[col] = value;

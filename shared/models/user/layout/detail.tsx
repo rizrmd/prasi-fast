@@ -6,29 +6,10 @@ export const detail: LayoutDetail<"User"> = {
       {
         horizontal: [{ col: "username" }, { col: "email" }],
       },
+      {
+        horizontal: [{ rel: "role", col: "name" }],
+      },
     ],
   },
-  tabs: [
-    { title: "Detail", type: "default" },
-    {
-      title: "Actionlogs",
-      type: "relation",
-      name: "actionlogs",
-    },
-    {
-      title: "Changelogs",
-      type: "relation",
-      name: "changelogs",
-    },
-    {
-      title: "Sessions",
-      type: "relation",
-      name: "sessions",
-    },
-    {
-      title: "Role",
-      type: "relation",
-      name: "role",
-    },
-  ],
+  tabs: [{ title: "Detail", type: "default" }],
 };
