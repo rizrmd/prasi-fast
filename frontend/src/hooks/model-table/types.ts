@@ -9,10 +9,17 @@ export type WhereClause = {
   };
 };
 
+export type ParentFilter = {
+  modelName: string;
+  columnName: string;
+  rowId: string | number;
+};
+
 export type ModelTableState = {
   available: boolean;
   loading: boolean;
   filtering: boolean;
+  parentFilter?: ParentFilter;
   columns: ColumnDef<any, any>[];
   result: any | null;
   unfilteredResult: any | null;

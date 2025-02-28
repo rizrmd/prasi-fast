@@ -23,6 +23,7 @@ import { AppLoading } from "../../app/app-loading";
 import { WarnFull } from "../../app/warn-full";
 import { DataCell } from "./cell/data-cell";
 import { ModelTableHead } from "./head/table-head";
+import { extractHash } from "@/lib/parse-hash";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -145,7 +146,7 @@ export function DataTable({
                   `
                 )}
                 onClick={() => {
-                  onRowClick(row.original);
+                  onRowClick({ ...row.original });
                 }}
               >
                 {row.getVisibleCells().map((cell, idx) => {

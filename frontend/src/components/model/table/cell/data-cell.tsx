@@ -8,6 +8,8 @@ import { CellAction } from "./cell-action";
 import { CellContent } from "./cell-content";
 import { navigate } from "@/lib/router";
 import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { generateHash } from "../../utils/object-hash";
+import { composeHash } from "@/lib/parse-hash";
 
 const cell = { popover: "" };
 
@@ -24,7 +26,7 @@ export const DataCell: FC<{
     props;
   const render = useState({})[1];
   const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
-  const select = (action: "filter" | "new-tab" | "edit") => {
+  const select = async (action: "filter" | "new-tab" | "edit") => {
     cell.popover = "";
     render({});
     if (action === "filter") {
@@ -52,10 +54,13 @@ export const DataCell: FC<{
       if (type === "hasMany") {
         const rel = getRelation(modelName, columnName);
         if (rel) {
+          const hash = await generateHash({
+            parent: { modelName, columnName, rowId, type: "hasMany" },
+          });
           openInNewTab(
-            `/model/${rel.relation.model.toLowerCase()}#parent#${
-              rel.relation.prismaField
-            }=${rowId}`
+            `/model/${rel.relation.model.toLowerCase()}${composeHash({
+              parent: hash,
+            })}`
           );
         }
 

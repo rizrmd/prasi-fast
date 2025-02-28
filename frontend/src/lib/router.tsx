@@ -80,6 +80,7 @@ export function parseRouteParams(path: string): Params | null {
 
 const router = {
   currentPath: window.location.pathname,
+  currentFullPath: window.location.pathname + window.location.hash,
   params: {} as Params,
 };
 
@@ -92,6 +93,7 @@ export function useRoot() {
   useEffect(() => {
     const handlePathChange = () => {
       router.currentPath = window.location.pathname;
+      router.currentFullPath = window.location.pathname + window.location.hash;
       local.render();
     };
 
@@ -185,6 +187,7 @@ export function useRoot() {
 }
 
 export function useRouter() {
+  console.log(router.currentFullPath);
   return router;
 }
 

@@ -7,8 +7,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocal } from "@/hooks/use-local";
 import { ProtectedRoute } from "@/lib/auth";
-import { parseHash } from "@/lib/parse-hash";
+import { extractHash, parseHash } from "@/lib/parse-hash";
 import { Link, useParams } from "@/lib/router";
+import { loadHash } from "@/components/model/utils/object-hash";
 import { FC, Fragment, ReactNode, useEffect } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
@@ -95,6 +96,9 @@ const ContainerBreadcrumb = ({}: {}) => {
 
   const loadBreadcrumbs = async () => {
     try {
+      // Always start with empty breadcrumbs
+      let breads = [] as typeof local.breads;
+      
       const parts = location.pathname
         .substring("/model".length)
         .split("/")
@@ -106,9 +110,22 @@ const ContainerBreadcrumb = ({}: {}) => {
         }
       }) as ModelName;
 
+      // Check for parent hash to add parent breadcrumb first
+      const parentId = extractHash("parent");
+      if (parentId) {
+        const parentData = await loadHash(parentId);
+        if (parentData?.parent) {
+          const { modelName: parentModelName } = parentData.parent;
+          breads.push({
+            title: parentModelName,
+            url: `/model/${parentModelName.toLowerCase()}`,
+          });
+        }
+      }
+
       const model = models[modelName];
       if (model) {
-        const breads = [] as typeof local.breads;
+        // Add current model breadcrumb
         breads.push({
           title: model.config.modelName,
           url: `/model/${model.config.modelName.toLowerCase()}`,

@@ -12,7 +12,7 @@ import {
   Copy,
   Plus,
   Save,
-  Trash
+  Trash,
 } from "lucide-react";
 import { FC } from "react";
 import { Models } from "shared/types";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { snapshot } from "valtio";
 import { FormWriter } from "../types";
 import { DetailHash } from "../../utils/hash-type";
+import { composeHash } from "@/lib/parse-hash";
 
 export const Toolbar: FC<{
   writer: FormWriter;
@@ -88,9 +89,9 @@ export const Toolbar: FC<{
               variant={"outline"}
               disabled={loading}
               className={cn("text-xs rounded-sm cursor-pointer transition-all")}
-              href={`/model/${model.config.modelName.toLowerCase()}/detail/clone#prev=${
-                params.id
-              }`}
+              href={`/model/${model.config.modelName.toLowerCase()}/detail/clone${composeHash(
+                { pref: params.id }
+              )}`}
             >
               <Copy strokeWidth={1.5} />
             </Button>
@@ -102,9 +103,9 @@ export const Toolbar: FC<{
             <Button
               size="sm"
               asDiv
-              href={`/model/${model.config.modelName.toLowerCase()}/detail/new#prev=${
-                params.id
-              }`}
+              href={`/model/${model.config.modelName.toLowerCase()}/detail/new${composeHash(
+                { pref: params.id }
+              )}`}
               className={cn("text-xs rounded-sm cursor-pointer")}
               variant={"outline"}
               onClick={() => {

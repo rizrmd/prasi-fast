@@ -1,29 +1,23 @@
-import { navigate, parseRouteParams, useRouter } from "@/lib/router";
+import { navigate, useRouter, parseRouteParams } from "@/lib/router";
+import * as Models from "shared/models";
 import { cn } from "@/lib/utils";
 import cuid from "@bugsnag/cuid";
 import { css } from "goober";
 import { FC, useEffect, useState } from "react";
-import * as Models from "shared/models";
+import { DraggableTabs } from "../ext/draggable-tabs";
 import { ModelName } from "shared/types";
-import { DraggableTabs, Tab as DraggableTabType } from "../ext/draggable-tabs";
-import { DetailHash } from "./utils/hash-type";
-
-const STORAGE_KEY = "nav_tabs_state";
-
-type NavType = {
-  activeIdx: number;
-  tabs: DraggableTabType[];
-};
-const nav = {
-  activeIdx: 0,
-  show: false,
-  tabs: [] as DraggableTabType[],
-  render: () => {},
-};
+import { nav } from "./nav/types";
+import {
+  findTabIndexByUrl,
+  getTabIndexById,
+  loadLabel,
+  saveNavState,
+} from "./nav/utils";
 
 export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const render = useState({})[1];
-  const { currentPath, params } = useRouter();
+  const { currentFullPath } = useRouter();
+  const currentPath = currentFullPath;
   nav.render = () => render({});
 
   useEffect(() => {
@@ -38,27 +32,6 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
     }, 100);
   }, [nav.tabs.length]);
 
-  const loadLabel = async (url: string) => {
-    const params = parseRouteParams(url);
-    const modelName = Object.keys(Models).find(
-      (key) => key.toLowerCase() === params?.name.toLowerCase()
-    ) as ModelName;
-
-    if (params && modelName && params.id) {
-      const model = Models[modelName];
-
-      if (model && !DetailHash.includes(params.id)) {
-        const data = await model.findFirst(params.id);
-        if (data) {
-          const title = model.title(data);
-          return `${modelName}: ${
-            title.length > 7 ? title.substring(0, 7) + "..." : title
-          }`;
-        }
-      }
-      return modelName;
-    }
-  };
   // Handle URL changes after initial load
   useEffect(() => {
     if (nav.tabs.length === 0 || !modelName) return;
@@ -68,10 +41,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
       loadLabel(currentPath).then((label) => {
         currentTab.url = currentPath;
         currentTab.label = label || modelName;
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ activeIdx: nav.activeIdx, tabs: nav.tabs })
-        );
+        saveNavState();
         nav.render();
       });
     }
@@ -82,9 +52,9 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
     if (nav.tabs.length > 0) return;
 
     // Load from localStorage
-    let storedNav: NavType | null = null;
+    let storedNav = null;
     try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
+      const savedData = localStorage.getItem("nav_tabs_state");
       if (savedData) {
         storedNav = JSON.parse(savedData);
       }
@@ -103,11 +73,13 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
       // Find and activate tab for current URL
       const currentTabIndex = findTabIndexByUrl(currentPath);
+      console.log(currentPath, currentTabIndex, nav.tabs);
+
       if (currentTabIndex !== -1) {
         nav.activeIdx = currentTabIndex;
       } else {
         // Create new tab for current URL
-        const newTab: DraggableTabType = {
+        const newTab = {
           id: cuid(),
           url: currentPath,
           label: modelName || "Not Found ⚠",
@@ -129,11 +101,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
       nav.activeIdx = 0;
     }
 
-    // Save initial state
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ activeIdx: nav.activeIdx, tabs: nav.tabs })
-    );
+    saveNavState();
     nav.render();
   }, []);
 
@@ -170,10 +138,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
         )}
         onTabChange={(index) => {
           nav.activeIdx = index;
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ activeIdx: nav.activeIdx, tabs: nav.tabs })
-          );
+          saveNavState();
           navigate(nav.tabs[index].url);
           nav.render();
         }}
@@ -185,8 +150,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
             // Update active index if needed
             if (nav.tabs.length === 0) {
-              // No tabs left, navigate to home or create a new tab
-              // This depends on your application's behavior
+              // No tabs left, navigate to home
               navigate("/");
             } else if (tabIndex <= nav.activeIdx) {
               // If we removed a tab before or at the active index
@@ -195,40 +159,18 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
               navigate(nav.tabs[nav.activeIdx].url);
             }
 
-            // Save updated tabs state to localStorage
-            localStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify({
-                activeIdx: nav.activeIdx,
-                tabs: nav.tabs,
-              })
-            );
-
-            // Update UI
+            saveNavState();
             nav.render();
           }
         }}
         onTabsReorder={(tabs) => {
           nav.tabs = tabs;
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ activeIdx: nav.activeIdx, tabs: nav.tabs })
-          );
+          saveNavState();
           nav.render();
         }}
       />
     </div>
   );
-};
-
-// Helper function to get tab index by ID
-const getTabIndexById = (id: string): number => {
-  return nav.tabs.findIndex((tab) => tab.id === id);
-};
-
-// Find tab index by URL
-const findTabIndexByUrl = (url: string): number => {
-  return nav.tabs.findIndex((tab) => tab.url === url);
 };
 
 export const openInNewTab = async (
@@ -242,7 +184,7 @@ export const openInNewTab = async (
   ) as ModelName;
 
   if (modelName && params) {
-    const newTab: DraggableTabType = {
+    const newTab = {
       id: cuid(),
       url,
       label: modelName,
@@ -250,7 +192,7 @@ export const openInNewTab = async (
     };
 
     // Check if tab with this URL already exists
-    const existingTabIndex = nav.tabs.findIndex((tab) => tab.url === url);
+    const existingTabIndex = findTabIndexByUrl(url);
     if (existingTabIndex !== -1) {
       if (opt?.activate !== false) {
         nav.activeIdx = existingTabIndex;
@@ -264,13 +206,7 @@ export const openInNewTab = async (
       }
     }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        activeIdx: nav.activeIdx,
-        tabs: nav.tabs,
-      })
-    );
+    saveNavState();
     nav.render();
   }
 };
