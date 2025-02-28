@@ -34,6 +34,10 @@ type FormWriter = {
   deleting: boolean;
   prevId: string | null;
   nextId: string | null;
+  error: {
+    fields: Record<string, string>;
+    system: string;
+  };
 };
 
 export const DetailForm: FC<{
@@ -49,6 +53,10 @@ export const DetailForm: FC<{
     data: {} as any,
     unsaved: false,
     resetting: false,
+    error: {
+      fields: {},
+      system: "",
+    },
     saving: false,
     prevId: prevId || null,
     nextId: nextId || null,
@@ -63,7 +71,13 @@ export const DetailForm: FC<{
   }, [prevId, nextId]);
 
   useEffect(() => {
-    if (isLoading) return;
+    writer.unsaved = false;
+
+    if (isLoading) {
+      writer.error.system = "";
+      onChanged?.(undefined);
+      return;
+    }
 
     if (params.id === "clone") {
       const prev_id = parseHash()["prev"];
@@ -86,6 +100,7 @@ export const DetailForm: FC<{
     } else {
       writer.data = structuredClone(data);
       writer.unsaved = false;
+      writer.error.system = "";
       onChanged?.(undefined);
     }
   }, [data, isLoading]);
@@ -105,6 +120,7 @@ export const DetailForm: FC<{
         onChanged?.(undefined);
 
         if (!res.success) {
+          writer.error.system = res.error.message;
           toast("Data Gagal Tersimpan !", {
             dismissible: true,
             richColors: true,
@@ -153,6 +169,7 @@ export const DetailForm: FC<{
           onChanged?.(undefined);
           writer.unsaved = false;
           writer.resetting = true;
+          writer.data = structuredClone(data);
           setTimeout(() => {
             writer.resetting = false;
           }, 100);
@@ -318,6 +335,29 @@ const Toolbar: FC<{
                 <div className="">Reset</div>
               </Button>
             </SimpleTooltip>
+          </div>
+        )}
+        {form.error.system && (
+          <div
+            className={cn(
+              "text-xs flex items-center bg-red-500 px-2 rounded-md space-x-4",
+              " text-white"
+            )}
+          >
+            <div>Sistem Gagal Menyimpan</div>
+            <Button
+              size="sm"
+              asDiv
+              variant={"outline"}
+              className={cn(
+                "text-xs rounded-sm px-2 cursor-pointer text-black"
+              )}
+              onClick={async () => {
+                Alert.info(form.error.system);
+              }}
+            >
+              <div className="">Detail Teknis</div>
+            </Button>
           </div>
         )}
       </div>
