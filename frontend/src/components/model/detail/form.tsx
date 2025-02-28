@@ -68,7 +68,7 @@ export const DetailForm: FC<{
     if (params.id === "clone") {
       const prev_id = parseHash()["prev"];
       if (!prev_id) {
-        navigate(`/model/${model.config.modelName.toLowerCase()}/new`);
+        navigate(`/model/${model.config.modelName.toLowerCase()}/detail/new`);
       } else {
         const newData = structuredClone(data);
         writer.data = newData;
@@ -150,20 +150,19 @@ export const DetailForm: FC<{
         del={del}
         onReset={() => {
           const prev_id = parseHash()["prev"];
+          onChanged?.(undefined);
+          writer.unsaved = false;
+          writer.resetting = true;
+          setTimeout(() => {
+            writer.resetting = false;
+          }, 100);
+
           if (params.id === "clone" && prev_id) {
             navigate(
               `/model/${model.config.modelName.toLowerCase()}/detail/${prev_id}`
             );
             return;
           }
-          onChanged?.(undefined);
-
-          writer.data = structuredClone(data);
-          writer.unsaved = false;
-          writer.resetting = true;
-          setTimeout(() => {
-            writer.resetting = false;
-          }, 100);
         }}
       />
       <div className="flex flex-1 relative flex-col items-stretch">
@@ -249,10 +248,8 @@ const Toolbar: FC<{
               size="sm"
               asDiv
               variant={"outline"}
-              className={cn(
-                "text-xs rounded-sm cursor-pointer transition-all",
-                loading ? "opacity-0 -translate-x-[30px] min-h-[30px] min-w-[30px] absolute" : "opacity-100 "
-              )}
+              disabled={loading}
+              className={cn("text-xs rounded-sm cursor-pointer transition-all")}
               href={`/model/${model.config.modelName.toLowerCase()}/detail/clone#prev=${
                 params.id
               }`}
@@ -272,6 +269,12 @@ const Toolbar: FC<{
               }`}
               className={cn("text-xs rounded-sm cursor-pointer")}
               variant={"outline"}
+              onClick={() => {
+                writer.resetting = true;
+                setTimeout(() => {
+                  writer.resetting = false;
+                }, 100);
+              }}
             >
               <Plus strokeWidth={1.5} />
               <div className="-ml-1">Tambah</div>
@@ -418,6 +421,8 @@ const Toolbar: FC<{
             <Button
               type="submit"
               size="sm"
+              variant={form.unsaved ? "default" : "outline"}
+              disabled={!form.unsaved}
               className={cn("text-xs rounded-sm cursor-pointer")}
             >
               <Save /> Simpan

@@ -244,6 +244,7 @@ export const useModelDetail = ({
             detail.data = data[0];
             detail.prevId = prevId;
             detail.nextId = nextId;
+            
             detail.render();
           }
         }

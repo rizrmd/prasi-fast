@@ -59,13 +59,18 @@ function Button({
         href={href}
         className="flex items-stretch"
         onClick={(e) => {
+          props.onClick?.(e as any);
           e.preventDefault();
           navigate(href);
         }}
       >
         <Comp
           data-slot="button"
-          className={cn("button", buttonVariants({ variant, size, className }))}
+          className={cn(
+            "button transition-all",
+            buttonVariants({ variant, size, className }),
+            props.disabled && "text-slate-300"
+          )}
           {...props}
         />
       </a>
@@ -75,7 +80,11 @@ function Button({
   return (
     <Comp
       data-slot="button"
-      className={cn("button", buttonVariants({ variant, size, className }))}
+      className={cn(
+        "button transition-all",
+        buttonVariants({ variant, size, className }),
+        props.disabled && "text-slate-300"
+      )}
       {...props}
     />
   );
