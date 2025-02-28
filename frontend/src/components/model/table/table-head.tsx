@@ -16,11 +16,19 @@ import { useModelTable } from "@/hooks/model-table/use-model-table";
 import { useLocal } from "@/hooks/use-local";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  Eraser,
+} from "lucide-react";
 import { FC } from "react";
 import * as models from "shared/models";
 import { ModelName } from "shared/types";
 import { getRelation } from "../utils/get-relation";
+import { Badge } from "@/components/ui/badge";
+import { SimpleTooltip } from "@/components/ext/simple-tooltip";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
@@ -34,7 +42,9 @@ export const ModelTableHead: FC<{
   let model = rootModel;
 
   let title = "...";
+  let isRelation = false;
   if (columnName.includes(".")) {
+    isRelation = true;
     const rel = getRelation(modelName, columnName);
     if (rel) {
       title = rel.model.config.columns[rel.column]?.label || rel.column;
@@ -47,6 +57,9 @@ export const ModelTableHead: FC<{
   }
 
   const sortBy = tableModel?.sortBy[columnName];
+  const isFiltering =
+    tableModel?.filterBy[columnName] &&
+    tableModel?.filterBy[columnName].length > 0;
   return (
     <Popover
       onOpenChange={async (open) => {
@@ -69,7 +82,16 @@ export const ModelTableHead: FC<{
               : "hover:border-gray-200 hover:bg-blue-50"
           )}
         >
-          <div>{title}</div>
+          <div className="flex items-center">
+            {sortBy === "asc" && <ArrowUp className="mr-1" size={14} />}
+            {sortBy === "desc" && <ArrowDown className="mr-1" size={14} />}
+            <div>{title}</div>
+            {isFiltering && (
+              <Badge className="ml-2 py-0">
+                {tableModel.filterBy[columnName].length}
+              </Badge>
+            )}
+          </div>
           <ChevronDown
             className={cn(
               "chevron  transition-all absolute right-2 group-hover:opacity-60",
@@ -80,130 +102,180 @@ export const ModelTableHead: FC<{
         </div>
       </PopoverTrigger>
       <PopoverContent className="text-sm p-0 min-w-[250px]">
-        <Command>
-          <div
-            className={cn(
-              "flex items-stretch border-b pr-[5px]",
-              css`
-                .button {
-                  min-height: 0;
-                  padding: 0px 6px;
-                  height: 24px;
-                  border-radius: 5px;
-                  cursor: pointer;
-                  margin: 5px 0px;
-                }
-                div[data-slot="command-input-wrapper"] {
-                  border: 0;
-                  flex:1;
-                }
-              `
-            )}
-          >
-            <CommandInput
-              className="flex-1 px-0"
-              placeholder={`Filter ${title}...`}
-            />
-            <Button
-              size={"icon"}
-              variant={sortBy ? "default" : "outline"}
-              onClick={async () => {
-                if (!tableModel) return;
-                if (sortBy) {
-                  if (sortBy === "asc") {
-                    tableModel.sortBy = { [columnName]: "desc" };
-                  } else {
-                    tableModel.sortBy = {};
+        {isRelation ? (
+          <Command>
+            <CommandList className={cn()}>
+              <CommandItem className="flex items-center justify-center">
+                Tidak ada aksi untuk kolom ini.
+              </CommandItem>
+            </CommandList>
+          </Command>
+        ) : (
+          <Command>
+            <div
+              className={cn(
+                "flex items-stretch border-b pr-[5px]",
+                css`
+                  .button {
+                    min-height: 0;
+                    padding: 0px 6px;
+                    height: 24px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    margin: 5px 0px;
                   }
-                } else {
-                  tableModel.sortBy = { [columnName]: "asc" };
-                }
-                await tableModel.fetchData({ filtering: true });
-              }}
-            >
-              {sortBy ? (
-                <>{sortBy === "asc" ? <ArrowUp /> : <ArrowDown />}</>
-              ) : (
-                <ArrowUpDown />
+                  div[data-slot="command-input-wrapper"] {
+                    border: 0;
+                    flex: 1;
+                  }
+                `
               )}
-            </Button>
-          </div>
-          <CommandList
-            className={css`
-              svg {
-                color: white;
-              }
-            `}
-          >
-            {tableModel?.loadingUniqueValues[columnName] ? (
-              <div className="flex items-center justify-center py-4">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <span className="ml-2">Loading...</span>
-              </div>
-            ) : (
-              <>
-                <CommandEmpty>Data tidak ditemukan</CommandEmpty>
+            >
+              <CommandInput
+                className="flex-1 px-0"
+                placeholder={`Filter ${title}...`}
+              />
 
-                {(Array.isArray(tableModel?.uniqueValues[columnName])
-                  ? tableModel.uniqueValues[columnName]
-                  : []
-                ).map((item: any, idx: number) => {
-                  return (
-                    <CommandItem asChild value={String(item)} key={idx}>
-                      <label>
-                        <Checkbox
-                          onCheckedChange={async (checked) => {
-                            if (!tableModel) return;
+              {isFiltering && (
+                <SimpleTooltip content="Bersihkan Filter">
+                  <Button
+                    size={"icon"}
+                    variant={"outline"}
+                    className={cn(
+                      "border-r-0",
+                      css`
+                        border-top-right-radius: 0 !important;
+                        border-bottom-right-radius: 0 !important;
+                      `
+                    )}
+                    onClick={async () => {
+                      if (!tableModel) return;
+                      delete tableModel.filterBy[columnName];
+                      await tableModel.fetchData({ filtering: true });
+                      local.open = false;
+                      local.render();
+                    }}
+                  >
+                    <Eraser />
+                  </Button>
+                </SimpleTooltip>
+              )}
 
-                            const newFilterBy = { ...tableModel.filterBy };
-                            
-                            if (!newFilterBy[columnName]) {
-                              newFilterBy[columnName] = [];
-                            }
+              <SimpleTooltip content="Urutkan berdasarkan kolom ini">
+                <Button
+                  size={"icon"}
+                  variant={sortBy ? "default" : "outline"}
+                  onClick={async () => {
+                    if (!tableModel) return;
+                    if (sortBy) {
+                      if (sortBy === "asc") {
+                        tableModel.sortBy = { [columnName]: "desc" };
+                      } else {
+                        tableModel.sortBy = {};
+                      }
+                    } else {
+                      tableModel.sortBy = { [columnName]: "asc" };
+                    }
+                    await tableModel.fetchData({ filtering: true });
+                  }}
+                  className={cn(
+                    isFiltering &&
+                      css`
+                        border-top-left-radius: 0 !important;
+                        border-bottom-left-radius: 0 !important;
+                      `
+                  )}
+                >
+                  {sortBy ? (
+                    <>{sortBy === "asc" ? <ArrowUp /> : <ArrowDown />}</>
+                  ) : (
+                    <ArrowUpDown />
+                  )}
+                </Button>
+              </SimpleTooltip>
+            </div>
+            <CommandList
+              className={css`
+                svg {
+                  color: white;
+                }
+              `}
+            >
+              {tableModel?.loadingUniqueValues[columnName] ? (
+                <div className="flex items-center justify-center py-4">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span className="ml-2">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <CommandEmpty>Data tidak ditemukan</CommandEmpty>
 
-                            if (checked) {
-                              if (!newFilterBy[columnName].includes(item)) {
-                                newFilterBy[columnName] = [...newFilterBy[columnName], item];
+                  {(Array.isArray(tableModel?.uniqueValues[columnName])
+                    ? tableModel.uniqueValues[columnName]
+                    : []
+                  ).map((item: any, idx: number) => {
+                    return (
+                      <CommandItem asChild value={String(item)} key={idx}>
+                        <label>
+                          <Checkbox
+                            onCheckedChange={async (checked) => {
+                              if (!tableModel) return;
+
+                              const newFilterBy = { ...tableModel.filterBy };
+
+                              if (!newFilterBy[columnName]) {
+                                newFilterBy[columnName] = [];
                               }
-                            } else {
-                              newFilterBy[columnName] = newFilterBy[columnName].filter((v) => v !== item);
-                              if (newFilterBy[columnName].length === 0) {
-                                delete newFilterBy[columnName];
-                              }
-                            }
 
-                            tableModel.filtering = true;
-                            tableModel.filterBy = newFilterBy;
-                            tableModel.render();
-                          }}
-                          checked={
-                            !!tableModel?.filterBy[columnName]?.includes(item)
-                          }
-                        />
-                        <span>{String(item)}</span>
-                      </label>
-                    </CommandItem>
-                  );
-                })}
-              </>
-            )}
-          </CommandList>
-        </Command>
+                              if (checked) {
+                                if (!newFilterBy[columnName].includes(item)) {
+                                  newFilterBy[columnName] = [
+                                    ...newFilterBy[columnName],
+                                    item,
+                                  ];
+                                }
+                              } else {
+                                newFilterBy[columnName] = newFilterBy[
+                                  columnName
+                                ].filter((v) => v !== item);
+                                if (newFilterBy[columnName].length === 0) {
+                                  delete newFilterBy[columnName];
+                                }
+                              }
+
+                              tableModel.filtering = true;
+                              tableModel.filterBy = newFilterBy;
+                              tableModel.render();
+                            }}
+                            checked={
+                              !!tableModel?.filterBy[columnName]?.includes(item)
+                            }
+                          />
+                          <span>{String(item)}</span>
+                        </label>
+                      </CommandItem>
+                    );
+                  })}
+                </>
+              )}
+            </CommandList>
+          </Command>
+        )}
       </PopoverContent>
     </Popover>
   );
