@@ -86,7 +86,7 @@ export const useModelTable = ({
   useEffect(() => {
     let isMounted = true;
 
-    if (!model.ready || table.result) {
+    if (!model.ready) {
       return;
     }
 
@@ -97,7 +97,7 @@ export const useModelTable = ({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [model.instance, table.current]);
 
   // Apply filtering whenever filterBy or data changes
   useEffect(() => {

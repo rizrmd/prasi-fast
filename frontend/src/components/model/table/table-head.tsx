@@ -83,7 +83,7 @@ export const ModelTableHead: FC<{
         <Command>
           <div
             className={cn(
-              "flex items-stretch border-b",
+              "flex items-stretch border-b pr-[5px]",
               css`
                 .button {
                   min-height: 0;
@@ -95,6 +95,7 @@ export const ModelTableHead: FC<{
                 }
                 div[data-slot="command-input-wrapper"] {
                   border: 0;
+                  flex:1;
                 }
               `
             )}

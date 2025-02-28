@@ -25,7 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutTable } from "system/model/layout/types";
 import { AppLoading } from "../app/app-loading";
 import { ModelTableHead } from "../model/table/table-head";
-import { useModelTable } from "@/hooks/use-model-table";
+import { useModelTable } from "@/hooks/model-table/use-model-table";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -107,7 +107,6 @@ export function DataTable({
                       <ModelTableHead
                         colIdx={idx}
                         tableModel={modelTable}
-                        rows={result?.data}
                         columnName={meta.columnName}
                         modelName={meta.modelName}
                         className={cn(
