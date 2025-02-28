@@ -1,4 +1,4 @@
-# bun-react-tailwind-shadcn-template
+# 🚀 PRASI Fast
 
 To install dependencies:
 
