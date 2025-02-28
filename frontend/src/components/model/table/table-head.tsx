@@ -21,9 +21,11 @@ import { getRelation } from "../utils/get-relation";
 import { Button } from "@/components/ui/button";
 import { useLocal } from "@/hooks/use-local";
 import get from "lodash.get";
+import { useModelTable } from "@/hooks/use-model-table";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
+  table: ReturnType<typeof useModelTable>;
   columnName: string;
   colIdx: number;
   className?: string;

@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutTable } from "system/model/layout/types";
 import { AppLoading } from "../app/app-loading";
 import { ModelTableHead } from "../model/table/table-head";
+import { useModelTable } from "@/hooks/use-model-table";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -33,24 +34,21 @@ export type ColumnMetaData = {
   type: string;
 };
 
-interface DataTableProps<TData extends { type: ModelName }, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  onRowClick: (row: any) => void;
-}
-
-export function DataTable<TData extends { type: ModelName }, TValue>({
-  columns,
+export function DataTable({
   status,
-  result,
   onRowClick,
   primaryKey,
+  modelTable,
   checkbox,
-}: DataTableProps<TData, TValue> & {
+}: {
   primaryKey: string;
   status: "init" | "loading" | "ready";
-  result: PaginationResult<any> | null;
   checkbox?: LayoutTable<any>["checkbox"];
+  onRowClick: (row: any) => void;
+  modelTable: ReturnType<typeof useModelTable>;
 }) {
+  const result = modelTable.result;
+  const columns = modelTable.columns;
   const table = useReactTable({
     data: result?.data || [],
     columns: checkbox?.enabled
@@ -108,6 +106,7 @@ export function DataTable<TData extends { type: ModelName }, TValue>({
                     {header.isPlaceholder ? null : (
                       <ModelTableHead
                         colIdx={idx}
+                        table={modelTable}
                         rows={result?.data}
                         columnName={meta.columnName}
                         modelName={meta.modelName}

@@ -25,10 +25,9 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
   return (
     <DataTable
-      columns={table.columns}
+      modelTable={table}
       primaryKey={model.instance?.config.primaryKey || 'id'}
       status={table.loading ? "loading" : "ready"}
-      result={table.result}
       onRowClick={(row) => {
         navigate("/model/" + modelName.toLowerCase() + "/detail/" + row.id);
       }}

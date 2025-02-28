@@ -8,6 +8,13 @@ import * as Models from "shared/models";
 import { LayoutTable } from "system/model/layout/types";
 import { ModelName } from "shared/types";
 
+type WhereClause = {
+  [key: string]: {
+    in?: any[];
+    [key: string]: any;
+  };
+};
+
 export const useModelTable = ({
   model,
 }: {
@@ -21,6 +28,8 @@ export const useModelTable = ({
       ReturnType<Exclude<(typeof model)["instance"], null>["findList"]>
     > | null,
     current: null as LayoutTable<ModelName> | null,
+    sortBy: [] as { column: string; direction: "asc" | "desc" }[],
+    filterBy: {} as Record<string, any[]>,
   });
 
   if (model.ready) {
@@ -159,6 +168,40 @@ export const useModelTable = ({
       return processRelObject(column.rel);
     };
 
+    const buildNestedWhereClause = (path: string[], values: any[]): WhereClause => {
+      if (path.length === 1) {
+        return {
+          [path[0]]: {
+            in: values
+          }
+        };
+      }
+
+      const [first, ...rest] = path;
+      return {
+        [first]: buildNestedWhereClause(rest, values)
+      };
+    };
+
+    const buildWhereClause = (): { OR: WhereClause[] } | undefined => {
+      const filters = Object.entries(table.filterBy).map(([key, values]) => {
+        if (key.includes(".")) {
+          // Handle nested relation filters (e.g. "user.profile.address.city")
+          const path = key.split(".");
+          return buildNestedWhereClause(path, values);
+        } else {
+          // Handle direct column filters
+          return {
+            [key]: {
+              in: values
+            }
+          };
+        }
+      });
+
+      return filters.length > 0 ? { OR: filters } : undefined;
+    };
+
     const fetchData = async () => {
       const layout = { table: table.current };
       if (!model.instance || !layout.table) {
@@ -226,6 +269,8 @@ export const useModelTable = ({
               type: !hasRelation
                 ? model.instance?.config.columns[fieldName]?.type
                 : relatedModels[relatedModels.length - 1]?.type,
+              sortable: true,
+              filterable: true,
             },
           };
         });
@@ -258,9 +303,16 @@ export const useModelTable = ({
           }
         });
 
-        // Log the final select object
+        // Convert sortBy array to orderBy object
+        const orderBy = table.sortBy.reduce((acc, sort) => {
+          acc[sort.column] = sort.direction;
+          return acc;
+        }, {} as Record<string, "asc" | "desc">);
+
         const result = await model.instance.findList({
           select,
+          orderBy,
+          where: buildWhereClause(),
         });
 
         if (isMounted) {
