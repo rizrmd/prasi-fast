@@ -37,6 +37,7 @@ type FormWriter = {
   error: {
     fields: Record<string, string>;
     system: string;
+    recordId: string;
   };
 };
 
@@ -56,6 +57,7 @@ export const DetailForm: FC<{
     error: {
       fields: {},
       system: "",
+      recordId: "",
     },
     saving: false,
     prevId: prevId || null,
@@ -71,11 +73,14 @@ export const DetailForm: FC<{
   }, [prevId, nextId]);
 
   useEffect(() => {
-    writer.unsaved = false;
-
     if (isLoading) {
       return;
     }
+    const resetError = () => {
+      writer.error.fields = {};
+      writer.error.system = "";
+      writer.error.recordId = "";
+    };
 
     if (params.id === "clone") {
       const prev_id = parseHash()["prev"];
@@ -85,20 +90,29 @@ export const DetailForm: FC<{
         const newData = structuredClone(data);
         writer.data = newData;
         delete writer.data[model.config.primaryKey];
+        resetError();
         writer.unsaved = true;
         onChanged?.(newData);
       }
-    } else if (unsavedData) {
+    } else if (
+      unsavedData &&
+      unsavedData[model.config.primaryKey] === params.id
+    ) {
       const snapshotData = snapshot(unsavedData);
       writer.data = structuredClone(data);
       for (const [k, v] of Object.entries(snapshotData)) {
         writer.data[k] = v;
       }
+      resetError();
       writer.unsaved = true;
     } else {
-      writer.data = structuredClone(data);
+      if (form.error.system && form.error.recordId === params.id) {
+        return;
+      }
+
+      resetError();
       writer.unsaved = false;
-      writer.error.system = "";
+      writer.data = structuredClone(data);
       onChanged?.(undefined);
     }
   }, [data, isLoading]);
@@ -112,13 +126,12 @@ export const DetailForm: FC<{
         writer.saving = true;
 
         const res = await save(snapshot(writer.data));
-
         writer.saving = false;
-        writer.unsaved = false;
-        onChanged?.(undefined);
 
         if (!res.success) {
+          writer.unsaved = true;
           writer.error.system = res.error.message;
+          writer.error.recordId = params.id;
           toast("Data Gagal Tersimpan !", {
             dismissible: true,
             richColors: true,
@@ -133,6 +146,9 @@ export const DetailForm: FC<{
             `,
           });
         } else {
+          writer.unsaved = false;
+          onChanged?.(undefined);
+
           toast(
             <div className="flex items-center space-x-1 cursor-default select-none">
               <Check /> <div>Data Berhasil Tersimpan !</div>
@@ -167,6 +183,9 @@ export const DetailForm: FC<{
           onChanged?.(undefined);
           writer.unsaved = false;
           writer.resetting = true;
+          writer.error.fields = {};
+          writer.error.system = "";
+          writer.error.recordId = "";
           writer.data = structuredClone(data);
           setTimeout(() => {
             writer.resetting = false;
