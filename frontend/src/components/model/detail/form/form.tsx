@@ -110,7 +110,7 @@ export const DetailForm: FC<{
             richColors: true,
             duration: 10000,
             action: {
-              label: "Info Teknis",
+              label: "Detail Teknis",
               onClick: () => Alert.info(res.error.message),
             },
             className: css`

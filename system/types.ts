@@ -13,13 +13,8 @@ export interface ColumnConfig {
   type: ColumnType;
   label?: string;
   required?: boolean;
-  searchable?: boolean;
-  filterable?: boolean;
-  sortable?: boolean;
-  hidden?: boolean;
-  format?: (value: any) => any;
-  validate?: (value: any) => boolean | string;
   enum?: string[];
+  options?: Record<string, string>;
 }
 export interface RelationConfig {
   model: ModelName;
