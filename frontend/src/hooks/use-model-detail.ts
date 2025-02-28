@@ -1,4 +1,4 @@
-import { useParams } from "@/lib/router";
+import { navigate, useParams } from "@/lib/router";
 import { useEffect, useState } from "react";
 import { layouts } from "shared/layouts";
 import { ModelName } from "shared/types";
@@ -8,7 +8,7 @@ import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
 import { parseHash } from "@/lib/parse-hash";
 import { NotID } from "@/components/model/detail/utils";
-
+import { validate as isUUID } from "uuid";
 type ModelRecord = {
   id: string;
   [key: string]: any;
@@ -28,7 +28,8 @@ export const useModelDetail = ({
     data: null as any,
     current: null as null | LayoutDetail<ModelName>,
     findBefore: async (currentId: string) => {
-      if (!model.instance || NotID.includes(currentId)) return null;
+      if (!model.instance || NotID.includes(currentId) || !isUUID(currentId))
+        return null;
       type WhereInput = {
         id: {
           lt: string;
@@ -47,7 +48,8 @@ export const useModelDetail = ({
       return record?.id || null;
     },
     findAfter: async (currentId: string) => {
-      if (!model.instance || NotID.includes(currentId)) return null;
+      if (!model.instance || NotID.includes(currentId) || !isUUID(currentId))
+        return null;
       type WhereInput = {
         id: {
           gt: string;
@@ -114,13 +116,10 @@ export const useModelDetail = ({
   ] as (typeof layouts)[keyof typeof layouts];
 
   if (model.ready) {
-    detail.loading = false;
     if (layout && layout.detail) {
       detail.available = true;
       detail.current = layout.detail;
     }
-  } else {
-    detail.loading = false;
   }
 
   useEffect(() => {
@@ -146,6 +145,9 @@ export const useModelDetail = ({
         } else {
           return;
         }
+      } else if (!isUUID(id)) {
+        navigate(`/model/${model.name.toLowerCase()}`);
+        return;
       }
 
       detail.loading = true;
@@ -231,41 +233,32 @@ export const useModelDetail = ({
           where: { id },
         };
 
-        const data = await model.instance.findMany(findManyParams);
-        if (isMounted && data) {
-          detail.data = data[0] || null;
-
+        if (isMounted) {
           // After loading current record, fetch prev/next IDs
-          if (detail.data?.id) {
-            (async () => {
-              const [prevId, nextId] = await Promise.all([
-                detail.findBefore(detail.data.id),
-                detail.findAfter(detail.data.id),
-              ]);
-              if (isMounted) {
-                detail.prevId = prevId;
-                detail.nextId = nextId;
-              }
-
-              detail.render();
-            })();
+          if (id && model.instance && detail) {
+            const [data, prevId, nextId] = await Promise.all([
+              model.instance.findMany(findManyParams),
+              detail.findBefore(id),
+              detail.findAfter(id),
+            ]);
+            detail.data = data[0];
+            detail.prevId = prevId;
+            detail.nextId = nextId;
+            detail.render();
           }
         }
       } catch (error) {
         console.error("Error fetching model detail:", error);
       }
-
-      if (isMounted) {
-        detail.loading = false;
-        detail.render();
-      }
+      detail.loading = false;
+      detail.render();
     };
 
     fetchData();
     return () => {
       isMounted = false;
     };
-  }, [model.instance, layout?.detail]);
+  }, [model.instance, layout?.detail, params.id]);
 
   return detail;
 };

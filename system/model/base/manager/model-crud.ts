@@ -106,56 +106,16 @@ export abstract class ModelCrud<
     }
 
     let results: T[] = [];
-    const uncachedIds: string[] = [];
-
     const shouldCache = params.useCache ?? this.shouldUseCache();
-    // Check cache if we can identify specific records
-    if (shouldCache && ids) {
-      for (const id of ids) {
-        try {
-          const cachedItem = this.state.modelCache.get<T>(
-            this.state.config.modelName,
-            id
-          );
-          if (cachedItem) {
-            results.push(cachedItem);
-          } else {
-            uncachedIds.push(id);
-          }
-        } catch (error) {
-          console.error("Cache read error:", error);
-          uncachedIds.push(id);
-        }
-      }
-    }
 
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
       : undefined;
 
-    // Query database for uncached items or when no specific IDs
-    if (!ids || uncachedIds.length > 0) {
-      // Get all cached IDs for this model if we're using cache
-      const cachedIds = shouldCache ? this.state.modelCache.getAllKeys(this.state.config.modelName) : [];
-      
-      // If we have specific IDs to look up, filter out cached ones
-      const whereClause = ids
-        ? {
-            ...queryParams.where,
-            id: shouldCache
-              ? { notIn: cachedIds }
-              : { in: uncachedIds },
-          }
-        : queryParams.where;
-
-      const dbResults = await this.prismaTable.findMany({
-        ...queryParams,
-        where: whereClause,
-        select: enhancedSelect,
-      });
-
-      results = ids ? [...results, ...dbResults] : dbResults;
-    }
+    results = await this.prismaTable.findMany({
+      ...queryParams,
+      select: enhancedSelect,
+    });
 
     if (shouldCache && results.length) {
       await Promise.all(
@@ -193,29 +153,9 @@ export abstract class ModelCrud<
     }
 
     let records: T[] = [];
-    const uncachedIds: string[] = [];
     let totalCount = 0;
 
     const shouldCache = params.useCache ?? this.shouldUseCache();
-    // Check cache if we can identify specific records
-    if (shouldCache && ids) {
-      for (const id of ids) {
-        try {
-          const cachedItem = this.state.modelCache.get<T>(
-            this.state.config.modelName,
-            id
-          );
-          if (cachedItem) {
-            records.push(cachedItem);
-          } else {
-            uncachedIds.push(id);
-          }
-        } catch (error) {
-          console.error("Cache read error:", error);
-          uncachedIds.push(id);
-        }
-      }
-    }
 
     const enhancedSelect = queryParams.select
       ? this.ensurePrimaryKeys(queryParams.select)
@@ -223,35 +163,18 @@ export abstract class ModelCrud<
 
     const skip = (page - 1) * perPage;
 
-    // Query database for uncached items or when no specific IDs
-    if (!ids || uncachedIds.length > 0) {
-      // Get all cached IDs for this model if we're using cache
-      const cachedIds = shouldCache ? this.state.modelCache.getAllKeys(this.state.config.modelName) : [];
-      
-      // If we have specific IDs to look up, filter out cached ones
-      const whereClause = ids
-        ? {
-            ...queryParams.where,
-            id: shouldCache
-              ? { notIn: cachedIds }
-              : { in: uncachedIds },
-          }
-        : queryParams.where;
+    const [dbRecords, count] = await Promise.all([
+      this.prismaTable.findMany({
+        ...queryParams,
+        select: enhancedSelect,
+        skip,
+        take: perPage,
+      }),
+      this.prismaTable.count({ where: queryParams.where }),
+    ]);
 
-      const [dbRecords, count] = await Promise.all([
-        this.prismaTable.findMany({
-          ...queryParams,
-          where: whereClause,
-          select: enhancedSelect,
-          skip,
-          take: perPage,
-        }),
-        this.prismaTable.count({ where: whereClause }),
-      ]);
-
-      records = ids ? [...records, ...dbRecords] : dbRecords;
-      totalCount = count;
-    }
+    records = ids ? [...records, ...dbRecords] : dbRecords;
+    totalCount = count;
 
     if (shouldCache && records.length) {
       await Promise.all(
@@ -281,20 +204,23 @@ export abstract class ModelCrud<
 
     // Cleanse data by removing unwanted fields
     const cleanData = { ...data };
-    
+
     // Remove the primary key from data if it exists
     delete cleanData[this.config.primaryKey];
-    
+
     // Remove empty relation arrays
     for (const relation of Object.keys(this.state.config.relations || {})) {
-      if (Array.isArray(cleanData[relation]) && cleanData[relation].length === 0) {
+      if (
+        Array.isArray(cleanData[relation]) &&
+        cleanData[relation].length === 0
+      ) {
         delete cleanData[relation];
       }
     }
 
     // Only keep fields that are defined in the model columns
     const validFields = Object.keys(this.state.config.columns);
-    Object.keys(cleanData).forEach(key => {
+    Object.keys(cleanData).forEach((key) => {
       if (!validFields.includes(key)) {
         delete cleanData[key];
       }
@@ -325,20 +251,23 @@ export abstract class ModelCrud<
 
     // Cleanse data by removing unwanted fields
     const cleanData = { ...data };
-    
+
     // Remove the primary key from data if it exists
     delete cleanData[this.config.primaryKey];
-    
+
     // Remove empty relation arrays
     for (const relation of Object.keys(this.state.config.relations || {})) {
-      if (Array.isArray(cleanData[relation]) && cleanData[relation].length === 0) {
+      if (
+        Array.isArray(cleanData[relation]) &&
+        cleanData[relation].length === 0
+      ) {
         delete cleanData[relation];
       }
     }
 
     // Only keep fields that are defined in the model columns
     const validFields = Object.keys(this.state.config.columns);
-    Object.keys(cleanData).forEach(key => {
+    Object.keys(cleanData).forEach((key) => {
       if (!validFields.includes(key)) {
         delete cleanData[key];
       }
@@ -379,101 +308,5 @@ export abstract class ModelCrud<
     }
 
     return result as T;
-  }
-
-  async findBefore(params: {
-    id: string;
-    perPage?: number;
-    select?: Record<string, any> | string[];
-    where?: Record<string, any>;
-    useCache?: boolean;
-  }): Promise<T[]> {
-    const perPage = params.perPage || 10;
-    let queryParams = {
-      take: perPage,
-      cursor: { id: params.id },
-      skip: 1, // Skip the cursor
-      orderBy: { id: 'desc' as const },
-      where: params.where,
-      select: params.select,
-    };
-
-    if (Array.isArray(queryParams.select)) {
-      queryParams.select = queryParams.select.reduce(
-        (acc: Record<string, boolean>, field: string) => {
-          acc[field] = true;
-          return acc;
-        },
-        {}
-      );
-    }
-
-    const enhancedSelect = queryParams.select
-      ? this.ensurePrimaryKeys(queryParams.select)
-      : undefined;
-
-    const records = await this.prismaTable.findMany({
-      ...queryParams,
-      select: enhancedSelect,
-    });
-
-    const shouldCache = params.useCache ?? this.shouldUseCache();
-    if (shouldCache && records.length) {
-      await Promise.all(
-        records.map((record: any) =>
-          this.cacheRecordAndRelations(record, params.select)
-        )
-      );
-    }
-
-    return records as T[];
-  }
-
-  async findAfter(params: {
-    id: string;
-    perPage?: number;
-    select?: Record<string, any> | string[];
-    where?: Record<string, any>;
-    useCache?: boolean;
-  }): Promise<T[]> {
-    const perPage = params.perPage || 10;
-    let queryParams = {
-      take: perPage,
-      cursor: { id: params.id },
-      skip: 1, // Skip the cursor
-      orderBy: { id: 'asc' as const },
-      where: params.where,
-      select: params.select,
-    };
-
-    if (Array.isArray(queryParams.select)) {
-      queryParams.select = queryParams.select.reduce(
-        (acc: Record<string, boolean>, field: string) => {
-          acc[field] = true;
-          return acc;
-        },
-        {}
-      );
-    }
-
-    const enhancedSelect = queryParams.select
-      ? this.ensurePrimaryKeys(queryParams.select)
-      : undefined;
-
-    const records = await this.prismaTable.findMany({
-      ...queryParams,
-      select: enhancedSelect,
-    });
-
-    const shouldCache = params.useCache ?? this.shouldUseCache();
-    if (shouldCache && records.length) {
-      await Promise.all(
-        records.map((record: any) =>
-          this.cacheRecordAndRelations(record, params.select)
-        )
-      );
-    }
-
-    return records as T[];
   }
 }

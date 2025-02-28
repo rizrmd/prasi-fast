@@ -12,7 +12,6 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const detail = useModelDetail({ model });
 
   if (!model.ready || !detail.current) return <AppLoading />;
-
   if (!model.instance || !detail.current) {
     return (
       <WarnFull>

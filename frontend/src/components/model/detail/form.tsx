@@ -146,6 +146,7 @@ export const DetailForm: FC<{
       <Toolbar
         writer={writer}
         model={model}
+        loading={detail.loading}
         del={del}
         onReset={() => {
           const prev_id = parseHash()["prev"];
@@ -187,8 +188,9 @@ const Toolbar: FC<{
   writer: FormWriter;
   onReset: (from: string) => void;
   model: Models[keyof Models];
+  loading: boolean;
   del: any;
-}> = ({ writer, model, onReset, del }) => {
+}> = ({ writer, model, onReset, del, loading }) => {
   const params = useParams();
   const form = useReader(writer);
 
@@ -199,7 +201,6 @@ const Toolbar: FC<{
         css`
           .button {
             height: auto;
-            min-height: 0;
             padding: 0px 6px;
           }
         `
@@ -211,17 +212,15 @@ const Toolbar: FC<{
             size="sm"
             asDiv
             variant={"outline"}
-            disabled={!form.prevId || form.unsaved}
-            className={cn("text-xs rounded-sm cursor-pointer")}
-            onClick={() => {
-              if (form.prevId) {
-                navigate(
-                  `/model/${model.config.modelName.toLowerCase()}/detail/${
+            href={
+              form.prevId
+                ? `/model/${model.config.modelName.toLowerCase()}/detail/${
                     form.prevId
                   }`
-                );
-              }
-            }}
+                : undefined
+            }
+            disabled={!form.prevId || form.unsaved}
+            className={cn("text-xs rounded-sm cursor-pointer")}
           >
             <ChevronLeft />
           </Button>
@@ -230,18 +229,16 @@ const Toolbar: FC<{
           <Button
             asDiv
             size="sm"
+            href={
+              form.nextId
+                ? `/model/${model.config.modelName.toLowerCase()}/detail/${
+                    form.nextId
+                  }`
+                : undefined
+            }
             variant={"outline"}
             disabled={!form.nextId || form.unsaved}
             className={cn("text-xs rounded-sm cursor-pointer")}
-            onClick={() => {
-              if (form.nextId) {
-                navigate(
-                  `/model/${model.config.modelName.toLowerCase()}/detail/${
-                    form.nextId
-                  }`
-                );
-              }
-            }}
           >
             <ChevronRight />
           </Button>
@@ -252,7 +249,10 @@ const Toolbar: FC<{
               size="sm"
               asDiv
               variant={"outline"}
-              className={cn("text-xs rounded-sm cursor-pointer")}
+              className={cn(
+                "text-xs rounded-sm cursor-pointer transition-all",
+                loading ? "opacity-0 -translate-x-[30px] min-h-[30px] min-w-[30px] absolute" : "opacity-100 "
+              )}
               href={`/model/${model.config.modelName.toLowerCase()}/detail/clone#prev=${
                 params.id
               }`}
@@ -318,7 +318,12 @@ const Toolbar: FC<{
           </div>
         )}
       </div>
-      <div className="flex items-stretch space-x-1">
+      <div
+        className={cn(
+          "flex items-stretch space-x-1 transition-all",
+          loading ? "opacity-0 translate-x-2" : "opacity-100"
+        )}
+      >
         {form.saving && (
           <div
             className={cn(

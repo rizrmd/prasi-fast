@@ -142,23 +142,22 @@ export function useRoot() {
           local.routePath = path;
           local.Page = module.default;
           router.params = matchedParams;
+          local.render();
         } catch (err) {
           console.error("Failed to load page:", err);
           local.Page = null;
           local.routePath;
           router.params = {};
+          local.render();
         }
       } else {
         // Load 404 page
         try {
-          if (local.routePath !== path) {
-            const module = await pageModules["/404"]();
-            const Page = module.default;
-            local.routePath = path;
-            local.Page = local.Page;
-            router.params = {};
-            local.render();
-          }
+          const module = await pageModules["/404"]();
+          local.routePath = path;
+          local.Page = module.default;
+          router.params = {};
+          local.render();
         } catch {
           local.Page = null;
           local.routePath = "";
@@ -180,7 +179,6 @@ export function useRoot() {
   return {
     Page: local.Page ? local.Page : null,
     currentPath: router.currentPath,
-    navigate,
     params: router.params,
     isLoading,
   };

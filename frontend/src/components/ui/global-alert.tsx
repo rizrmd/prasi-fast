@@ -42,7 +42,6 @@ export const Alert = {
       alertState.isOpen = true;
       alertState.message = message;
 
-      console.log(option);
       if (option?.checkbox) {
         alertState.checkbox = {
           label: option.checkbox,
