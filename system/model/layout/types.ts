@@ -30,7 +30,7 @@ export type LayoutTable<Name extends ModelName> = {
   columns: Column<Name>[];
   checkbox?: {
     enabled: boolean;
-    actions: { label: ReactNode; onClick: () => void }[];
+    actions?: { label: ReactNode; onClick: () => void }[];
   };
 };
 

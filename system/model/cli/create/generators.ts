@@ -75,7 +75,7 @@ export async function generateModelFile(modelName: string, schemaFile: string) {
           model: field.fieldType,
           type: relationType,
           prismaField: field.name,
-          targetPK: models[field.fieldType].pk,
+          toColumn: models[field.fieldType].pk,
           label: capitalize(field.name),
         } as RelationConfig;
       } else {

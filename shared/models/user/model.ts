@@ -87,7 +87,7 @@ const relations: Record<string, RelationConfig> = {
     model: "Role",
     type: "belongsTo",
     prismaField: "role",
-    targetPK: "id",
+    toColumn: "id",
     label: "Role",
   },
 };

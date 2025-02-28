@@ -28,6 +28,11 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
       modelTable={table}
       primaryKey={model.instance?.config.primaryKey || "id"}
       status={table.loading ? "loading" : "ready"}
+      checkbox={
+        table.current?.checkbox || {
+          enabled: true,
+        }
+      }
       onRowClick={(row) => {
         const parentId = extractHash("parent");
 

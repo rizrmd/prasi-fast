@@ -20,17 +20,13 @@ export interface ColumnConfig {
   format?: (value: any) => any;
   validate?: (value: any) => boolean | string;
   enum?: string[];
-  relation?: {
-    model: string;
-    field: string;
-    multiple?: boolean;
-  };
 }
 export interface RelationConfig {
   model: ModelName;
   type: "hasMany" | "belongsTo" | "hasOne";
   prismaField: string;
-  targetPK: string;
+  fromColumn: string;
+  toColumn: string;
   label?: string;
 }
 export type ModelRelations = Record<string, RelationConfig>;

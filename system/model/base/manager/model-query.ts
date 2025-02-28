@@ -26,14 +26,14 @@ export class ModelQuery<T extends BaseRecord = any> extends ModelManager<T> impl
               ...select[relationName],
               select: {
                 ...select[relationName].select,
-                [relationConfig.targetPK]: true,
+                [relationConfig.toColumn]: true,
               },
             };
           } else {
             // If relation is just true, create proper select with primary key
             enhancedSelect[relationName] = {
               select: {
-                [relationConfig.targetPK]: true,
+                [relationConfig.toColumn]: true,
               },
             };
           }

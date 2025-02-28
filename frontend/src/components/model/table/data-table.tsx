@@ -38,11 +38,13 @@ export function DataTable({
   primaryKey,
   modelTable,
   checkbox,
+  onRowSelected,
 }: {
   primaryKey: string;
   status: "init" | "loading" | "ready";
   checkbox?: LayoutTable<any>["checkbox"];
   onRowClick: (row: any) => void;
+  onRowSelected?: (rows: any[]) => void;
   modelTable: ReturnType<typeof useModelTable>;
 }) {
   const result = modelTable.result;
@@ -59,16 +61,24 @@ export function DataTable({
                   table.getIsAllPageRowsSelected() ||
                   (table.getIsSomePageRowsSelected() && "indeterminate")
                 }
-                onCheckedChange={(value) =>
-                  table.toggleAllPageRowsSelected(!!value)
-                }
+                onCheckedChange={(value) => {
+                  table.toggleAllPageRowsSelected(!!value);
+                  onRowSelected?.(
+                    table.getSelectedRowModel().rows.map(row => row.original)
+                  );
+                }}
                 aria-label="Select all"
               />
             ),
             cell: ({ row }) => (
               <Checkbox
                 checked={row.getIsSelected()}
-                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                onCheckedChange={(value) => {
+                  row.toggleSelected(!!value);
+                  onRowSelected?.(
+                    table.getSelectedRowModel().rows.map(row => row.original)
+                  );
+                }}
                 aria-label="Select row"
               />
             ),
@@ -88,8 +98,23 @@ export function DataTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header, idx) => {
-                const meta = (header.column.columnDef as any)
-                  ?.meta as ColumnMetaData;
+                const meta = (header.column.columnDef as any)?.meta as
+                  | undefined
+                  | ColumnMetaData;
+
+                if (!meta) {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                }
+
                 return (
                   <TableHead
                     key={header.id}
@@ -150,6 +175,7 @@ export function DataTable({
                 }}
               >
                 {row.getVisibleCells().map((cell, idx) => {
+                  console.log(idx, cell, checkbox?.enabled);
                   if (idx === 0 && checkbox?.enabled) {
                     return (
                       <TableCell key={cell.id} className="w-[30px]">
@@ -203,7 +229,7 @@ export function DataTable({
           ) : (
             <TableRow>
               <TableCell
-                colSpan={columns.length + 1}
+                colSpan={columns.length + 1 + (checkbox?.enabled ? 1 : 0)}
                 className="h-24 opacity-50 text-center select-none"
               >
                 {status === "loading" ? (

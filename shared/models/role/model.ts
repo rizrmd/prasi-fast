@@ -52,7 +52,7 @@ const relations: Record<string, RelationConfig> = {
     model: "User",
     type: "hasMany",
     prismaField: "user",
-    targetPK: "id",
+    toColumn: "id",
     label: "User",
   },
 };
