@@ -37,52 +37,121 @@ export interface ProcessService {
   runProcess(processPath: string, data: any): Promise<void>;
 }
 
+// Default service implementations 
+class DefaultNotificationService implements NotificationService {
+  async sendNotification(to: { type: string; value?: string }, template: string, data: Record<string, any>) {
+    try {
+      if (!to.type) {
+        throw new Error('Notification target type is required');
+      }
+      if (template.trim().length === 0) {
+        throw new Error('Notification template is required');
+      }
+      console.log(`[Notification] Template: ${template}`);
+      console.log(`[Notification] To: ${to.type}:${to.value || 'N/A'}`);
+      console.log(`[Notification] Data:`, data);
+    } catch (error: any) {
+      console.error('[Notification Error]', error.message);
+      throw error;
+    }
+  }
+}
+
+class DefaultValidationService implements ValidationService {
+  async validateAction(validationPath: string, data: any): Promise<boolean> {
+    try {
+      if (!validationPath) {
+        throw new Error('Validation path is required');
+      }
+      console.log(`[Validation] Path: ${validationPath}`);
+      console.log(`[Validation] Data:`, data);
+      return true;
+    } catch (error: any) {
+      console.error('[Validation Error]', error.message);
+      throw error;
+    }
+  }
+}
+
+class DefaultProcessService implements ProcessService {
+  async runProcess(processPath: string, data: any): Promise<void> {
+    try {
+      if (!processPath) {
+        throw new Error('Process path is required');
+      }
+      console.log(`[Process] Path: ${processPath}`);
+      console.log(`[Process] Data:`, data);
+    } catch (error: any) {
+      console.error('[Process Error]', error.message);
+      throw error;
+    }
+  }
+}
+
 export class WorkflowManager {
-  private workflows: Record<string, WorkflowConfig>;
+  private static instance: WorkflowManager;
+  private workflows: Map<string, WorkflowConfig> = new Map();
   protected notificationService: NotificationService;
   protected validationService: ValidationService;
   protected processService: ProcessService;
   private auditLogs: WorkflowLog[] = [];
 
-  constructor(
-    workflows: Record<string, WorkflowConfig>,
-    notificationService: NotificationService,
-    validationService: ValidationService,
-    processService: ProcessService
+  private constructor(
+    notificationService: NotificationService = new DefaultNotificationService(),
+    validationService: ValidationService = new DefaultValidationService(),
+    processService: ProcessService = new DefaultProcessService()
   ) {
-    this.workflows = workflows;
     this.notificationService = notificationService;
     this.validationService = validationService;
     this.processService = processService;
   }
 
-  // Re-expose services for registry
-  public getNotificationService(): NotificationService {
-    return this.notificationService;
-  }
-
-  public getValidationService(): ValidationService {
-    return this.validationService;
-  }
-
-  public getProcessService(): ProcessService {
-    return this.processService;
+  public static getInstance(): WorkflowManager {
+    if (!WorkflowManager.instance) {
+      WorkflowManager.instance = new WorkflowManager();
+    }
+    return WorkflowManager.instance;
   }
 
   /**
-   * Register a new workflow configuration
+   * Update service implementations
    */
-  registerWorkflow(modelName: string, config: WorkflowConfig): void {
-    this.workflows[modelName] = config;
+  public setServices(
+    notificationService?: NotificationService,
+    validationService?: ValidationService,
+    processService?: ProcessService
+  ): void {
+    if (notificationService) this.notificationService = notificationService;
+    if (validationService) this.validationService = validationService;
+    if (processService) this.processService = processService;
   }
 
   /**
-   * Check if a model has an associated workflow
+   * Register a workflow configuration
    */
-  hasWorkflow(modelName: string): boolean {
-    return Object.values(this.workflows).some(
-      workflow => workflow.models[modelName] != null
-    );
+  public registerWorkflow(modelName: string, config: WorkflowConfig): void {
+    this.workflows.set(modelName, config);
+  }
+
+  /**
+   * Get workflow configuration
+   */
+  public getWorkflow(modelName: string): WorkflowConfig | undefined {
+    return this.workflows.get(modelName);
+  }
+
+  /**
+   * Check if a model has a workflow configuration
+   */
+  public hasWorkflow(modelName: string): boolean {
+    return this.workflows.has(modelName);
+  }
+
+  /**
+   * Get all registered workflows
+   */
+  public getAllWorkflows(): Record<string, WorkflowConfig> {
+    return Object.fromEntries(this.workflows.entries());
   }
 
   /**
@@ -90,9 +159,7 @@ export class WorkflowManager {
    */
   private getWorkflowForModel(modelName: string): WorkflowConfig | null {
     return (
-      Object.values(this.workflows).find(
-        workflow => workflow.models[modelName] != null
-      ) || null
+      this.workflows.get(modelName) || null
     );
   }
 
@@ -222,21 +289,31 @@ export class WorkflowManager {
     userId: string,
     comment?: string
   ): Promise<{ success: boolean; error?: string }> {
-    const canPerform = await this.canPerformAction(model, modelName, role, action);
-    if (!canPerform.allowed) {
-      return { success: false, error: canPerform.reason };
-    }
-
-    const actions = this.getAvailableActions(modelName, model.state, role);
-    const actionConfig = actions.find(a => a.name === action);
-    if (!actionConfig) {
-      return { success: false, error: "Action not found" };
-    }
-
     try {
+      const canPerform = await this.canPerformAction(model, modelName, role, action);
+      if (!canPerform.allowed) {
+        return { success: false, error: canPerform.reason };
+      }
+
+      const actions = this.getAvailableActions(modelName, model.state, role);
+      const actionConfig = actions.find(a => a.name === action);
+      if (!actionConfig) {
+        return { success: false, error: "Action not found" };
+      }
+
       // Update state if specified
       if (actionConfig.status) {
         model.state = actionConfig.status;
+      }
+
+      // Process triggers
+      if (actionConfig.trigger) {
+        try {
+          await this.processTriggers(actionConfig.trigger, model);
+        } catch (error: any) {
+          const message = error?.message || 'Failed to process triggers';
+          return { success: false, error: `Trigger processing failed: ${message}` };
+        }
       }
 
       // Log the action
@@ -249,18 +326,13 @@ export class WorkflowManager {
         userId,
         timestamp: new Date(),
         comment,
-        changes: { status: actionConfig.status }
+        changes: {} // TODO: Track actual changes
       });
-
-      // Process triggers
-      if (actionConfig.trigger) {
-        await this.processTriggers(actionConfig.trigger, model);
-      }
 
       return { success: true };
     } catch (error: any) {
-      const message = error?.message || 'Unknown error';
-      return { success: false, error: message };
+      const message = error?.message || 'Unknown error occurred';
+      return { success: false, error: `Action failed: ${message}` };
     }
   }
 
@@ -268,22 +340,86 @@ export class WorkflowManager {
    * Process workflow triggers
    */
   private async processTriggers(trigger: Trigger, model: WorkflowModelBase): Promise<void> {
+    // Process notifications
     if (trigger.notify) {
       for (const notification of trigger.notify) {
-        const value = notification.to.field ? model[notification.to.field] : notification.to.value;
-        if (value) {
-          await this.notificationService.sendNotification(
-            { type: notification.to.type, value },
-            notification.template,
-            notification.data || {}
-          );
+        try {
+          const to = notification.to;
+          const data = this.resolveTemplateData(notification.data || {}, model);
+          await this.notificationService.sendNotification(to, notification.template, data);
+        } catch (error: any) {
+          console.error('Notification failed:', error);
+          // Continue with other notifications even if one fails
         }
       }
     }
 
-    if (trigger.process) {
-      await this.processService.runProcess(trigger.process, model);
+    // Process calculations
+    if (trigger.calculate) {
+      try {
+        await this.processService.runProcess(trigger.calculate, model);
+      } catch (error: any) {
+        throw new Error(`Calculation failed: ${error.message}`);
+      }
     }
+
+    // Process approvals
+    if (trigger.approval) {
+      const requiresApproval = !trigger.approval.required_if || 
+        await this.validationService.validateAction(trigger.approval.required_if, model);
+      
+      if (requiresApproval) {
+        for (const step of trigger.approval.steps) {
+          try {
+            // Create approval task
+            await this.createApprovalTask(model, step);
+          } catch (error: any) {
+            throw new Error(`Failed to create approval task: ${error.message}`);
+          }
+        }
+      }
+    }
+
+    // Process updates
+    if (trigger.update) {
+      try {
+        Object.assign(model, trigger.update);
+      } catch (error: any) {
+        throw new Error(`Failed to apply updates: ${error.message}`);
+      }
+    }
+
+    // Process creation triggers
+    if (trigger.create) {
+      try {
+        await this.processService.runProcess('create', { ...trigger.create, sourceModel: model });
+      } catch (error: any) {
+        throw new Error(`Creation process failed: ${error.message}`);
+      }
+    }
+  }
+
+  private resolveTemplateData(template: Record<string, string>, model: WorkflowModelBase): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, path] of Object.entries(template)) {
+      result[key] = this.getValueByPath(model, path);
+    }
+    return result;
+  }
+
+  private getValueByPath(obj: any, path: string): any {
+    return path.split('.').reduce((current, part) => current?.[part], obj);
+  }
+
+  private async createApprovalTask(model: WorkflowModelBase, step: { role: string; timeout?: string; comment_required?: boolean }): Promise<void> {
+    // Implementation would depend on how tasks are managed in the system
+    // This is a placeholder that would need to be implemented based on the actual task management system
+    console.log('Creating approval task:', {
+      modelId: model.id,
+      role: step.role,
+      timeout: step.timeout,
+      requiresComment: step.comment_required
+    });
   }
 
   /**
