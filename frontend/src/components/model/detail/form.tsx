@@ -74,8 +74,6 @@ export const DetailForm: FC<{
     writer.unsaved = false;
 
     if (isLoading) {
-      writer.error.system = "";
-      onChanged?.(undefined);
       return;
     }
 
