@@ -1,17 +1,17 @@
 import { useModelList } from "@/hooks/model-list/use-model-list";
 import { composeHash } from "@/lib/parse-hash";
 import { PopoverTrigger } from "@radix-ui/react-popover";
+import { Cell } from "@tanstack/react-table";
 import { FC, useEffect, useState } from "react";
-import { ModelName } from "shared/types";
 import { generateHash } from "system/utils/object-hash";
 import { Popover, PopoverContent } from "../../../ui/popover";
 import { openInNewTab } from "../../nav-tabs";
 import { getRelation } from "../../utils/get-relation";
+import { ColumnMetaData } from "../data-table";
 import { CellAction } from "./cell-action";
 import { CellContent } from "./cell-content";
-import * as models from "shared/models";
-import { Cell } from "@tanstack/react-table";
-import { ColumnMetaData } from "../data-table";
+import { getAccessorPath } from "@/hooks/model-list/utils";
+import get from "lodash.get";
 
 const cell = { popover: "" };
 
@@ -111,8 +111,16 @@ export const DataCell: FC<{
         // For belongsTo and hasOne relations, navigate to the related record
         const rel = getRelation(modelName, columnName);
         if (rel) {
+          const path =
+            columnName.split(".").slice(0, -1).join(".") +
+            "." +
+            rel.model.config.primaryKey;
+
           openInNewTab(
-            `/model/${rel.relation.model.toLowerCase()}/detail/${value}`
+            `/model/${rel.relation.model.toLowerCase()}/detail/${get(
+              row.original,
+              path
+            )}`
           );
           cell.popover = "";
           render({});
@@ -186,7 +194,7 @@ const getNestedValue = (obj: any, path: string[]): any => {
   let i = 0;
   for (const key of path) {
     if (Array.isArray(current)) {
-      return `${current.length} ${path[i-1]}`;
+      return `${current.length} ${path[i - 1]}`;
     }
     if (current && typeof current === "object" && key in current) {
       current = current[key];
