@@ -21,13 +21,7 @@ export const CellContent = forwardRef<HTMLDivElement, CellContentProps>(
             : "hover:border-slate-300 hover:bg-white border-transparent"
         )}
       >
-        {loading ? (
-          <Skeleton className="h-4 w-16" />
-        ) : type === "hasMany" ? (
-          <>{Array.isArray(value) ? value?.length : "0 items"}</>
-        ) : (
-          value
-        )}
+        {loading ? <Skeleton className="h-4 w-16" /> : value}
       </div>
     );
   }

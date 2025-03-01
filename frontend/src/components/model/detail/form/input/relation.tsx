@@ -46,7 +46,6 @@ export const FieldRelation: FC<{
   const model = models[models.length - 1].model;
   const subPath = path.split(".").slice(0, -1).join(".");
   const propValue = get(form.data, `${subPath}.${model.config.primaryKey}`);
-  console.log(propValue, value);
   if (value === "" && propValue) {
     value = propValue;
   }

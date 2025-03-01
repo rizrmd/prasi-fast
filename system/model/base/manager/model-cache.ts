@@ -12,7 +12,10 @@ export interface CacheProvider {
  * In-memory cache provider implementation
  */
 class InMemoryCache implements CacheProvider {
-  private cache = new Map<string, { value: any; timestamp: number; ttl?: number }>();
+  private cache = new Map<
+    string,
+    { value: any; timestamp: number; ttl?: number }
+  >();
 
   async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
@@ -77,6 +80,15 @@ export const DEFAULT_CACHE_CONFIG: CacheConfig = {
 };
 
 /**
+ * Enhanced record cache structure that includes relation information
+ */
+export interface EnhancedRecordCache<T> {
+  data: T;
+  queryParams?: any; // Store the original query parameters including relations
+  timestamp: number;
+}
+
+/**
  * Cache manager for handling model caching operations
  */
 export class CacheManager {
@@ -98,49 +110,157 @@ export class CacheManager {
 
   async getRecord<T>(id: string): Promise<T | null> {
     if (!this.config.enabled) return null;
-    return this.config.provider.get<T>(this.getRecordKey(id));
+    const cached = await this.config.provider.get<EnhancedRecordCache<T>>(
+      this.getRecordKey(id)
+    );
+    console.log(
+      `[CacheManager] getRecord ${id}:`,
+      cached ? "found" : "not found"
+    );
+    return cached ? cached.data : null;
   }
 
-  async setRecord<T>(id: string, data: T): Promise<void> {
+  async getRecordWithParams<T>(
+    id: string
+  ): Promise<{ data: T; queryParams?: any } | null> {
+    if (!this.config.enabled) return null;
+    const cached = await this.config.provider.get<EnhancedRecordCache<T>>(
+      this.getRecordKey(id)
+    );
+    console.log(
+      `[CacheManager] getRecordWithParams ${id}:`,
+      cached ? "found" : "not found"
+    );
+    if (cached) {
+      console.log(
+        `[CacheManager] Record ${id} has queryParams:`,
+        !!cached.queryParams
+      );
+      if (cached.queryParams) {
+        console.log(
+          `[CacheManager] Record ${id} queryParams:`,
+          JSON.stringify(cached.queryParams)
+        );
+      }
+    }
+    return cached
+      ? { data: cached.data, queryParams: cached.queryParams }
+      : null;
+  }
+
+  async setRecord<T>(id: string, data: T, queryParams?: any): Promise<void> {
     if (!this.config.enabled) return;
-    await this.config.provider.set(this.getRecordKey(id), data, this.config.ttl);
+    console.log(
+      `[CacheManager] setRecord ${id} with queryParams:`,
+      !!queryParams
+    );
+    if (queryParams) {
+      console.log(
+        `[CacheManager] setRecord ${id} queryParams:`,
+        JSON.stringify(queryParams)
+      );
+    }
+    const enhancedCache: EnhancedRecordCache<T> = {
+      data,
+      queryParams,
+      timestamp: Date.now(),
+    };
+    await this.config.provider.set(
+      this.getRecordKey(id),
+      enhancedCache,
+      this.config.ttl
+    );
   }
 
   async getQuery<T>(params: any): Promise<string[] | null> {
     if (!this.config.enabled) return null;
-    const result = await this.config.provider.get<{ ids: string[], meta?: any, timestamp: number }>(this.getQueryKey(params));
+    const result = await this.config.provider.get<{
+      ids: string[];
+      meta?: any;
+      timestamp: number;
+    }>(this.getQueryKey(params));
+    console.log(
+      `[CacheManager] getQuery:`,
+      result ? `found ${result.ids.length} ids` : "not found"
+    );
     return result ? result.ids : null;
   }
 
-  async getQueryWithMeta<T>(params: any): Promise<{ ids: string[], meta: any, timestamp: number, fresh: boolean } | null> {
+  async getQueryWithMeta<T>(
+    params: any
+  ): Promise<{
+    ids: string[];
+    meta: any;
+    timestamp: number;
+    fresh: boolean;
+    queryParams: any;
+  } | null> {
     if (!this.config.enabled) return null;
-    const result = await this.config.provider.get<{ ids: string[], meta: any, timestamp: number }>(this.getQueryKey(params));
+    const key = this.getQueryKey(params);
+    console.log(`[CacheManager] getQueryWithMeta key:`, key);
+    const result = await this.config.provider.get<{
+      ids: string[];
+      meta: any;
+      timestamp: number;
+      queryParams: any;
+    }>(key);
+    console.log(
+      `[CacheManager] getQueryWithMeta:`,
+      result ? `found ${result.ids.length} ids` : "not found"
+    );
     if (!result) return null;
-    
+
     // Determine if the cache is still fresh based on queryMaxAge
     const ageInSeconds = (Date.now() - result.timestamp) / 1000;
-    const fresh = ageInSeconds < (this.config.queryMaxAge || DEFAULT_CACHE_CONFIG.queryMaxAge!);
-    
-    return { ...result, fresh };
+    const fresh =
+      ageInSeconds <
+      (this.config.queryMaxAge || DEFAULT_CACHE_CONFIG.queryMaxAge!);
+
+    console.log(
+      `[CacheManager] Query has stored queryParams:`,
+      !!result.queryParams
+    );
+    if (result.queryParams) {
+      console.log(
+        `[CacheManager] Query stored queryParams:`,
+        JSON.stringify(result.queryParams)
+      );
+    }
+
+    return { ...result, fresh, queryParams: result.queryParams || params };
   }
 
   async setQuery(params: any, recordIds: string[], meta?: any): Promise<void> {
     if (!this.config.enabled) return;
-    const cacheData = { 
-      ids: recordIds, 
+    console.log(
+      `[CacheManager] setQuery with ${recordIds.length} ids and params:`,
+      JSON.stringify(params)
+    );
+    const cacheData = {
+      ids: recordIds,
       ...(meta ? { meta } : {}),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      queryParams: params,
     };
-    await this.config.provider.set(this.getQueryKey(params), cacheData, this.config.ttl);
+    await this.config.provider.set(
+      this.getQueryKey(params),
+      cacheData,
+      this.config.ttl
+    );
   }
 
   async invalidateRecord(id: string): Promise<void> {
     if (!this.config.enabled) return;
+    console.log(`[CacheManager] invalidateRecord ${id}`);
     await this.config.provider.del(this.getRecordKey(id));
   }
 
   async invalidateQuery(params: any): Promise<void> {
     if (!this.config.enabled) return;
+    console.log(
+      `[CacheManager] invalidateQuery with params:`,
+      JSON.stringify(params)
+    );
     await this.config.provider.del(this.getQueryKey(params));
   }
 
@@ -150,6 +270,9 @@ export class CacheManager {
    */
   async invalidateAllQueries(): Promise<void> {
     if (!this.config.enabled) return;
+    console.log(
+      `[CacheManager] invalidateAllQueries for model ${this.modelName}`
+    );
     // Use pattern matching to only clear query keys
     await this.config.provider.clear(`${this.modelName}:query:`);
   }
@@ -159,6 +282,7 @@ export class CacheManager {
    */
   async invalidateAll(): Promise<void> {
     if (!this.config.enabled) return;
+    console.log(`[CacheManager] invalidateAll for model ${this.modelName}`);
     await this.config.provider.clear(`${this.modelName}:`);
   }
 }

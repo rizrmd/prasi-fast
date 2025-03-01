@@ -30,7 +30,6 @@ export const createFetchData = (model: any, table: ModelTableState) => {
     try {
       const columns = layout.table.columns;
      
-
       const select: Record<string, any> = {};
       columns.forEach((column) => {
         if ("rel" in column) {
@@ -95,6 +94,8 @@ export const createFetchData = (model: any, table: ModelTableState) => {
         orderBy: Object.keys(orderBy).length > 0 ? orderBy : undefined,
         where,
       });
+
+      console.log(data.data[0]);
 
       table.unfilteredResult = data;
       table.result = data;

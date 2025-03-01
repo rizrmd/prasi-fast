@@ -29,7 +29,7 @@ export const ModelTableHead: FC<{
     isRelation = true;
     const rel = getRelation(modelName, columnName);
     if (rel) {
-      title = rel.model.config.columns[rel.column]?.label || rel.column;
+      title = rel.relation.label;
       model = rel.model;
     } else {
       return "- invalid -";

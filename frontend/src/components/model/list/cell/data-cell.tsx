@@ -183,20 +183,17 @@ export const DataCell: FC<{
 
 const getNestedValue = (obj: any, path: string[]): any => {
   let current = obj;
+  let i = 0;
   for (const key of path) {
     if (Array.isArray(current)) {
-      // If current is an array, take first element
-      current = current[0];
+      return `${current.length} ${path[i-1]}`;
     }
     if (current && typeof current === "object" && key in current) {
       current = current[key];
     } else {
       return undefined;
     }
-  }
-  // Handle final value being an array
-  if (Array.isArray(current)) {
-    current = current[0];
+    i++;
   }
   return current;
 };
