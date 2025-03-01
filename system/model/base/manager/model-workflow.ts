@@ -1,4 +1,7 @@
-import type { BaseRecord, WorkflowModelBase } from "../../../workflow/workflow-manager";
+import type {
+  BaseRecord,
+  WorkflowModelBase,
+} from "../../../workflow/workflow-manager";
 import type { User } from "@prisma/client";
 import type { WorkflowConfig } from "../../../workflow/types";
 import { workflowRegistry } from "../../../workflow/workflow-registry";
@@ -19,7 +22,7 @@ export class ModelWorkflow<T extends WorkflowModelBase> {
   protected async initializeWorkflow(config: WorkflowConfig) {
     if (!this.state.workflowConfig) {
       this.state.workflowConfig = config;
-      this.state.workflowManager = workflowRegistry.getManager();
+      // this.state.workflowManager = workflowRegistry.getManager();
       workflowRegistry.registerWorkflow(this.state.config.name, config);
     }
   }
@@ -35,16 +38,18 @@ export class ModelWorkflow<T extends WorkflowModelBase> {
    * Get workflow manager instance
    */
   protected getWorkflowManager() {
-    return this.state.workflowManager || workflowRegistry.getManager();
+    return this.state.workflowManager;
   }
 
   /**
    * Get available actions for a role
    */
-  protected async getAvailableActions(role: string): Promise<{
-    name: string;
-    status?: string;
-  }[]> {
+  protected async getAvailableActions(role: string): Promise<
+    {
+      name: string;
+      status?: string;
+    }[]
+  > {
     if (!this.hasWorkflow()) return [];
     return this.getWorkflowManager().getAvailableActions(
       this.state.config.name,
@@ -77,7 +82,9 @@ export class ModelWorkflow<T extends WorkflowModelBase> {
    */
   protected async getFieldConfig(
     role: string
-  ): Promise<Record<string, boolean> | { _all: true; _except: string[] } | null> {
+  ): Promise<
+    Record<string, boolean> | { _all: true; _except: string[] } | null
+  > {
     if (!this.hasWorkflow() || !(this.state as any).data) return null;
 
     return this.getWorkflowManager().getFieldConfig(

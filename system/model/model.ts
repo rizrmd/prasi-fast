@@ -6,7 +6,6 @@ import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
 import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
-import { ModelCache } from "./base/model-cache-store";
 
 export {
   defaultColumns,
@@ -24,7 +23,6 @@ export interface ModelState<T extends BaseRecord> {
   data: T | null;
   mode: "client" | "server";
   currentUser: User | null;
-  modelCache: ModelCache;
   updateCallbacks: Set<(data: T) => void>;
 }
 
@@ -35,7 +33,6 @@ export class Model<T extends BaseRecord = any> {
     data: null,
     mode: "server",
     currentUser: null,
-    modelCache: new ModelCache(false),
     updateCallbacks: new Set(),
   };
   private cacheManager!: ModelCacheManager<T>;
@@ -101,8 +98,6 @@ export class Model<T extends BaseRecord = any> {
       });
     });
 
-    this.cacheManager._friend.initializeCache(this.state.modelCache);
-
     // Create concrete implementation of ModelCrud
     class ConcreteCrud extends ModelCrud<T> {
       constructor(private model: Model<T>) {
@@ -118,24 +113,6 @@ export class Model<T extends BaseRecord = any> {
 
       protected getSelectFields(select?: Record<string, any>) {
         return this.model.queryManager._friend.getSelectFields(select);
-      }
-
-      protected invalidateCache() {
-        this.model.cacheManager._friend.invalidateCache();
-      }
-
-      protected async cacheRecordAndRelations(
-        record: Record<string, any>,
-        select?: Record<string, any>
-      ) {
-        await this.model.cacheManager._friend.cacheRecordAndRelations(
-          record,
-          select
-        );
-      }
-
-      protected async attachCachedRelations(record: Record<string, any>) {
-        return this.model.cacheManager._friend.attachCachedRelations(record);
       }
     }
 

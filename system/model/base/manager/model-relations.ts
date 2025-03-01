@@ -1,53 +1,43 @@
 import { ModelManager } from "../model-manager";
 import type { BaseRecord } from "../model-base";
 import type { WithFriends } from "../model-friend";
+import type { ModelState } from "../../model";
 
 export class ModelRelations<T extends BaseRecord = any> extends ModelManager<T> {
-  // No friend interface needed for relations manager since it only has public methods
+  protected state!: ModelState<T>;
+
   public async getRelation<RelatedModel>(
     relationName: string
   ): Promise<RelatedModel[] | RelatedModel | null> {
-    if (
-      !this.data ||
-      !this.config.relations?.[relationName] ||
-      !this.config.cache
-    ) {
+    if (!this.state.data || !this.state.config.relations?.[relationName]) {
       return null;
     }
 
-    const relationConfig = this.config.relations[relationName];
-    const relatedIds = this.modelCache.getCachedRelationIds(
-      this.config.tableName,
-      this.data.id.toString(),
-      relationName
-    );
+    const relationConfig = this.state.config.relations[relationName];
+    const relatedId = this.state.data[relationConfig.prismaField];
 
-    if (!relatedIds) {
+    if (!relatedId) {
       return null;
     }
+
+    const prismaModelName = relationConfig.model.charAt(0).toLowerCase() + 
+                          relationConfig.model.slice(1);
+    const prismaTable = (this.state.prisma as any)[prismaModelName];
 
     if (relationConfig.type === "hasMany") {
-      if (!Array.isArray(relatedIds)) return [];
-
-      const relatedRecords = await Promise.all(
-        relatedIds.map(async (id) => {
-          const record = await this.modelCache.getCachedRecord(
-            relationConfig.model,
-            id.toString()
-          );
-          return record as RelatedModel;
-        })
-      );
-
-      return relatedRecords.filter(Boolean);
+      const records = await prismaTable.findMany({
+        where: {
+          [relationConfig.toColumn]: this.state.data.id,
+        },
+      });
+      return records as RelatedModel[];
     } else {
       // For hasOne and belongsTo
-      if (typeof relatedIds !== "number") return null;
-
-      const record = this.modelCache.getCachedRecord(
-        relationConfig.model,
-        relatedIds.toString()
-      );
+      const record = await prismaTable.findUnique({
+        where: {
+          id: relatedId,
+        },
+      });
       return record as RelatedModel;
     }
   }
@@ -59,29 +49,6 @@ export class ModelRelations<T extends BaseRecord = any> extends ModelManager<T> 
   }
 
   protected getSelectFields(select?: Record<string, any>): string[] {
-    // Not needed in relations manager
-    throw new Error("Not implemented");
-  }
-
-  protected invalidateCache(): void {
-    // Not needed in relations manager
-    throw new Error("Not implemented");
-  }
-
-  protected async cacheRecordAndRelations(
-    record: Record<string, any>,
-    select?: Record<string, any>
-  ): Promise<void> {
-    // Not needed in relations manager
-    throw new Error("Not implemented");
-  }
-
-  protected async attachCachedRelations(record: Record<string, any>): Promise<T> {
-    // Not needed in relations manager
-    throw new Error("Not implemented");
-  }
-
-  protected notifySubscribers(id: string): void {
     // Not needed in relations manager
     throw new Error("Not implemented");
   }

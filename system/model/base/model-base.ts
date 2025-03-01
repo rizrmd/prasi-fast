@@ -32,7 +32,6 @@ export abstract class BaseModel<T extends BaseRecord = any> {
   protected get data() { return this.state.data; }
   protected set data(value: T | null) { this.state.data = value; }
   protected get currentUser() { return this.state.currentUser; }
-  protected get modelCache() { return this.state.modelCache; }
 
   protected get prismaTable() {
     if (!this.config?.modelName) {
