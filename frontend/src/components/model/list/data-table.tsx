@@ -13,12 +13,12 @@ import {
 } from "@tanstack/react-table";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { useModelList } from "@/hooks/model-list/use-model-list";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
 import { ChevronDown } from "lucide-react";
 import { ModelName } from "shared/types";
-import { LayoutTable } from "system/model/layout/types";
+import { LayoutList } from "system/model/layout/types";
 import { AppLoading } from "../../app/app-loading";
 import { WarnFull } from "../../app/warn-full";
 import { DataCell } from "./cell/data-cell";
@@ -42,10 +42,10 @@ export function DataTable({
 }: {
   primaryKey: string;
   status: "init" | "loading" | "ready";
-  checkbox?: LayoutTable<any>["checkbox"];
+  checkbox?: LayoutList<any>["checkbox"];
   onRowClick: (row: any) => void;
   onRowSelected?: (rows: any[]) => void;
-  modelTable: ReturnType<typeof useModelTable>;
+  modelTable: ReturnType<typeof useModelList>;
 }) {
   const result = modelTable.result;
   const columns = modelTable.columns;

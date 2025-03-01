@@ -16,8 +16,10 @@ type ModelRecord = {
 
 export const useModelDetail = ({
   model,
+  variant = "default",
 }: {
   model: ReturnType<typeof useModel>;
+  variant: string;
 }) => {
   const params = useParams();
   const detail = useLocal({
@@ -120,14 +122,16 @@ export const useModelDetail = ({
     },
   });
 
+  const variantName =
+    variant as keyof (typeof layouts)[keyof typeof layouts]["detail"];
   let layout = (layouts as any)[
     model.name
   ] as (typeof layouts)[keyof typeof layouts];
 
   if (model.ready) {
-    if (layout && layout.detail) {
+    if (layout && layout.detail[variantName]) {
       detail.ready = true;
-      detail.current = layout.detail;
+      detail.current = layout.detail[variantName];
     }
   }
 
@@ -230,10 +234,10 @@ export const useModelDetail = ({
             };
 
             // Add detail fields
-            if (layout.detail.fields) {
+            if (layout.detail[variantName].fields) {
               Object.assign(
                 selectFields,
-                convertFieldsToPrismaSelect(layout.detail.fields)
+                convertFieldsToPrismaSelect(layout.detail[variantName].fields)
               );
             }
 

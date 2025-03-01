@@ -1,20 +1,20 @@
 import { AppLoading } from "@/components/app/app-loading";
 import { WarnFull } from "@/components/app/warn-full";
-import { DataTable } from "@/components/model/table/data-table";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { useModelList } from "@/hooks/model-list/use-model-list";
 import { useModel } from "@/hooks/use-model";
 import { composeHash, extractHash } from "@/lib/parse-hash";
 import { navigate } from "@/lib/router";
 import { FC } from "react";
 import { ModelName } from "shared/types";
+import { DataTable } from "./data-table";
 
 export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
-  const table = useModelTable({ model });
+  const list = useModelList({ model, variant: "default" });
 
-  if (!model.ready || table.loading) return <AppLoading />;
+  if (!model.ready || list.loading) return <AppLoading />;
 
-  if (!table.available) {
+  if (!list.available) {
     return (
       <WarnFull>
         Tampilan secara tabel <br />
@@ -25,11 +25,11 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
   return (
     <DataTable
-      modelTable={table}
+      modelTable={list}
       primaryKey={model.instance?.config.primaryKey || "id"}
-      status={table.loading ? "loading" : "ready"}
+      status={list.loading ? "loading" : "ready"}
       checkbox={
-        table.current?.checkbox || {
+        list.current?.checkbox || {
           enabled: true,
         }
       }

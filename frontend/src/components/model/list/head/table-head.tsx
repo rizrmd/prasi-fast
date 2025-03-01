@@ -3,7 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { useModelList } from "@/hooks/model-list/use-model-list";
 import { useLocal } from "@/hooks/use-local";
 import { FC } from "react";
 import * as models from "shared/models";
@@ -14,7 +14,7 @@ import { ModelTableHeadTitle } from "./table-head-title";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
-  tableModel: ReturnType<typeof useModelTable>;
+  tableModel: ReturnType<typeof useModelList>;
   columnName: string;
   colIdx: number;
   className?: string;

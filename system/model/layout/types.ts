@@ -26,7 +26,7 @@ export type Column<Name extends ModelName> =
     }
   | { rel: RelObject<Name>;  };
 
-export type LayoutTable<Name extends ModelName> = {
+export type LayoutList<Name extends ModelName> = {
   columns: Column<Name>[];
   checkbox?: {
     enabled: boolean;

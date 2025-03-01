@@ -1,4 +1,4 @@
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { useModelList } from "@/hooks/model-list/use-model-list";
 import { composeHash } from "@/lib/parse-hash";
 import { PopoverTrigger } from "@radix-ui/react-popover";
 import { FC, useState } from "react";
@@ -13,7 +13,7 @@ import { CellContent } from "./cell-content";
 const cell = { popover: "" };
 
 export const DataCell: FC<{
-  modelTable: ReturnType<typeof useModelTable>;
+  modelTable: ReturnType<typeof useModelList>;
   modelName: ModelName;
   columnName: string;
   type: string;

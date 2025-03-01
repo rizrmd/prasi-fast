@@ -9,7 +9,7 @@ import { DetailForm } from "./form/form";
 
 export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
-  const detail = useModelDetail({ model });
+  const detail = useModelDetail({ model, variant: "default" });
 
   if (!model.ready || !detail.current) return <AppLoading />;
   if (!model.instance || !detail.current) {

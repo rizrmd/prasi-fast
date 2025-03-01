@@ -13,14 +13,14 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Eraser } from "lucide-react";
 import { FC } from "react";
 import { ModelName } from "shared/types";
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
-import { useModelTable } from "@/hooks/model-table/use-model-table";
+import { useModelList } from "@/hooks/model-list/use-model-list";
 import { ModelTableHeadLoading } from "./table-head-loading";
 
 interface ModelTableHeadContentProps {
   modelName: ModelName;
   columnName: string;
   title: string;
-  modelTable: ReturnType<typeof useModelTable>;
+  modelTable: ReturnType<typeof useModelList>;
   onClose?: () => void;
   isRelation: boolean;
 }

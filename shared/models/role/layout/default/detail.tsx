@@ -1,6 +1,6 @@
 import { LayoutDetail } from "system/model/layout/types";
 
-export const detail: LayoutDetail<"Role"> = {
+export default {
   fields: {
     vertical: [{ horizontal: [{ col: "name" }] }],
   },
@@ -8,4 +8,4 @@ export const detail: LayoutDetail<"Role"> = {
     { title: "Detail", type: "default" },
     { title: "User", type: "relation", name: "user" },
   ],
-};
+} as const satisfies LayoutDetail<"Role">;
