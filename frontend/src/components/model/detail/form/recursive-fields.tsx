@@ -4,6 +4,12 @@ import { Fields } from "system/model/layout/types";
 import { FormWriter } from "../types";
 import { FieldInput } from "./input/field";
 import { FieldRelation } from "./input/relation";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export const RecursiveFields: FC<{
   model: Models[keyof Models];
@@ -26,6 +32,50 @@ export const RecursiveFields: FC<{
           />
         ))}
       </>
+    );
+  }
+
+  if ("heading" in fields) {
+    return (
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-4">{fields.heading}</h2>
+        <div className="space-y-4">
+          {fields.fields.map((field, index) => (
+            <RecursiveFields
+              key={index}
+              model={model}
+              fields={field}
+              writer={writer}
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if ("section" in fields) {
+    return (
+      <Accordion type="single" collapsible className="w-full mb-6">
+        <AccordionItem value="section">
+          <AccordionTrigger className="text-lg font-semibold">
+            {fields.section}
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-4 pt-4">
+              {fields.fields.map((field, index) => (
+                <RecursiveFields
+                  key={index}
+                  model={model}
+                  fields={field}
+                  writer={writer}
+                  onChange={onChange}
+                />
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 

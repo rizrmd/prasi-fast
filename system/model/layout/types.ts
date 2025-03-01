@@ -24,7 +24,7 @@ export type Column<Name extends ModelName> =
         GetModelFromRel<Name, Models[Name]["relations"][number]>
       >;
     }
-  | { rel: RelObject<Name>;  };
+  | { rel: RelObject<Name> };
 
 export type LayoutList<Name extends ModelName> = {
   columns: Column<Name>[];
@@ -37,6 +37,8 @@ export type LayoutList<Name extends ModelName> = {
 export type Fields<Name extends ModelName> =
   | { vertical: Fields<Name>[] }
   | { horizontal: Fields<Name>[] }
+  | { heading: string; fields: Fields<Name>[] }
+  | { section: string; fields: Fields<Name>[] }
   | Column<Name>;
 
 export type LayoutDetail<Name extends ModelName> = {
