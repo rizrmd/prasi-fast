@@ -29,7 +29,6 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
   columnName,
   title,
   modelTable,
-  onClose,
   isRelation,
 }) => {
   const sortBy = modelTable?.sortBy[columnName];
@@ -95,7 +94,6 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
                 if (!modelTable) return;
                 delete modelTable.filterBy[columnName];
                 await modelTable.fetchData({ filtering: true });
-                onClose?.();
               }}
             >
               <Eraser />
@@ -145,7 +143,11 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
             ).map((item: any, idx: number) => {
               return (
                 <CommandItem asChild value={String(item)} key={idx}>
-                  <label>
+                  <label
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
                     <Checkbox
                       onCheckedChange={async (checked) => {
                         if (!modelTable) return;

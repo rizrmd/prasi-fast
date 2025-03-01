@@ -13,7 +13,7 @@ export const getAccessorPath = (
 ): {
   path: string;
   models: {
-    model: any;
+    model: (typeof Models)[keyof typeof Models];
     type: "hasMany" | "belongsTo" | "hasOne" | undefined;
   }[];
 } => {
@@ -139,7 +139,9 @@ export const buildNestedWhereClause = (
   };
 };
 
-export const buildWhereClause = (filterBy: Record<string, any[]>): { OR: WhereClause[] } | undefined => {
+export const buildWhereClause = (
+  filterBy: Record<string, any[]>
+): { OR: WhereClause[] } | undefined => {
   const filters = Object.entries(filterBy).map(([key, values]) => {
     if (key.includes(".")) {
       const path = key.split(".");

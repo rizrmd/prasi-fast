@@ -12,7 +12,9 @@ export const MTable: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const model = useModel({ modelName });
   const list = useModelList({ model, variant: "default" });
 
-  if (!model.ready || list.loading) return <AppLoading />;
+  if (!model.ready) {
+    return <AppLoading />;
+  }
 
   if (!list.available) {
     return (

@@ -1,6 +1,6 @@
 import type { PrismaClient, User } from "@prisma/client";
-import { ModelConfig } from "../../types";
-import { ModelCache } from "./model-cache";
+import type { ModelConfig } from "../../types";
+import type { ModelState } from "../model";
 import { prismaFrontendProxy } from "../model-client";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
@@ -8,6 +8,7 @@ const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
 };
 
 export const defaultColumns = [
+  "id",
   "created_at",
   "updated_at",
   "deleted_at",
@@ -22,27 +23,29 @@ export interface BaseRecord {
   [key: string]: any;
 }
 
-export class BaseModel<T extends BaseRecord = any, W = any> {
-  protected prisma!: PrismaClient;
-  protected config!: ModelConfig;
-  protected data: T | null = null;
+export abstract class BaseModel<T extends BaseRecord = any> {
+  protected state!: ModelState<T>;
   protected _mode: "client" | "server" = "server";
-  protected modelCache: ModelCache;
-  protected currentUser: User | null = null;
-  [key: string]: any;
+
+  protected get prisma() { return this.state.prisma; }
+  protected get config() { return this.state.config; }
+  protected get data() { return this.state.data; }
+  protected set data(value: T | null) { this.state.data = value; }
+  protected get currentUser() { return this.state.currentUser; }
+  protected get modelCache() { return this.state.modelCache; }
 
   protected get prismaTable() {
-    if (!this.config?.tableName) {
-      throw new Error("Table name not configured");
+    if (!this.config?.modelName) {
+      throw new Error("Model name not configured");
     }
-    return this.prisma[this.config.tableName as keyof PrismaClient] as any;
+    return this.prisma[this.config.modelName as keyof PrismaClient] as any;
   }
 
   protected async initializePrisma() {
     if (typeof window !== "undefined") {
       this._mode = "client";
       if (!this.config.cache) this.config.cache = { ttl: 60 };
-      this.prisma = prismaFrontendProxy() as PrismaClient;
+      this.state.prisma = prismaFrontendProxy() as PrismaClient;
     } else {
       this._mode = "server";
       delete this.config.cache;
@@ -50,17 +53,24 @@ export class BaseModel<T extends BaseRecord = any, W = any> {
       if (!g.prisma) {
         g.prisma = new (await import("@prisma/client")).PrismaClient();
       }
-      this.prisma = g.prisma;
+      this.state.prisma = g.prisma;
     }
   }
 
   public constructor() {
-    this.modelCache = new ModelCache();
     setTimeout(() => this.initializePrisma(), 0);
   }
 
-  public setCurrentUser(user: User | null): void {
-    this.currentUser = user;
+  protected getDefaultConditions() {
+    return {};
+  }
+
+  protected buildSearchQuery(search: string) {
+    return {};
+  }
+
+  protected get columns(): string[] {
+    return [...defaultColumns];
   }
 
   title(data: Partial<T>) {

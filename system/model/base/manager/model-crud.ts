@@ -1,8 +1,8 @@
 import type { PaginationParams, PaginationResult } from "../../../types";
+import { generateHash } from "../../../utils/object-hash";
 import type { ModelState } from "../../model";
 import type { BaseRecord } from "../model-base";
 import { ModelManager } from "../model-manager";
-import { generateHash } from "../../../utils/object-hash";
 
 type ModelRecord = {
   [key: string]: any;
@@ -19,6 +19,7 @@ export abstract class ModelCrud<
   protected abstract ensurePrimaryKeys(
     select: Record<string, any>
   ): Record<string, any>;
+
   protected abstract getSelectFields(
     select?: Record<string, any> | string[]
   ): string[];
@@ -35,10 +36,10 @@ export abstract class ModelCrud<
 
   get prismaTable() {
     const prismaModelName =
-      this.config.modelName.charAt(0).toLowerCase() +
-      this.config.modelName.slice(1);
+      this.state.config.modelName.charAt(0).toLowerCase() +
+      this.state.config.modelName.slice(1);
 
-    return (this.prisma as any)[prismaModelName] as any;
+    return (this.state.prisma as any)[prismaModelName] as any;
   }
 
   async findFirst(
@@ -72,7 +73,9 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: null,
+      deleted_at: {
+        not: null,
+      },
     };
 
     if (Array.isArray(params.select)) {
@@ -114,7 +117,9 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: null,
+      deleted_at: {
+        not: null,
+      },
     };
 
     if (shouldCache) {
@@ -182,7 +187,7 @@ export abstract class ModelCrud<
           orderBy: queryParams.orderBy,
           select: queryParams.select,
         },
-        results.map((record) => record[this.config.primaryKey]),
+        results.map((record) => record[this.state.config.primaryKey]),
         this.state.config.cache?.ttl || 300
       );
     }
@@ -207,7 +212,9 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: null,
+      deleted_at: {
+        not: null,
+      },
     };
 
     // Generate cache key that includes pagination info
@@ -299,7 +306,7 @@ export abstract class ModelCrud<
       this.state.modelCache.cacheQueryResults(
         this.state.config.modelName,
         cacheParams,
-        dbRecords.map((record) => record[this.config.primaryKey]),
+        dbRecords.map((record) => record[this.state.config.primaryKey]),
         this.state.config.cache?.ttl || 300
       );
 

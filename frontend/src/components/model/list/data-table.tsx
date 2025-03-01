@@ -64,7 +64,7 @@ export function DataTable({
                 onCheckedChange={(value) => {
                   table.toggleAllPageRowsSelected(!!value);
                   onRowSelected?.(
-                    table.getSelectedRowModel().rows.map(row => row.original)
+                    table.getSelectedRowModel().rows.map((row) => row.original)
                   );
                 }}
                 aria-label="Select all"
@@ -76,7 +76,7 @@ export function DataTable({
                 onCheckedChange={(value) => {
                   row.toggleSelected(!!value);
                   onRowSelected?.(
-                    table.getSelectedRowModel().rows.map(row => row.original)
+                    table.getSelectedRowModel().rows.map((row) => row.original)
                   );
                 }}
                 aria-label="Select row"
@@ -91,6 +91,7 @@ export function DataTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
+
   return (
     <div className="rounded-md border bg-white">
       <Table>
@@ -104,7 +105,10 @@ export function DataTable({
 
                 if (!meta) {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead
+                      key={header.id}
+                      className={cn(header.id === "select" && "w-[33px]")}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -119,7 +123,7 @@ export function DataTable({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      "select-none",
+                      "select-none w-[200px]",
                       css`
                         padding: 0;
                         height: auto;
@@ -175,7 +179,6 @@ export function DataTable({
                 }}
               >
                 {row.getVisibleCells().map((cell, idx) => {
-                  console.log(idx, cell, checkbox?.enabled);
                   if (idx === 0 && checkbox?.enabled) {
                     return (
                       <TableCell key={cell.id} className="w-[30px]">

@@ -6,7 +6,7 @@ import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
 import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
-import { ModelCache } from "./base/model-cache";
+import { ModelCache } from "./base/model-cache-store";
 
 export {
   defaultColumns,

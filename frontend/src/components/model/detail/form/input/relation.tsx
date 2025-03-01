@@ -1,14 +1,7 @@
-import { FC, useCallback, useEffect, useState } from "react";
-import { ModelName, Models } from "shared/types";
-import { FormWriter } from "../../types";
-import { Column } from "system/model/layout/types";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -18,6 +11,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { getAccessorPath } from "@/hooks/model-list/utils";
+import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { FC, useCallback, useEffect, useState } from "react";
+import { ModelName, Models } from "shared/types";
+import { Column } from "system/model/layout/types";
+import set from "lodash.set";
+import { FormWriter } from "../../types";
 
 const isColumnWithCol = (
   field: Column<ModelName>
@@ -26,20 +27,24 @@ const isColumnWithCol = (
 };
 
 export const FieldRelation: FC<{
-  model: Models[keyof Models];
+  rootModel: Models[keyof Models];
+  label: string;
   field: Column<ModelName>;
   writer: FormWriter;
   onChange: (arg: { value: any; col: string }) => void;
-}> = ({ model, field, writer, onChange }) => {
+}> = ({ rootModel, field, label, onChange, writer }) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+
+  // Get column name safely
+  const columnName = isColumnWithCol(field) ? field.col : "";
+  const { models, path } = getAccessorPath(field, rootModel);
+  const model = models[models.length - 1].model;
+
   const [items, setItems] = useState<
     ReturnType<typeof model.findMany> extends Promise<infer T> ? T : never
   >([]);
   const [loading, setLoading] = useState(true);
-
-  // Get column name safely
-  const columnName = isColumnWithCol(field) ? field.col : "";
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -90,17 +95,17 @@ export const FieldRelation: FC<{
         >
           {value && typeof model.title === "function"
             ? model.title(items.find((item) => item.id === value) || {}) ||
-              `Select ${columnName}`
-            : `Select ${columnName}`}
+              `Pilih ${label}`
+            : `Pilih ${label}`}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput placeholder={`Search ${columnName}...`} />
+          <CommandInput placeholder={`Cari ${label}...`} />
           {loading && <CommandEmpty>Loading...</CommandEmpty>}
           {!loading && items.length === 0 && (
-            <CommandEmpty>No {columnName} found.</CommandEmpty>
+            <CommandEmpty>{label} tidak ditemukan.</CommandEmpty>
           )}
           <CommandList>
             {Array.isArray(items) &&
@@ -114,6 +119,14 @@ export const FieldRelation: FC<{
                     key={item.id}
                     onSelect={() => {
                       setValue(item.id);
+
+                      const parts = path.split(".");
+                      parts.pop();
+                      set(writer.data, parts.join("."), {
+                        [model.config.primaryKey]: item.id,
+                      });
+                      
+                      writer.unsaved = true;
                       onChange({ value: item.id, col: columnName });
                       setOpen(false);
                     }}

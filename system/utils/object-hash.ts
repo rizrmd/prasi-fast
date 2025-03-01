@@ -3,6 +3,7 @@ import { api } from "frontend/src/lib/generated/api";
 
 const DB_NAME = "objectHashDB";
 const STORE_NAME = "hashStore";
+const savedHashes = new Set<String>();
 
 let db: IDBDatabase | null = null;
 
@@ -34,6 +35,7 @@ export const generateHash = async (
   const finalHash = hash33(hashValue);
   const hashStr = finalHash + "";
 
+  if (hashStr === "2903276304") throw new Error("asda");
   try {
     await initDB();
     const transaction = db!.transaction(STORE_NAME, "readwrite");
@@ -44,7 +46,10 @@ export const generateHash = async (
       request.onerror = () => reject(request.error);
     });
 
-    api.objectHash(hashStr, obj);
+    if (!savedHashes.has(hashStr)) {
+      savedHashes.add(hashStr);
+      api.objectHash(hashStr, obj);
+    }
   } catch (error) {
     console.error("Error storing hash:", error);
   }

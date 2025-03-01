@@ -19,10 +19,10 @@ export class User extends Model<PrismaUser> {
     });
   }
 
-  title(data: Partial<PrismaUser>): string {
-    return data["username"] ? String(data["username"]) : "";
-  }
   titleColumns = ["username"];
+  title(data: Partial<PrismaUser>): string {
+    return `${data.username}`;
+  }
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {
     return Object.keys(this.state.config.columns);
@@ -52,32 +52,32 @@ const columns: Record<string, ColumnConfig> = {
   },
   password_hash: {
     type: "string",
-    label: "Password_hash",
+    label: "Password Hash",
     required: true,
   },
   verification_token: {
     type: "string",
-    label: "Verification_token",
+    label: "Verification Token",
     required: false,
   },
   email_verified_at: {
     type: "date",
-    label: "Email_verified_at",
+    label: "Email Verified At",
     required: false,
   },
   reset_token: {
     type: "string",
-    label: "Reset_token",
+    label: "Reset Token",
     required: false,
   },
   reset_token_expires: {
     type: "date",
-    label: "Reset_token_expires",
+    label: "Reset Token Expires At",
     required: false,
   },
   id_role: {
     type: "string",
-    label: "Id_role",
+    label: "Role ID",
     required: false,
   },
 };
@@ -88,8 +88,8 @@ const relations: Record<string, RelationConfig> = {
     model: "Role",
     type: "belongsTo",
     prismaField: "role",
-    fromColumn: "id",
-    toColumn: "id_role",
+    fromColumn: "id_role",
+    toColumn: "id",
     label: "Role",
   },
 };

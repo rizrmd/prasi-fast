@@ -16,8 +16,9 @@ export const useModelList = ({
   model: ReturnType<typeof useModel>;
   variant: string;
 }) => {
-  const { currentFullPath } = useRouter();
+  const { currentFullPath, params } = useRouter();
   const list = useLocal<ModelTableState>({
+    name: "",
     available: false,
     loading: false,
     filtering: false,
@@ -111,11 +112,16 @@ export const useModelList = ({
       list.parentFilter = undefined;
       list.result = null;
       list.unfilteredResult = null;
-      list.columns = [];
-      list.uniqueValues = {};
+
+      console.log(list.name, params.name);
+      if (list.name !== params.name) {
+        list.columns = [];
+        list.uniqueValues = {};
+        list.loading = true;
+        list.filtering = false;
+        list.name = params.name;
+      }
       list.loadingUniqueValues = {};
-      list.filtering = false;
-      list.loading = true;
     };
 
     // Clear state first

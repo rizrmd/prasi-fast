@@ -63,12 +63,14 @@ export const RecursiveFields: FC<{
 
   if ("rel" in fields) {
     let relName = typeof fields.rel === "string" ? fields.rel : "";
+    let label = model.config.relations[relName].label || "-";
     return (
-      <Label label={model.config.relations[relName].label}>
+      <Label label={label}>
         <FieldRelation
-          model={model}
+          rootModel={model}
           field={fields}
           writer={writer}
+          label={label}
           onChange={({ col, value }) => {
             onChange({ col, value });
           }}

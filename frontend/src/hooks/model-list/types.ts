@@ -16,6 +16,7 @@ export type ParentFilter = {
 };
 
 export type ModelTableState = {
+  name: string;
   available: boolean;
   loading: boolean;
   filtering: boolean;
