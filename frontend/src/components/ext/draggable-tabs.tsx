@@ -42,13 +42,13 @@ interface DraggableTabProps {
   tab: Tab;
   tabLength: number;
   onClose: () => void;
+  onSelect: (value: string) => void;
   onPin?: () => void;
   onUnpin?: () => void;
   onCloseOthers?: () => void;
   onCloseRight?: () => void;
   isDragging?: boolean;
   closable?: boolean;
-  onSelect?: () => void;
 }
 
 const restrictToHorizontalAxis: Modifier = ({ transform }) => {
@@ -65,15 +65,16 @@ const DraggableTab = ({
   tab,
   tabLength,
   onClose,
+  onSelect,
   onPin,
   onUnpin,
   onCloseOthers,
   onCloseRight,
   isDragging,
-  onSelect,
 }: DraggableTabProps) => {
   const [rightClick, setRightClick] = React.useState(false);
   const [closing, setClosing] = React.useState(false);
+  const [wasDragged, setWasDragged] = React.useState(false);
   const {
     attributes,
     listeners,
@@ -104,8 +105,21 @@ const DraggableTab = ({
     zIndex: isDragging ? 1 : 0,
   };
 
+  React.useEffect(() => {
+    if (isSortableNodeDragging) {
+      setWasDragged(true);
+    }
+  }, [isSortableNodeDragging]);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
+    setWasDragged(false);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!wasDragged) {
+      onSelect(tab.id);
+    }
   };
 
   return (
@@ -117,7 +131,6 @@ const DraggableTab = ({
         `relative cursor-pointer select-none group flex items-center `,
         isDragging
           ? css`
-              pointer-events: none;
               border: 1px solid #8ec6ff !important;
               background: #eff6ff !important;
               border-bottom: 0 !important;
@@ -125,7 +138,7 @@ const DraggableTab = ({
           : ""
       )}
       onPointerDown={handlePointerDown}
-      onPointerUp={onSelect}
+      onPointerUp={handlePointerUp}
       {...attributes}
       {...(rightClick ? {} : listeners)}
     >
@@ -157,7 +170,7 @@ const DraggableTab = ({
                   onClose();
                 }}
                 className={cn(
-                  "p-[2px] ml-1 -mr-2 rounded-full cursor-pointer close-tab",
+                  "p-[2px] ml-1 -mr-2 rounded-full cursor-pointer",
                   closing ? "bg-slate-100" : "hover:bg-slate-300"
                 )}
               >
@@ -171,20 +184,20 @@ const DraggableTab = ({
             e.preventDefault();
           }}
         >
-          <ContextMenuItem onPointerDown={onClose}>Close Tab</ContextMenuItem>
+          <ContextMenuItem onClick={onClose}>Close Tab</ContextMenuItem>
           {onCloseOthers && (
-            <ContextMenuItem onPointerDown={onCloseOthers}>
+            <ContextMenuItem onClick={onCloseOthers}>
               Close Other Tabs
             </ContextMenuItem>
           )}
           {onCloseRight && (
-            <ContextMenuItem onPointerDown={onCloseRight}>
+            <ContextMenuItem onClick={onCloseRight}>
               Close Tabs to the Right
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
           {!tab.pinned && onPin && (
-            <ContextMenuItem onPointerDown={onPin}>
+            <ContextMenuItem onClick={onPin}>
               <Pin size={14} className="mr-2" />
               Pin Tab
             </ContextMenuItem>
@@ -219,21 +232,6 @@ export const DraggableTabs = ({
   className,
 }: DraggableTabsProps) => {
   const [draggedTab, setDraggedTab] = React.useState<Tab | null>(null);
-
-  // Single declaration of activeTabIdRef
-  const activeTabIdRef = React.useRef<string | null>(
-    tabs[activeIndex]?.id || null
-  );
-
-  // Add a flag to track when a tab is being closed
-  const [isClosingTab, setIsClosingTab] = React.useState(false);
-
-  // Update activeTabIdRef when activeIndex changes
-  React.useEffect(() => {
-    if (tabs[activeIndex]) {
-      activeTabIdRef.current = tabs[activeIndex].id;
-    }
-  }, [activeIndex, tabs]);
 
   const handleCloseOthers = (tabId: string) => {
     const newTabs = tabs.filter((t) => t.id === tabId || t.pinned);
@@ -286,7 +284,6 @@ export const DraggableTabs = ({
       const newIndex = tabs.findIndex((tab) => tab.id === over.id);
       const newTabs = arrayMove(tabs, oldIndex, newIndex);
       onTabsReorder(newTabs);
-      onTabChange(newIndex);
     }
     setDraggedTab(null);
   };
@@ -301,29 +298,24 @@ export const DraggableTabs = ({
     }),
   };
 
-  // Handle tab closing with debounce to prevent unwanted tab change events
-  const handleTabClose = (tabId: string) => {
-    setIsClosingTab(true);
-    onTabClose(tabId);
-
-    // Reset the closing flag after a short delay
-    setTimeout(() => {
-      setIsClosingTab(false);
-    }, 100);
+  // Helper function to convert tab id to index
+  const getTabIndexById = (id: string): number => {
+    return tabs.findIndex((tab) => tab.id === id);
   };
 
   return (
-    <Tabs value={tabs[activeIndex]?.id}>
+    <Tabs
+      value={tabs[activeIndex]?.id}
+      onValueChange={(value) => {
+        // Convert the selected tab ID to its index
+        const index = getTabIndexById(value);
+        onTabChange(index);
+      }}
+    >
       <TabsList
         className={cn(
           "flex w-full mx-auto overflow-x-auto overflow-y-hidden rounded-none",
-          className,
-          draggedTab &&
-            css`
-              .close-tab {
-                pointer-events: none;
-              }
-            `
+          className
         )}
       >
         <DndContext
@@ -348,34 +340,36 @@ export const DraggableTabs = ({
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
               })
-              .map((tab, idx) => (
+              .map((tab) => (
                 <DraggableTab
                   key={tab.id}
                   tabLength={tabs.length}
                   tab={tab}
-                  onClose={() => {
-                    handleTabClose(tab.id);
+                  onClose={() => onTabClose(tab.id)}
+                  onSelect={(id) => {
+                    const index = getTabIndexById(id);
+                    onTabChange(index);
                   }}
                   onCloseOthers={() => handleCloseOthers(tab.id)}
                   onCloseRight={() => handleCloseRight(tab.id)}
                   onPin={() => handlePinTab(tab.id)}
                   onUnpin={() => handleUnpinTab(tab.id)}
-                  onSelect={() => {
-                    onTabChange(idx);
-                  }}
                 />
               ))}
           </SortableContext>
           <DragOverlay
             dropAnimation={dropAnimation}
             modifiers={[restrictToHorizontalAxis]}
-            className="cursor-pointer pointer-events-none"
           >
             {draggedTab ? (
               <DraggableTab
                 tab={draggedTab}
                 tabLength={tabs.length}
-                onClose={() => handleTabClose(draggedTab.id)}
+                onClose={() => onTabClose(draggedTab.id)}
+                onSelect={(id) => {
+                  const index = getTabIndexById(id);
+                  onTabChange(index);
+                }}
                 isDragging={true}
               />
             ) : null}

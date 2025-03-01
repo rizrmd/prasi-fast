@@ -12,7 +12,7 @@ type RelValue<M extends ModelName> =
   | { col: GetColumnsFromModel<M> }
   | { [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>> };
 
-type RelObject<M extends ModelName> = {
+export type RelObject<M extends ModelName> = {
   [K in Models[M]["relations"][number]]?: RelValue<GetModelFromRel<M, K>>;
 };
 

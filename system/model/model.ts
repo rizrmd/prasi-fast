@@ -59,6 +59,8 @@ export class Model<T extends BaseRecord = any> {
     return this.state.config;
   }
 
+  titleColumns = [] as string[];
+
   private async initialize() {
     if (this.initialized) return;
 

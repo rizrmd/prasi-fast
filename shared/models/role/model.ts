@@ -22,6 +22,7 @@ export class Role extends Model<PrismaRole> {
   title(data: Partial<PrismaRole>): string {
     return data?.["name"] ? String(data["name"]) : "";
   }
+  titleColumns = ["name"];
 
   get columns(): (keyof typeof columns | DefaultColumns)[] {
     return Object.keys(this.state.config.columns);
@@ -52,6 +53,7 @@ const relations: Record<string, RelationConfig> = {
     model: "User",
     type: "hasMany",
     prismaField: "user",
+    fromColumn: "id_role",
     toColumn: "id",
     label: "User",
   },

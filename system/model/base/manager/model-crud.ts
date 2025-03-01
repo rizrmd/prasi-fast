@@ -296,7 +296,7 @@ export abstract class ModelCrud<
       );
 
       // Cache the query results with pagination info
-      await this.state.modelCache.cacheQueryResults(
+      this.state.modelCache.cacheQueryResults(
         this.state.config.modelName,
         cacheParams,
         dbRecords.map((record) => record[this.config.primaryKey]),
@@ -387,7 +387,11 @@ export abstract class ModelCrud<
     return record;
   }
 
-  async update(opt: { data: Partial<T>; where: any; select: any }): Promise<T> {
+  async update(opt: {
+    data: Partial<T>;
+    where: any;
+    select?: any;
+  }): Promise<T> {
     const shouldCache = this.shouldUseCache();
 
     const { select, data, where } = opt;
