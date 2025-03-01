@@ -115,21 +115,13 @@ export class Model<T extends BaseRecord = any> {
 
     this.crudManager = new ConcreteCrud(this);
 
-    // Share state with all managers
-
-    // Share state with managers
-    const managers = [
-      this.crudManager,
-      this.cacheManager,
-      this.queryManager,
-      this.relationsManager,
-    ];
-
-    managers.forEach((manager) => {
-      Object.defineProperty(manager, "state", {
+    // No need to redefine state for managers that already have it
+    // Only define state for crudManager if it's not already defined
+    if (!Object.getOwnPropertyDescriptor(this.crudManager, 'state')) {
+      Object.defineProperty(this.crudManager, "state", {
         get: () => this.state,
       });
-    });
+    }
   }
 
   private async initializePrisma(): Promise<void> {

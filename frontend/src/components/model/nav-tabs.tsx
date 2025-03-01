@@ -3,7 +3,7 @@ import * as Models from "shared/models";
 import { cn } from "@/lib/utils";
 import cuid from "@bugsnag/cuid";
 import { css } from "goober";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, useCallback, useRef } from "react";
 import { DraggableTabs } from "../ext/draggable-tabs";
 import { ModelName } from "shared/types";
 import { nav } from "./nav/types";
@@ -14,14 +14,38 @@ import {
   saveNavState,
 } from "./nav/utils";
 
+// Debounce function to prevent excessive operations
+const debounce = <T extends (...args: any[]) => any>(fn: T, ms = 300) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return function(this: any, ...args: Parameters<T>) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), ms);
+  };
+};
+
 export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
   const render = useState({})[1];
   const { currentFullPath } = useRouter();
   const currentPath = currentFullPath;
-  nav.render = () => render({});
+  const isNavigating = useRef(false);
+  
+  // Replace direct assignment with a function to avoid race conditions
+  nav.render = useCallback(() => {
+    if (!isNavigating.current) {
+      render({});
+    }
+  }, [render]);
+
+  // Debounced version of saveNavState to prevent excessive localStorage writes
+  const debouncedSaveNavState = useCallback(
+    debounce(() => {
+      saveNavState();
+    }, 200),
+    []
+  );
 
   useEffect(() => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (nav.show && nav.tabs.length <= 1) {
         nav.show = false;
         nav.render();
@@ -30,6 +54,8 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
         nav.render();
       }
     }, 100);
+    
+    return () => clearTimeout(timer);
   }, [nav.tabs.length]);
 
   // Handle URL changes after initial load
@@ -38,14 +64,17 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
 
     const currentTab = nav.tabs[nav.activeIdx];
     if (currentTab && !currentTab.label.includes("⚠")) {
+      // Prevent updating the tab if we're already on the correct URL
+      if (currentTab.url === currentPath) return;
+      
       loadLabel(currentPath).then((label) => {
         currentTab.url = currentPath;
         currentTab.label = label || modelName;
-        saveNavState();
+        debouncedSaveNavState();
         nav.render();
       });
     }
-  }, [currentPath, modelName]);
+  }, [currentPath, modelName, debouncedSaveNavState]);
 
   // Load saved tabs on component mount - only run once
   useEffect(() => {
@@ -100,9 +129,27 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
       nav.activeIdx = 0;
     }
 
-    saveNavState();
+    debouncedSaveNavState();
     nav.render();
-  }, []);
+  }, [currentPath, modelName, debouncedSaveNavState]);
+
+  // Optimized tab change handler
+  const handleTabChange = useCallback((index: number) => {
+    if (nav.activeIdx === index) return; // Skip if already on this tab
+    
+    isNavigating.current = true;
+    nav.activeIdx = index;
+    debouncedSaveNavState();
+    
+    const targetUrl = nav.tabs[index].url;
+    navigate(targetUrl);
+    
+    // Reset the navigating flag after navigation completes
+    setTimeout(() => {
+      isNavigating.current = false;
+      nav.render();
+    }, 100);
+  }, [debouncedSaveNavState]);
 
   return (
     <div className="flex relative items-stretch flex-col overflow-hidden">
@@ -135,12 +182,7 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
             }
           `
         )}
-        onTabChange={(index) => {
-          nav.activeIdx = index;
-          saveNavState();
-          navigate(nav.tabs[index].url);
-          nav.render();
-        }}
+        onTabChange={handleTabChange}
         onTabClose={(tabId) => {
           const tabIndex = getTabIndexById(tabId);
           if (tabIndex !== -1) {
@@ -158,13 +200,13 @@ export const ModelNavTabs: FC<{ modelName: ModelName }> = ({ modelName }) => {
               navigate(nav.tabs[nav.activeIdx].url);
             }
 
-            saveNavState();
+            debouncedSaveNavState();
             nav.render();
           }
         }}
         onTabsReorder={(tabs) => {
           nav.tabs = tabs;
-          saveNavState();
+          debouncedSaveNavState();
           nav.render();
         }}
       />

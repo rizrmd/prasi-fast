@@ -184,7 +184,6 @@ export const DetailForm: FC<{
             }}
           />
         )}
-        {JSON.stringify(form.data)}
       </div>
     </form>
   );

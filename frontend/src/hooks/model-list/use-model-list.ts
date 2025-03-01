@@ -189,7 +189,6 @@ export const useModelList = ({
       list.unfilteredResult = null;
       list.selectedRows = []; // Clear selected rows when path changes
 
-      console.log(list.name, params.name);
       if (list.name !== params.name) {
         list.columns = [];
         list.uniqueValues = {};

@@ -10,24 +10,29 @@ import { getRelation } from "../../utils/get-relation";
 import { CellAction } from "./cell-action";
 import { CellContent } from "./cell-content";
 import * as models from "shared/models";
+import { Cell } from "@tanstack/react-table";
+import { ColumnMetaData } from "../data-table";
 
 const cell = { popover: "" };
 
 export const DataCell: FC<{
-  modelTable: ReturnType<typeof useModelList>;
-  modelName: ModelName;
-  columnName: string;
-  type: string;
-  value?: any;
-  rowId: string;
   colIdx?: number;
+  modelTable: ReturnType<typeof useModelList>;
+  cell: Cell<any, unknown>;
+  rowId: string;
+  row: any;
 }> = (props) => {
-  const { value, modelName, columnName, rowId, colIdx, type, modelTable } =
-    props;
-  const render = useState({})[1];
-  const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
   const [relationTitle, setRelationTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const meta = props.cell.column.columnDef.meta as ColumnMetaData | undefined;
+  if (!meta) return null;
+  const { rowId, row, modelTable } = props;
+  const { type, columnName, modelName } = meta;
+  const path = meta.accessorPath.split(".");
+  const value = getNestedValue(row.original, path);
+  const render = useState({})[1];
+  const cellId = `${modelName}-${columnName}-${rowId}`;
 
   // Function to load relation title for belongsTo and hasOne relations
   const loadRelationTitle = async () => {
@@ -106,7 +111,9 @@ export const DataCell: FC<{
         // For belongsTo and hasOne relations, navigate to the related record
         const rel = getRelation(modelName, columnName);
         if (rel) {
-          openInNewTab(`/model/${rel.relation.model.toLowerCase()}/detail/${value}`);
+          openInNewTab(
+            `/model/${rel.relation.model.toLowerCase()}/detail/${value}`
+          );
           cell.popover = "";
           render({});
           return;
@@ -120,7 +127,10 @@ export const DataCell: FC<{
   const displayValue = (() => {
     if (type === "hasMany") {
       return value;
-    } else if ((type === "belongsTo" || type === "hasOne") && relationTitle !== null) {
+    } else if (
+      (type === "belongsTo" || type === "hasOne") &&
+      relationTitle !== null
+    ) {
       return relationTitle;
     } else {
       return value;
@@ -169,4 +179,24 @@ export const DataCell: FC<{
       </Popover>
     </div>
   );
+};
+
+const getNestedValue = (obj: any, path: string[]): any => {
+  let current = obj;
+  for (const key of path) {
+    if (Array.isArray(current)) {
+      // If current is an array, take first element
+      current = current[0];
+    }
+    if (current && typeof current === "object" && key in current) {
+      current = current[key];
+    } else {
+      return undefined;
+    }
+  }
+  // Handle final value being an array
+  if (Array.isArray(current)) {
+    current = current[0];
+  }
+  return current;
 };

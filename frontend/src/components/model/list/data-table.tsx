@@ -12,18 +12,19 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Checkbox } from "@/components/ui/checkbox";
 import { useModelList } from "@/hooks/model-list/use-model-list";
+import { useLocal } from "@/hooks/use-local";
 import { cn } from "@/lib/utils";
 import { css } from "goober";
 import { ChevronDown } from "lucide-react";
+import { ReactElement, useEffect } from "react";
 import { ModelName } from "shared/types";
 import { LayoutList } from "system/model/layout/types";
 import { AppLoading } from "../../app/app-loading";
 import { WarnFull } from "../../app/warn-full";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataCell } from "./cell/data-cell";
 import { ModelTableHead } from "./head/table-head";
-import { extractHash } from "@/lib/parse-hash";
 
 export type ColumnMetaData = {
   modelName: ModelName;
@@ -31,31 +32,38 @@ export type ColumnMetaData = {
   accessorPath: string;
   type: string;
 };
-
-export function DataTable({
-  status,
-  onRowClick,
-  primaryKey,
-  modelTable,
-  checkbox,
-  onRowSelected,
-}: {
+type DataTableProps = {
   primaryKey: string;
   status: "init" | "loading" | "ready";
   checkbox?: LayoutList<any>["checkbox"];
   onRowClick: (row: any) => void;
   onRowSelected?: (rows: any[]) => void;
   modelTable: ReturnType<typeof useModelList>;
-}) {
-  const result = modelTable.result;
-  const columns = modelTable.columns;
-  const table = useReactTable({
-    data: result?.data || [],
-    columns: checkbox?.enabled
+};
+
+export function DataTable(props: DataTableProps) {
+  const local = useLocal({
+    data: [],
+    columns: [] as any[],
+    pagingInfo: <>-</>,
+  });
+  const onRowSelected = props.onRowSelected;
+  const result = props.modelTable.result;
+  const columns = props.modelTable.columns;
+  useEffect(() => {
+    if (!result) {
+      local.data = [];
+      local.columns = [];
+      local.pagingInfo = <>-</>;
+      local.render();
+      return;
+    }
+    local.data = result.data;
+    local.columns = props.checkbox?.enabled
       ? [
           {
             id: "select",
-            header: ({ table }) => (
+            header: ({ table }: any) => (
               <Checkbox
                 checked={
                   table.getIsAllPageRowsSelected() ||
@@ -64,19 +72,23 @@ export function DataTable({
                 onCheckedChange={(value) => {
                   table.toggleAllPageRowsSelected(!!value);
                   onRowSelected?.(
-                    table.getSelectedRowModel().rows.map((row) => row.original)
+                    table
+                      .getSelectedRowModel()
+                      .rows.map((row: any) => row.original)
                   );
                 }}
                 aria-label="Select all"
               />
             ),
-            cell: ({ row }) => (
+            cell: ({ row, table }: any) => (
               <Checkbox
                 checked={row.getIsSelected()}
                 onCheckedChange={(value) => {
                   row.toggleSelected(!!value);
                   onRowSelected?.(
-                    table.getSelectedRowModel().rows.map((row) => row.original)
+                    table
+                      .getSelectedRowModel()
+                      .rows.map((row: any) => row.original)
                   );
                 }}
                 aria-label="Select row"
@@ -87,11 +99,48 @@ export function DataTable({
           },
           ...columns,
         ]
-      : columns,
+      : columns;
+    local.pagingInfo = (
+      <>
+        <sup>{Math.min(result.total, result.perPage * result.page)}</sup>
+        <div className="px-1">/</div>
+        <sub>{result.total}</sub>
+      </>
+    );
+    local.render();
+  }, [result?.data, columns]);
+
+  return (
+    <InternalDataTable
+      {...props}
+      data={local.data}
+      columns={local.columns}
+      pagingInfo={local.pagingInfo}
+    />
+  );
+}
+
+const InternalDataTable = ({
+  status,
+  onRowClick,
+  data,
+  columns,
+  checkbox,
+  modelTable,
+  pagingInfo,
+  primaryKey,
+}: DataTableProps & {
+  data: any[];
+  columns: any[];
+  pagingInfo: ReactElement;
+}) => {
+  const table = useReactTable({
+    data,
+    columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
-
+  console.log("auo");
   return (
     <div className="rounded-md border bg-white">
       <Table>
@@ -103,7 +152,7 @@ export function DataTable({
                   | undefined
                   | ColumnMetaData;
 
-                if (!meta) {
+                if (!meta)
                   return (
                     <TableHead
                       key={header.id}
@@ -117,7 +166,6 @@ export function DataTable({
                           )}
                     </TableHead>
                   );
-                }
 
                 return (
                   <TableHead
@@ -145,15 +193,7 @@ export function DataTable({
                 );
               })}
               <TableHead className="select-none flex justify-end items-center">
-                {result && (
-                  <>
-                    <sup>
-                      {Math.min(result.total, result.perPage * result.page)}
-                    </sup>
-                    <div className="px-1">/</div>
-                    <sub>{result.total}</sub>
-                  </>
-                )}
+                {pagingInfo}
               </TableHead>
             </TableRow>
           ))}
@@ -179,7 +219,7 @@ export function DataTable({
                 }}
               >
                 {row.getVisibleCells().map((cell, idx) => {
-                  if (idx === 0 && checkbox?.enabled) {
+                  if (cell.column.id === "select") {
                     return (
                       <TableCell key={cell.id} className="w-[30px]">
                         {flexRender(
@@ -194,26 +234,13 @@ export function DataTable({
                       key={cell.id}
                       className={idx === 0 && !checkbox?.enabled ? "pl-3" : ""}
                     >
-                      {(() => {
-                        const meta = cell.column.columnDef.meta as
-                          | ColumnMetaData
-                          | undefined;
-                        if (!meta) return null;
-                        const path = meta.accessorPath.split(".");
-                        const value = getNestedValue(row.original, path);
-
-                        return (
-                          <DataCell
-                            colIdx={idx}
-                            modelTable={modelTable}
-                            modelName={meta.modelName ?? row.original.type}
-                            columnName={meta.columnName ?? cell.column.id}
-                            type={meta.type ?? ""}
-                            value={value}
-                            rowId={row.original[primaryKey]}
-                          />
-                        );
-                      })()}
+                      <DataCell
+                        colIdx={idx}
+                        modelTable={modelTable}
+                        cell={cell}
+                        row={row}
+                        rowId={row.original[primaryKey]}
+                      />
                     </TableCell>
                   );
                 })}
@@ -247,24 +274,4 @@ export function DataTable({
       </Table>
     </div>
   );
-}
-
-const getNestedValue = (obj: any, path: string[]): any => {
-  let current = obj;
-  for (const key of path) {
-    if (Array.isArray(current)) {
-      // If current is an array, take first element
-      current = current[0];
-    }
-    if (current && typeof current === "object" && key in current) {
-      current = current[key];
-    } else {
-      return undefined;
-    }
-  }
-  // Handle final value being an array
-  if (Array.isArray(current)) {
-    current = current[0];
-  }
-  return current;
 };
