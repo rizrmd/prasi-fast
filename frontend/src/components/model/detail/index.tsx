@@ -25,7 +25,7 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
     <>
       <div className="rounded-md border bg-white">
         <MDetailTabs model={model.instance} detail={detail}>
-          {({ activeTab, writer }) => {
+          {({ activeTab, writer, reader }) => {
             if (
               activeTab.type === "default" &&
               model.instance &&
@@ -35,7 +35,7 @@ export const MDetail: FC<{ modelName: ModelName }> = ({ modelName }) => {
                 <DetailForm
                   model={model.instance}
                   detail={detail}
-                  unsavedData={writer.unsavedTabs[writer.idx]}
+                  unsavedData={reader.unsavedTabs[reader.idx]}
                   onChanged={(data) => {
                     writer.unsavedTabs[writer.idx] = data;
                   }}

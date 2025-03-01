@@ -71,9 +71,8 @@ export const DetailForm: FC<{
       unsavedData &&
       unsavedData[model.config.primaryKey] === params.id
     ) {
-      const snapshotData = snapshot(unsavedData);
       writer.data = structuredClone(data);
-      for (const [k, v] of Object.entries(snapshotData)) {
+      for (const [k, v] of Object.entries(unsavedData)) {
         writer.data[k] = v;
       }
       resetError();

@@ -12,16 +12,15 @@ export const Field: FC<{
   onChange: (value: any) => void;
 }> = ({ model, col, writer, onChange }) => {
   const form = useReader(writer);
-  const local = useLocal({ ready: false });
+  const local = useLocal({ ready: false, value: form.data[col] });
   useEffect(() => {
-    setTimeout(() => {
-      local.ready = true;
+    if (local.value !== form.data[col]) {
+      local.value = form.data[col];
       local.render();
-    }, 100);
-  }, []);
+    }
+  }, [form.data[col]]);
 
   const config = model.config.columns[col];
-  const value = form.data[col];
   return (
     <label className="field flex-1 flex flex-col gap-1 text-sm">
       <div className="font-medium">{config.label}</div>
@@ -29,11 +28,12 @@ export const Field: FC<{
         asDiv={form.resetting}
         type="text"
         className="bg-white"
-        {...(!local.ready
-          ? { value: value || "" }
-          : { defaultValue: value || "" })}
-        onInput={(e) => {
+        value={local.value || ""}
+        onChange={(e) => {
           const value = (e.target as HTMLInputElement).value;
+          local.value = value;
+          local.render();
+          
           writer.data[col] = value;
           writer.unsaved = true;
           onChange(value);

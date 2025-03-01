@@ -353,10 +353,11 @@ export abstract class ModelCrud<
     return deletedRecord;
   }
 
-  async create(
-    data: Partial<T>,
-    select?: Record<string, any> | string[]
-  ): Promise<T> {
+  async create(opt: {
+    data: Partial<T>;
+    select?: Record<string, any> | string[];
+  }): Promise<T> {
+    const { select, data } = opt;
     const shouldCache = this.shouldUseCache();
 
     let selectFields = select;
@@ -386,13 +387,10 @@ export abstract class ModelCrud<
     return record;
   }
 
-  async update(
-    id: string,
-    data: Partial<T>,
-    select?: Record<string, any> | string[]
-  ): Promise<T> {
+  async update(opt: { data: Partial<T>; where: any; select: any }): Promise<T> {
     const shouldCache = this.shouldUseCache();
 
+    const { select, data, where } = opt;
     let selectFields = select;
     if (Array.isArray(select)) {
       selectFields = select.reduce(
@@ -409,14 +407,14 @@ export abstract class ModelCrud<
       : undefined;
 
     const updatedRecord = (await this.prismaTable.update({
-      where: { id },
-      data,
       select: enhancedSelect,
+      data,
+      where,
     })) as T;
 
     if (shouldCache) {
       // Invalidate old cache
-      this.invalidateCache(id);
+      this.invalidateCache(where.id);
       // Cache the updated record
       await this.cacheRecordAndRelations(updatedRecord as ModelRecord, select);
     }

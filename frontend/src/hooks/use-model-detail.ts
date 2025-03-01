@@ -111,6 +111,7 @@ export const useModelDetail = ({
             newId = (res as any)[pk];
           }
         }
+        detail.data = data;
         return { success: true, newId };
       } catch (msg: any) {
         console.error("Error saving record:", msg.error);

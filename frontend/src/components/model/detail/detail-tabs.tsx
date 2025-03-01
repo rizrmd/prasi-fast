@@ -19,6 +19,7 @@ export const MDetailTabs: FC<{
   children: (arg: {
     activeTab: DetailTab<ModelName>;
     writer: TabWriter;
+    reader: TabWriter;
   }) => ReactNode;
 }> = ({ children, detail }) => {
   const writer = useWriter({
@@ -43,6 +44,7 @@ export const MDetailTabs: FC<{
         {children({
           activeTab: detail.current?.tabs[reader.idx],
           writer,
+          reader,
         })}
       </div>
     </div>
