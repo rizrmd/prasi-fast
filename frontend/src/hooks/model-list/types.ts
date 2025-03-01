@@ -33,6 +33,9 @@ export type ModelTableState = {
   loadingUniqueValues: Record<string, boolean>;
   debouncedFetchData: null | ((opt?: { filtering: boolean }) => void);
   render: () => void;
+  bulkDelete: (ids: string[] | number[]) => Promise<void>;
+  massUpdate: (ids: string[] | number[], data: Record<string, any>) => Promise<void>;
+  selectedRows: (string | number)[];
 };
 
 export interface ModelRow {

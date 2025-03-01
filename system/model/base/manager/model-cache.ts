@@ -61,6 +61,8 @@ export interface CacheConfig {
   enabled: boolean;
   ttl: number; // Time to live in seconds
   provider: CacheProvider;
+  queryMaxAge?: number; // Maximum age for query caches before verification (in seconds)
+  recordMaxAge?: number; // Maximum age for record caches before verification (in seconds)
 }
 
 /**
@@ -70,6 +72,8 @@ export const DEFAULT_CACHE_CONFIG: CacheConfig = {
   enabled: true,
   ttl: 300, // 5 minutes
   provider: new InMemoryCache(),
+  queryMaxAge: 30, // 30 seconds for queries to be considered fresh without verification
+  recordMaxAge: 60, // 60 seconds for records to be considered fresh without verification
 };
 
 /**
@@ -104,12 +108,30 @@ export class CacheManager {
 
   async getQuery<T>(params: any): Promise<string[] | null> {
     if (!this.config.enabled) return null;
-    return this.config.provider.get<string[]>(this.getQueryKey(params));
+    const result = await this.config.provider.get<{ ids: string[], meta?: any, timestamp: number }>(this.getQueryKey(params));
+    return result ? result.ids : null;
   }
 
-  async setQuery(params: any, recordIds: string[]): Promise<void> {
+  async getQueryWithMeta<T>(params: any): Promise<{ ids: string[], meta: any, timestamp: number, fresh: boolean } | null> {
+    if (!this.config.enabled) return null;
+    const result = await this.config.provider.get<{ ids: string[], meta: any, timestamp: number }>(this.getQueryKey(params));
+    if (!result) return null;
+    
+    // Determine if the cache is still fresh based on queryMaxAge
+    const ageInSeconds = (Date.now() - result.timestamp) / 1000;
+    const fresh = ageInSeconds < (this.config.queryMaxAge || DEFAULT_CACHE_CONFIG.queryMaxAge!);
+    
+    return { ...result, fresh };
+  }
+
+  async setQuery(params: any, recordIds: string[], meta?: any): Promise<void> {
     if (!this.config.enabled) return;
-    await this.config.provider.set(this.getQueryKey(params), recordIds, this.config.ttl);
+    const cacheData = { 
+      ids: recordIds, 
+      ...(meta ? { meta } : {}),
+      timestamp: Date.now()
+    };
+    await this.config.provider.set(this.getQueryKey(params), cacheData, this.config.ttl);
   }
 
   async invalidateRecord(id: string): Promise<void> {
@@ -122,6 +144,19 @@ export class CacheManager {
     await this.config.provider.del(this.getQueryKey(params));
   }
 
+  /**
+   * Invalidates all query caches for this model, preserving individual record caches.
+   * This is more efficient than invalidating all caches when you only need to refresh query results.
+   */
+  async invalidateAllQueries(): Promise<void> {
+    if (!this.config.enabled) return;
+    // Use pattern matching to only clear query keys
+    await this.config.provider.clear(`${this.modelName}:query:`);
+  }
+
+  /**
+   * Invalidates all caches (both records and queries) for this model.
+   */
   async invalidateAll(): Promise<void> {
     if (!this.config.enabled) return;
     await this.config.provider.clear(`${this.modelName}:`);

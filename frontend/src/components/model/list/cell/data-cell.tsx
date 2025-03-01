@@ -1,7 +1,7 @@
 import { useModelList } from "@/hooks/model-list/use-model-list";
 import { composeHash } from "@/lib/parse-hash";
 import { PopoverTrigger } from "@radix-ui/react-popover";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { ModelName } from "shared/types";
 import { generateHash } from "system/utils/object-hash";
 import { Popover, PopoverContent } from "../../../ui/popover";
@@ -9,6 +9,7 @@ import { openInNewTab } from "../../nav-tabs";
 import { getRelation } from "../../utils/get-relation";
 import { CellAction } from "./cell-action";
 import { CellContent } from "./cell-content";
+import * as models from "shared/models";
 
 const cell = { popover: "" };
 
@@ -25,6 +26,41 @@ export const DataCell: FC<{
     props;
   const render = useState({})[1];
   const cellId = `${modelName}-${columnName}-${rowId}-${colIdx}`;
+  const [relationTitle, setRelationTitle] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Function to load relation title for belongsTo and hasOne relations
+  const loadRelationTitle = async () => {
+    if (type !== "belongsTo" && type !== "hasOne") return;
+    if (!value) return;
+
+    setLoading(true);
+    try {
+      const rel = getRelation(modelName, columnName);
+      if (rel) {
+        const relModel = rel.model;
+        // Fetch the related record
+        const relatedRecord = await relModel.findFirst(value);
+        if (relatedRecord && typeof relModel.title === "function") {
+          // Use the model's title function to get a display title
+          const title = relModel.title(relatedRecord);
+          setRelationTitle(title);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load relation title:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load relation title when component mounts or value changes
+  useEffect(() => {
+    if ((type === "belongsTo" || type === "hasOne") && value) {
+      loadRelationTitle();
+    }
+  }, [value, type, columnName, modelName]);
+
   const select = async (action: "filter" | "new-tab" | "edit") => {
     cell.popover = "";
     render({});
@@ -66,10 +102,30 @@ export const DataCell: FC<{
         cell.popover = "";
         render({});
         return;
+      } else if ((type === "belongsTo" || type === "hasOne") && value) {
+        // For belongsTo and hasOne relations, navigate to the related record
+        const rel = getRelation(modelName, columnName);
+        if (rel) {
+          openInNewTab(`/model/${rel.relation.model.toLowerCase()}/detail/${value}`);
+          cell.popover = "";
+          render({});
+          return;
+        }
       }
       openInNewTab(`/model/${modelName.toLowerCase()}/detail/${rowId}`);
     }
   };
+
+  // Determine the display value based on relation type
+  const displayValue = (() => {
+    if (type === "hasMany") {
+      return value;
+    } else if ((type === "belongsTo" || type === "hasOne") && relationTitle !== null) {
+      return relationTitle;
+    } else {
+      return value;
+    }
+  })();
 
   return (
     <div className="flex flex-1">
@@ -96,8 +152,9 @@ export const DataCell: FC<{
         >
           <CellContent
             type={type}
-            value={value}
+            value={displayValue}
             isActive={cell.popover === cellId}
+            loading={loading}
           />
         </PopoverTrigger>
         <PopoverContent className="text-sm p-0 min-w-[100px]">

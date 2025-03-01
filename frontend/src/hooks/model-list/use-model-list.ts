@@ -34,6 +34,10 @@ export const useModelList = ({
     loadingUniqueValues: {},
     debouncedFetchData: null,
     render: () => {},
+    // Add new methods for bulk operations
+    bulkDelete: async (ids: string[] | number[]) => {},
+    massUpdate: async (ids: string[] | number[], data: Record<string, any>) => {},
+    selectedRows: [] as (string | number)[],
   });
 
   // Function to load state from hash
@@ -96,6 +100,77 @@ export const useModelList = ({
 
     list.fetchData = createFetchData(model, list);
     list.fetchUniqueValues = createFetchUniqueValues(model, list);
+    
+    // Implement bulk delete method
+    list.bulkDelete = async (ids: string[] | number[]) => {
+      if (!model.instance || ids.length === 0) return;
+      
+      list.loading = true;
+      list.render();
+      
+      try {
+        // Get the primary key field from the model config
+        const primaryKey = model.instance.config.primaryKey || 'id';
+        
+        // Create a where clause for the bulk delete
+        const where = {
+          [primaryKey]: {
+            in: ids
+          }
+        };
+        
+        // Execute the delete operation
+        await model.instance.deleteMany({ where });
+        
+        // Clear selected rows after successful deletion
+        list.selectedRows = [];
+        
+        // Refresh the data
+        await list.fetchData();
+        
+      } catch (error) {
+        console.error("Error performing bulk delete:", error);
+      } finally {
+        list.loading = false;
+        list.render();
+      }
+    };
+    
+    // Implement mass update method
+    list.massUpdate = async (ids: string[] | number[], data: Record<string, any>) => {
+      if (!model.instance || ids.length === 0 || Object.keys(data).length === 0) return;
+      
+      list.loading = true;
+      list.render();
+      
+      try {
+        // Get the primary key field from the model config
+        const primaryKey = model.instance.config.primaryKey || 'id';
+        
+        // Create a where clause for the mass update
+        const where = {
+          [primaryKey]: {
+            in: ids
+          }
+        };
+        
+        // Execute the update operation
+        await model.instance.updateMany({
+          where,
+          data
+        });
+        
+        // Refresh the data
+        await list.fetchData();
+        
+      } catch (error) {
+        console.error("Error performing mass update:", error);
+      } finally {
+        list.loading = false;
+        list.render();
+      }
+    };
+    
     list.fetchData();
 
     return () => {
@@ -112,6 +187,7 @@ export const useModelList = ({
       list.parentFilter = undefined;
       list.result = null;
       list.unfilteredResult = null;
+      list.selectedRows = []; // Clear selected rows when path changes
 
       console.log(list.name, params.name);
       if (list.name !== params.name) {
@@ -155,9 +231,7 @@ export const useModelList = ({
         ...data,
         data: data.data.filter((row: any) => {
           // Filter based on parent relationship
-          const value = list
-            .parentFilter!.columnName.split(".")
-            .reduce((obj: any, key: string) => obj?.[key], row);
+          const value = getNestedValue(row, list.parentFilter!.columnName.split("."));
           return value === list.parentFilter!.rowId;
         }),
       };
@@ -173,9 +247,11 @@ export const useModelList = ({
             Object.entries(list.filterBy).every(([column, filterValues]) => {
               if (!Array.isArray(filterValues) || filterValues.length === 0)
                 return true;
-              const value = column
-                .split(".")
-                .reduce((obj, key) => obj?.[key], row);
+              
+              // Get the value using the path
+              const value = getNestedValue(row, column.split("."));
+              
+              // Check if the value is in the filter values
               return filterValues.includes(value);
             })
           ),
@@ -184,10 +260,27 @@ export const useModelList = ({
 
     // Update result
     list.result = filtered;
+    list.filtering = false;
     list.render();
   }, [list.filterBy, list.parentFilter, list.unfilteredResult]);
 
   return list;
+};
+
+// Helper function to safely get nested values from an object
+const getNestedValue = (obj: any, path: string[]): any => {
+  if (!obj || path.length === 0) return undefined;
+  
+  let current = obj;
+  
+  for (const key of path) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  
+  return current;
 };
 
 const saveStateToHash = async (filterBy: any, sortBy: any) => {

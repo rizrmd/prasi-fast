@@ -33,18 +33,6 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
 }) => {
   const sortBy = modelTable?.sortBy[columnName];
 
-  if (isRelation) {
-    return (
-      <Command>
-        <CommandList className={cn()}>
-          <CommandItem className="flex items-center justify-center">
-            Tidak ada aksi untuk kolom ini.
-          </CommandItem>
-        </CommandList>
-      </Command>
-    );
-  }
-
   const styles = css`
     .button {
       min-height: 0;

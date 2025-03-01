@@ -1,7 +1,7 @@
 import type { PrismaClient, User } from "@prisma/client";
 import type { ModelConfig, PaginationParams, PaginationResult } from "../types";
 import { ModelCrud } from "./base/manager/model-crud";
-import { ModelCacheManager } from "./base/manager/model-cache";
+import { CacheManager } from "./base/manager/model-cache";
 import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
 import { prismaFrontendProxy } from "./model-client";
@@ -28,14 +28,20 @@ export interface ModelState<T extends BaseRecord> {
 
 export class Model<T extends BaseRecord = any> {
   protected state: ModelState<T> = {
-    prisma: undefined as unknown as PrismaClient,
-    config: undefined as unknown as ModelConfig,
+    prisma: null as unknown as PrismaClient,
+    config: {
+      modelName: "",
+      tableName: "",
+      columns: {},
+      primaryKey: "id",
+      relations: {},
+    },
     data: null,
     mode: "server",
     currentUser: null,
     updateCallbacks: new Set(),
   };
-  private cacheManager!: ModelCacheManager<T>;
+  private cacheManager!: CacheManager;
   private queryManager!: ModelQuery<T>;
   private relationsManager!: ModelRelations<T>;
   private crudManager!: ModelCrud<T>;
@@ -60,26 +66,17 @@ export class Model<T extends BaseRecord = any> {
 
   private async initialize() {
     if (this.initialized) return;
-
-    // Initialize basic config for frontend cache first
-    if (typeof window !== "undefined") {
-      this.state.config = {
-        ...this.state.config,
-        cache: { ttl: 60 },
-      };
-    }
-
     await this.initializePrisma();
     await this.setupManagers();
     this.initialized = true;
   }
 
   private async ensureInitialized() {
-    await this.initPromise;
+    if (!this.initialized) await this.initPromise;
   }
 
   private async setupManagers() {
-    this.cacheManager = new ModelCacheManager<T>();
+    this.cacheManager = new CacheManager(this.state.config.modelName);
     this.queryManager = new ModelQuery<T>();
     this.relationsManager = new ModelRelations<T>();
 
@@ -224,6 +221,26 @@ export class Model<T extends BaseRecord = any> {
   public async delete(params: { where: { [key: string]: any } }): Promise<T> {
     await this.ensureInitialized();
     return this.crudManager.delete(params);
+  }
+
+  /**
+   * Delete multiple records that match the given criteria
+   * This performs a soft delete by setting deleted_at timestamp
+   */
+  public async deleteMany(params: { where: { [key: string]: any } }): Promise<{ count: number }> {
+    await this.ensureInitialized();
+    return this.crudManager.deleteMany(params);
+  }
+
+  /**
+   * Update multiple records that match the given criteria
+   */
+  public async updateMany(params: { 
+    where: { [key: string]: any };
+    data: Partial<T>;
+  }): Promise<{ count: number }> {
+    await this.ensureInitialized();
+    return this.crudManager.updateMany(params);
   }
 
   // Relation methods

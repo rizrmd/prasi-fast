@@ -135,13 +135,15 @@ export const buildNestedWhereClause = (
 
   const [first, ...rest] = path;
   return {
-    [first]: buildNestedWhereClause(rest, values),
+    [first]: {
+      some: buildNestedWhereClause(rest, values),
+    },
   };
 };
 
 export const buildWhereClause = (
   filterBy: Record<string, any[]>
-): { OR: WhereClause[] } | undefined => {
+): { AND: WhereClause[] } | undefined => {
   const filters = Object.entries(filterBy).map(([key, values]) => {
     if (key.includes(".")) {
       const path = key.split(".");
@@ -155,12 +157,13 @@ export const buildWhereClause = (
     }
   });
 
-  return filters.length > 0 ? { OR: filters } : undefined;
+  return filters.length > 0 ? { AND: filters } : undefined;
 };
 
 type WhereClause = {
   [key: string]: {
     in?: any[];
+    some?: WhereClause;
     [key: string]: any;
   };
 };

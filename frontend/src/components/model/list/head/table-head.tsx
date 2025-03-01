@@ -42,6 +42,8 @@ export const ModelTableHead: FC<{
     tableModel?.filterBy[columnName] &&
     tableModel?.filterBy[columnName].length > 0;
 
+  const sortDirection = tableModel?.sortBy[columnName];
+
   return (
     <Popover
       open={local.open}
@@ -56,7 +58,7 @@ export const ModelTableHead: FC<{
       <PopoverTrigger asChild>
         <ModelTableHeadTitle
           title={title}
-          sortBy={tableModel?.sortBy[columnName]}
+          sortBy={sortDirection}
           filterCount={
             isFiltering ? tableModel?.filterBy[columnName].length : undefined
           }

@@ -2,6 +2,10 @@ import { ColumnDef } from "@tanstack/react-table";
 import { getAccessorPath, buildSelect, buildWhereClause } from "./utils";
 import { ModelTableState } from "./types";
 
+// Define a recursive type for the orderBy object
+type OrderByValue = string | { orderBy: OrderByObject };
+type OrderByObject = Record<string, OrderByValue>;
+
 export const createFetchData = (model: any, table: ModelTableState) => {
   const fetchData = async (opt?: { filtering: boolean }) => {
     const setLoading = (value: boolean) => {
@@ -104,10 +108,42 @@ export const createFetchData = (model: any, table: ModelTableState) => {
         }
       });
 
-      const orderBy = table.sortBy;
+      // Transform the sortBy object to handle relation columns
+      const orderBy: OrderByObject = {};
+      
+      // Process each sort field
+      for (const [key, direction] of Object.entries(table.sortBy)) {
+        if (key.includes('.')) {
+          // For relation columns, we need to construct a proper orderBy object
+          // that follows the Prisma nested orderBy syntax
+          const parts = key.split('.');
+          let current: any = orderBy;
+          
+          // Build the nested orderBy structure
+          for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!current[part]) {
+              current[part] = { orderBy: {} };
+            }
+            current = current[part].orderBy;
+          }
+          
+          // Set the sort direction for the last part
+          current[parts[parts.length - 1]] = direction;
+        } else {
+          // For regular columns, just use the key directly
+          orderBy[key] = direction as string;
+        }
+      }
+
+      // Build where clause for filtering
+      const where = buildWhereClause(table.filterBy);
+
+      // Fetch data with the transformed orderBy and where
       const data = await model.instance.findList({
         select,
-        orderBy,
+        orderBy: Object.keys(orderBy).length > 0 ? orderBy : undefined,
+        where,
       });
 
       table.unfilteredResult = data;

@@ -1,7 +1,7 @@
 -  create filter in list
 -  create relation field
-  -  table
-  -  detail
+  ✓  table
+  ✓  detail
 ½  enhance table multi select with actions
 ✓ enhance caching
 -  create list as tree
