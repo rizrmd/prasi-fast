@@ -72,9 +72,7 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: {
-        not: null,
-      },
+      deleted_at: null,
     };
 
     if (Array.isArray(params.select)) {
@@ -165,9 +163,7 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: {
-        not: null,
-      },
+      deleted_at: null,
     };
 
     // Transform array select to object
@@ -281,9 +277,7 @@ export abstract class ModelCrud<
     // Add deleted_at filter to where clause
     queryParams.where = {
       ...queryParams.where,
-      deleted_at: {
-        not: null,
-      },
+      deleted_at: null,
     };
 
     if (Array.isArray(queryParams.select)) {
@@ -302,13 +296,14 @@ export abstract class ModelCrud<
 
     const skip = (page - 1) * perPage;
 
+    const findManyParams = {
+      ...queryParams,
+      select: enhancedSelect,
+      skip,
+      take: perPage,
+    };
     const [records, count] = await Promise.all([
-      this.prismaTable.findMany({
-        ...queryParams,
-        select: enhancedSelect,
-        skip,
-        take: perPage,
-      }) as Promise<T[]>,
+      this.prismaTable.findMany(findManyParams) as Promise<T[]>,
       this.prismaTable.count({ where: queryParams.where }),
     ]);
 
@@ -410,7 +405,7 @@ export abstract class ModelCrud<
       : undefined;
 
     const result = (await this.prismaTable.create({
-      data,
+      data: this.prepareRelationConnect(data),
       select: enhancedSelect,
     })) as T;
 
@@ -425,6 +420,47 @@ export abstract class ModelCrud<
 
     return result;
   }
+
+  prepareRelationConnect = (data: any) => {
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+
+    const relations = this.state.config.relations;
+    if (!relations) {
+      return data;
+    }
+
+    const result = { ...data };
+
+    for (const [key, relation] of Object.entries(relations)) {
+      if (!(key in data)) continue;
+
+      const relationData = data[key];
+      if (!relationData) continue;
+
+      // Handle belongsTo/hasOne relations
+      if (relation.type === 'belongsTo' || relation.type === 'hasOne') {
+        if (relationData.id) {
+          result[key] = {
+            connect: { id: relationData.id }
+          };
+        }
+      }
+      // Handle hasMany relations
+      else if (relation.type === 'hasMany') {
+        if (Array.isArray(relationData)) {
+          result[key] = {
+            connect: relationData
+              .filter(item => item && item.id)
+              .map(item => ({ id: item.id }))
+          };
+        }
+      }
+    }
+
+    return result;
+  };
 
   async update(opt: {
     data: Partial<T>;
@@ -455,7 +491,7 @@ export abstract class ModelCrud<
 
     const result = (await this.prismaTable.update({
       select: enhancedSelect,
-      data,
+      data: this.prepareRelationConnect(data),
       where,
     })) as T;
 
@@ -515,7 +551,7 @@ export abstract class ModelCrud<
       const result = await this.prismaTable.updateMany({
         where,
         data: {
-          ...data,
+          ...this.prepareRelationConnect(data),
           updated_at: new Date(),
         },
       });

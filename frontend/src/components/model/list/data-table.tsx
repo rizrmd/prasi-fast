@@ -51,14 +51,6 @@ export function DataTable(props: DataTableProps) {
   const result = props.modelTable.result;
   const columns = props.modelTable.columns;
   useEffect(() => {
-    if (!result) {
-      local.data = [];
-      local.columns = [];
-      local.pagingInfo = <>-</>;
-      local.render();
-      return;
-    }
-    local.data = result.data;
     local.columns = props.checkbox?.enabled
       ? [
           {
@@ -100,6 +92,13 @@ export function DataTable(props: DataTableProps) {
           ...columns,
         ]
       : columns;
+    if (!result) {
+      local.data = [];
+      local.pagingInfo = <>-</>;
+      local.render();
+      return;
+    }
+    local.data = result.data;
     local.pagingInfo = (
       <>
         <sup>{Math.min(result.total, result.perPage * result.page)}</sup>
@@ -140,7 +139,6 @@ const InternalDataTable = ({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  console.log("auo");
   return (
     <div className="rounded-md border bg-white">
       <Table>

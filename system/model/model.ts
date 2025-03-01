@@ -1,16 +1,16 @@
 import type { PrismaClient, User } from "@prisma/client";
 import type { ModelConfig, PaginationParams, PaginationResult } from "../types";
 import { ModelCrud } from "./base/manager/model-crud";
-import { CacheManager } from "./base/manager/model-cache";
 import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
-import { prismaFrontendProxy } from "./model-client";
 import type { BaseRecord } from "./base/model-base";
+import { prismaFrontendProxy } from "./model-client";
+import { CacheManager } from "./base/manager/model-cache";
 
 export {
   defaultColumns,
-  type DefaultColumns,
   type BaseRecord,
+  type DefaultColumns,
 } from "./base/model-base";
 
 const g = (typeof global !== "undefined" ? global : undefined) as unknown as {
@@ -41,7 +41,6 @@ export class Model<T extends BaseRecord = any> {
     currentUser: null,
     updateCallbacks: new Set(),
   };
-  private cacheManager!: CacheManager;
   private queryManager!: ModelQuery<T>;
   private relationsManager!: ModelRelations<T>;
   private crudManager!: ModelCrud<T>;
@@ -76,16 +75,11 @@ export class Model<T extends BaseRecord = any> {
   }
 
   private async setupManagers() {
-    this.cacheManager = new CacheManager(this.state.config.modelName);
     this.queryManager = new ModelQuery<T>();
     this.relationsManager = new ModelRelations<T>();
 
     // Share state with data managers first
-    const dataManagers = [
-      this.cacheManager,
-      this.queryManager,
-      this.relationsManager,
-    ];
+    const dataManagers = [this.queryManager, this.relationsManager];
 
     dataManagers.forEach((manager) => {
       Object.defineProperty(manager, "state", {
@@ -117,7 +111,7 @@ export class Model<T extends BaseRecord = any> {
 
     // No need to redefine state for managers that already have it
     // Only define state for crudManager if it's not already defined
-    if (!Object.getOwnPropertyDescriptor(this.crudManager, 'state')) {
+    if (!Object.getOwnPropertyDescriptor(this.crudManager, "state")) {
       Object.defineProperty(this.crudManager, "state", {
         get: () => this.state,
       });
@@ -219,7 +213,9 @@ export class Model<T extends BaseRecord = any> {
    * Delete multiple records that match the given criteria
    * This performs a soft delete by setting deleted_at timestamp
    */
-  public async deleteMany(params: { where: { [key: string]: any } }): Promise<{ count: number }> {
+  public async deleteMany(params: {
+    where: { [key: string]: any };
+  }): Promise<{ count: number }> {
     await this.ensureInitialized();
     return this.crudManager.deleteMany(params);
   }
@@ -227,7 +223,7 @@ export class Model<T extends BaseRecord = any> {
   /**
    * Update multiple records that match the given criteria
    */
-  public async updateMany(params: { 
+  public async updateMany(params: {
     where: { [key: string]: any };
     data: Partial<T>;
   }): Promise<{ count: number }> {

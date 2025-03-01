@@ -29,57 +29,7 @@ export const createFetchData = (model: any, table: ModelTableState) => {
 
     try {
       const columns = layout.table.columns;
-      const mappedColumns: ColumnDef<any, any>[] = columns.map((column) => {
-        const { path: accessorPath, models: relatedModels } = getAccessorPath(
-          column,
-          model.instance
-        );
-
-        const pathParts = accessorPath.split(".");
-        const fieldName = pathParts[pathParts.length - 1];
-        const hasRelation = pathParts.length > 1;
-
-        let headerText;
-
-        if (!hasRelation) {
-          const columnLabel = model.instance?.config.columns[fieldName]?.label;
-          headerText =
-            columnLabel ||
-            fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-        } else {
-          const last = relatedModels[relatedModels.length - 1];
-
-          if (last) {
-            const columnLabel = last?.model.config.columns[fieldName]?.label;
-            if (columnLabel) {
-              headerText = columnLabel;
-            } else {
-              const modelLabel =
-                last.model.config.tableName || last.model.config.modelName;
-              headerText = `${modelLabel} ${
-                fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
-              }`;
-            }
-          } else {
-            headerText = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-          }
-        }
-
-        return {
-          accessorKey: accessorPath,
-          header: headerText,
-          meta: {
-            accessorPath,
-            modelName: model.name,
-            columnName: accessorPath,
-            type: !hasRelation
-              ? model.instance?.config.columns[fieldName]?.type
-              : relatedModels[relatedModels.length - 1]?.type,
-            sortable: true,
-            filterable: true,
-          },
-        };
-      });
+     
 
       const select: Record<string, any> = {};
       columns.forEach((column) => {
@@ -148,7 +98,6 @@ export const createFetchData = (model: any, table: ModelTableState) => {
 
       table.unfilteredResult = data;
       table.result = data;
-      table.columns = mappedColumns;
       setLoading(false);
       table.render();
     } catch (error) {

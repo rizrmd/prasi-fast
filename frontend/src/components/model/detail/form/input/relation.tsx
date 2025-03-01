@@ -19,7 +19,10 @@ import { ModelName, Models } from "shared/types";
 import { Column } from "system/model/layout/types";
 import set from "lodash.set";
 import { FormWriter } from "../../types";
-
+import { useReader } from "@/hooks/use-read-write";
+import get from "lodash.get";
+import { snapshot } from "valtio";
+import { Spinner } from "@/components/ui/spinner";
 const isColumnWithCol = (
   field: Column<ModelName>
 ): field is { col: string } => {
@@ -33,13 +36,26 @@ export const FieldRelation: FC<{
   writer: FormWriter;
   onChange: (arg: { value: any; col: string }) => void;
 }> = ({ rootModel, field, label, onChange, writer }) => {
+  const form = useReader(writer);
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  let [value, setValue] = useState("");
 
   // Get column name safely
   const columnName = isColumnWithCol(field) ? field.col : "";
   const { models, path } = getAccessorPath(field, rootModel);
   const model = models[models.length - 1].model;
+  const subPath = path.split(".").slice(0, -1).join(".");
+  const propValue = get(form.data, `${subPath}.${model.config.primaryKey}`);
+  console.log(propValue, value);
+  if (value === "" && propValue) {
+    value = propValue;
+  }
+
+  useEffect(() => {
+    if (value !== propValue) {
+      setValue(propValue);
+    }
+  }, [propValue]);
 
   const [items, setItems] = useState<
     ReturnType<typeof model.findMany> extends Promise<infer T> ? T : never
@@ -91,12 +107,18 @@ export const FieldRelation: FC<{
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between cursor-pointer"
         >
-          {value && typeof model.title === "function"
-            ? model.title(items.find((item) => item.id === value) || {}) ||
-              `Pilih ${label}`
-            : `Pilih ${label}`}
+          {items.length === 0 ? (
+            <Spinner />
+          ) : (
+            <>
+              {value && typeof model.title === "function"
+                ? model.title(items.find((item) => item.id === value) || {}) ||
+                  `Pilih ${label}`
+                : `Pilih ${label}`}
+            </>
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -125,7 +147,7 @@ export const FieldRelation: FC<{
                       set(writer.data, parts.join("."), {
                         [model.config.primaryKey]: item.id,
                       });
-                      
+
                       writer.unsaved = true;
                       onChange({ value: item.id, col: columnName });
                       setOpen(false);

@@ -8,6 +8,7 @@ import { ModelTableState } from "./types";
 import { composeHash, extractHash, parseHash } from "@/lib/parse-hash";
 import { useRouter } from "@/lib/router";
 import { generateHash, loadHash } from "system/utils/object-hash";
+import { getAccessorPath } from "./utils";
 
 export const useModelList = ({
   model,
@@ -36,7 +37,10 @@ export const useModelList = ({
     render: () => {},
     // Add new methods for bulk operations
     bulkDelete: async (ids: string[] | number[]) => {},
-    massUpdate: async (ids: string[] | number[], data: Record<string, any>) => {},
+    massUpdate: async (
+      ids: string[] | number[],
+      data: Record<string, any>
+    ) => {},
     selectedRows: [] as (string | number)[],
   });
 
@@ -78,56 +82,101 @@ export const useModelList = ({
     }, 300);
   }
 
-  if (model.ready) {
-    const variantName =
-      variant as keyof (typeof layouts)[keyof typeof layouts]["list"];
-    let layout = (layouts as any)[
-      model.name
-    ] as (typeof layouts)[keyof typeof layouts];
+  const variantName =
+    variant as keyof (typeof layouts)[keyof typeof layouts]["list"];
+  let layout = (layouts as any)[
+    model.name
+  ] as (typeof layouts)[keyof typeof layouts];
 
+  if (list.current !== layout.list?.[variantName]) {
     list.current = layout.list?.[variantName] || null;
-    if (list.current) {
-      list.available = true;
-    }
+    list.columns = list.current.columns.map((column) => {
+      const { path: accessorPath, models: relatedModels } = getAccessorPath(
+        column,
+        model.instance
+      );
+
+      const pathParts = accessorPath.split(".");
+      const fieldName = pathParts[pathParts.length - 1];
+      const hasRelation = pathParts.length > 1;
+
+      let headerText;
+
+      if (!hasRelation) {
+        const columnLabel = model.instance?.config.columns[fieldName]?.label;
+        headerText =
+          columnLabel || fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+      } else {
+        const last = relatedModels[relatedModels.length - 1];
+
+        if (last) {
+          const columnLabel = last?.model.config.columns[fieldName]?.label;
+          if (columnLabel) {
+            headerText = columnLabel;
+          } else {
+            const modelLabel =
+              last.model.config.tableName || last.model.config.modelName;
+            headerText = `${modelLabel} ${
+              fieldName.charAt(0).toUpperCase() + fieldName.slice(1)
+            }`;
+          }
+        } else {
+          headerText = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+        }
+      }
+
+      return {
+        accessorKey: accessorPath,
+        header: headerText,
+        meta: {
+          accessorPath,
+          modelName: model.name,
+          columnName: accessorPath,
+          type: !hasRelation
+            ? model.instance?.config.columns[fieldName]?.type
+            : relatedModels[relatedModels.length - 1]?.type,
+          sortable: true,
+          filterable: true,
+        },
+      };
+    });
+    list.available = true;
   }
 
   useEffect(() => {
-    let isMounted = true;
-
     if (!model.ready) {
       return;
     }
 
     list.fetchData = createFetchData(model, list);
     list.fetchUniqueValues = createFetchUniqueValues(model, list);
-    
+
     // Implement bulk delete method
     list.bulkDelete = async (ids: string[] | number[]) => {
       if (!model.instance || ids.length === 0) return;
-      
+
       list.loading = true;
       list.render();
-      
+
       try {
         // Get the primary key field from the model config
-        const primaryKey = model.instance.config.primaryKey || 'id';
-        
+        const primaryKey = model.instance.config.primaryKey || "id";
+
         // Create a where clause for the bulk delete
         const where = {
           [primaryKey]: {
-            in: ids
-          }
+            in: ids,
+          },
         };
-        
+
         // Execute the delete operation
         await model.instance.deleteMany({ where });
-        
+
         // Clear selected rows after successful deletion
         list.selectedRows = [];
-        
+
         // Refresh the data
         await list.fetchData();
-        
       } catch (error) {
         console.error("Error performing bulk delete:", error);
       } finally {
@@ -135,34 +184,37 @@ export const useModelList = ({
         list.render();
       }
     };
-    
+
     // Implement mass update method
-    list.massUpdate = async (ids: string[] | number[], data: Record<string, any>) => {
-      if (!model.instance || ids.length === 0 || Object.keys(data).length === 0) return;
-      
+    list.massUpdate = async (
+      ids: string[] | number[],
+      data: Record<string, any>
+    ) => {
+      if (!model.instance || ids.length === 0 || Object.keys(data).length === 0)
+        return;
+
       list.loading = true;
       list.render();
-      
+
       try {
         // Get the primary key field from the model config
-        const primaryKey = model.instance.config.primaryKey || 'id';
-        
+        const primaryKey = model.instance.config.primaryKey || "id";
+
         // Create a where clause for the mass update
         const where = {
           [primaryKey]: {
-            in: ids
-          }
+            in: ids,
+          },
         };
-        
+
         // Execute the update operation
         await model.instance.updateMany({
           where,
-          data
+          data,
         });
-        
+
         // Refresh the data
         await list.fetchData();
-        
       } catch (error) {
         console.error("Error performing mass update:", error);
       } finally {
@@ -170,12 +222,8 @@ export const useModelList = ({
         list.render();
       }
     };
-    
-    list.fetchData();
 
-    return () => {
-      isMounted = false;
-    };
+    list.fetchData();
   }, [model.instance, list.current]);
 
   // Reset and re-fetch data when path changes
@@ -190,7 +238,6 @@ export const useModelList = ({
       list.selectedRows = []; // Clear selected rows when path changes
 
       if (list.name !== params.name) {
-        list.columns = [];
         list.uniqueValues = {};
         list.loading = true;
         list.filtering = false;
@@ -230,7 +277,10 @@ export const useModelList = ({
         ...data,
         data: data.data.filter((row: any) => {
           // Filter based on parent relationship
-          const value = getNestedValue(row, list.parentFilter!.columnName.split("."));
+          const value = getNestedValue(
+            row,
+            list.parentFilter!.columnName.split(".")
+          );
           return value === list.parentFilter!.rowId;
         }),
       };
@@ -246,10 +296,10 @@ export const useModelList = ({
             Object.entries(list.filterBy).every(([column, filterValues]) => {
               if (!Array.isArray(filterValues) || filterValues.length === 0)
                 return true;
-              
+
               // Get the value using the path
               const value = getNestedValue(row, column.split("."));
-              
+
               // Check if the value is in the filter values
               return filterValues.includes(value);
             })
@@ -269,16 +319,16 @@ export const useModelList = ({
 // Helper function to safely get nested values from an object
 const getNestedValue = (obj: any, path: string[]): any => {
   if (!obj || path.length === 0) return undefined;
-  
+
   let current = obj;
-  
+
   for (const key of path) {
     if (current === null || current === undefined) {
       return undefined;
     }
     current = current[key];
   }
-  
+
   return current;
 };
 

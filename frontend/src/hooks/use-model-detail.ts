@@ -9,6 +9,8 @@ import { defaultColumns } from "system/model/model";
 import { validate as isUUID } from "uuid";
 import { useLocal } from "./use-local";
 import { useModel } from "./use-model";
+import { getAccessorPath } from "./model-list/utils";
+
 type ModelRecord = {
   id: string;
   [key: string]: any;
@@ -184,47 +186,84 @@ export const useModelDetail = ({
             // Convert Fields to Prisma select
             const convertFieldsToPrismaSelect = <T extends ModelName>(
               fields: Fields<T>
-            ): Record<
-              string,
-              boolean | { select: Record<string, boolean | object> }
-            > => {
+            ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
               const processFields = (
                 input: Fields<T>
-              ): Record<
-                string,
-                boolean | { select: Record<string, boolean | object> }
-              > => {
+              ): Record<string, boolean | { select: Record<string, boolean | object> }> => {
                 if (Array.isArray(input)) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result: Record<string, boolean | { select: Record<string, boolean | object> }> = {};
                   for (const item of input) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("vertical" in input) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result: Record<string, boolean | { select: Record<string, boolean | object> }> = {};
                   for (const item of input.vertical) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("horizontal" in input) {
-                  const result = {} as Record<
-                    string,
-                    boolean | { select: Record<string, boolean | object> }
-                  >;
+                  const result: Record<string, boolean | { select: Record<string, boolean | object> }> = {};
                   for (const item of input.horizontal) {
                     const nestedResults = processFields(item);
                     Object.assign(result, nestedResults);
                   }
                   return result;
                 } else if ("col" in input) {
+                  if ("rel" in input) {
+                    const rel = getAccessorPath(input, model.instance);
+                    const pathParts = rel.path.split(".");
+                    
+                    if (typeof input.rel === "string") {
+                      // Handle simple single-level relation
+                      const lastModel = rel.models[rel.models.length - 1];
+                      const lastCol = pathParts[pathParts.length - 1];
+                      return {
+                        [String(input.rel)]: {
+                          select: {
+                            [lastModel.model.config.primaryKey]: true,
+                            [lastCol]: true,
+                          },
+                        },
+                      };
+                    }
+                    
+                    // Handle nested relations
+                    const buildNestedSelect = (
+                      models: typeof rel.models,
+                      path: string[],
+                      depth: number
+                    ): Record<string, any> => {
+                      if (depth >= models.length) {
+                        return {};
+                      }
+
+                      const currentModel = models[depth].model;
+                      const isLastLevel = depth === models.length - 1;
+                      const select: Record<string, any> = {
+                        [currentModel.config.primaryKey]: true,
+                      };
+
+                      if (isLastLevel) {
+                        select[path[path.length - 1]] = true;
+                      } else {
+                        select[path[depth + 1]] = {
+                          select: buildNestedSelect(models, path, depth + 1),
+                        };
+                      }
+
+                      return select;
+                    };
+
+                    // Build the complete nested structure
+                    return {
+                      [pathParts[0]]: {
+                        select: buildNestedSelect(rel.models, pathParts, 0),
+                      },
+                    };
+                  }
                   return { [String(input.col)]: true };
                 }
                 return {};
