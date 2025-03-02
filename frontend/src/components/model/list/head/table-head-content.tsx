@@ -10,17 +10,17 @@ import {
 import { cn } from "@/lib/utils";
 import { css } from "goober";
 import { ArrowDown, ArrowUp, ArrowUpDown, Eraser } from "lucide-react";
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
 import { ModelName } from "shared/types";
 import { SimpleTooltip } from "@/components/ext/simple-tooltip";
-import { useModelList } from "@/hooks/model-list/use-model-list";
 import { ModelTableHeadLoading } from "./table-head-loading";
+import { useValtioTab } from "@/hooks/use-valtio-tab";
 
 interface ModelTableHeadContentProps {
   modelName: ModelName;
   columnName: string;
   title: string;
-  modelTable: ReturnType<typeof useModelList>;
+  tabId: string;
   onClose?: () => void;
   isRelation: boolean;
 }
@@ -28,10 +28,25 @@ interface ModelTableHeadContentProps {
 export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
   columnName,
   title,
-  modelTable,
+  tabId,
+  onClose,
   isRelation,
 }) => {
-  const sortBy = modelTable?.sortBy[columnName];
+  const tab = useValtioTab(tabId);
+  const [filterSearch, setFilterSearch] = useState("");
+  
+  // Get current filter, sort, and unique values state from the tab
+  const filterValues = tab.filters[columnName] || [];
+  const sortDirection = tab.sortBy?.column === columnName ? tab.sortBy.direction : undefined;
+  const uniqueValues = tab.uniqueValues[columnName] || [];
+  const isLoadingUniqueValues = tab.loadingUniqueValues[columnName] || false;
+  
+  // Load unique values when component mounts or when tabId changes
+  useEffect(() => {
+    if (!isLoadingUniqueValues && !uniqueValues.length) {
+      tab.op.loadUniqueValues(columnName);
+    }
+  }, [columnName, tabId]);
 
   const styles = css`
     .button {
@@ -64,25 +79,54 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
     }
   `;
 
+  // Handle filter changes
+  const handleFilterChange = (item: any, checked: boolean) => {
+    let newFilterValues = [...filterValues];
+    
+    if (checked) {
+      // Add to filter if not already included
+      if (!newFilterValues.includes(item)) {
+        newFilterValues.push(item);
+      }
+    } else {
+      // Remove from filter
+      newFilterValues = newFilterValues.filter(val => val !== item);
+    }
+    
+    // Update filters in the tab
+    tab.op.setFilter(columnName, newFilterValues);
+    onClose?.();
+  };
+  
+  // Handle clearing filters
+  const handleClearFilter = () => {
+    tab.op.clearFilter(columnName);
+    onClose?.();
+  };
+  
+  // Handle sorting
+  const handleSort = () => {
+    tab.op.toggleSorting(columnName);
+    onClose?.();
+  };
+
   return (
     <Command>
       <div className={cn("flex items-stretch border-b pr-[5px]", styles)}>
         <CommandInput
           className="flex-1 px-0"
           placeholder={`Filter ${title}...`}
+          value={filterSearch}
+          onValueChange={setFilterSearch}
         />
 
-        {modelTable?.filterBy[columnName]?.length > 0 && (
+        {filterValues.length > 0 && (
           <SimpleTooltip content="Bersihkan Filter">
             <Button
               size="icon"
               variant="outline"
               className={cn("border-r-0", clearButtonStyles)}
-              onClick={async () => {
-                if (!modelTable) return;
-                delete modelTable.filterBy[columnName];
-                await modelTable.fetchData({ filtering: true });
-              }}
+              onClick={handleClearFilter}
             >
               <Eraser />
             </Button>
@@ -92,26 +136,12 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
         <SimpleTooltip content="Urutkan berdasarkan kolom ini">
           <Button
             size="icon"
-            variant={sortBy ? "default" : "outline"}
-            onClick={async () => {
-              if (!modelTable) return;
-              if (sortBy) {
-                if (sortBy === "asc") {
-                  modelTable.sortBy = { [columnName]: "desc" };
-                } else {
-                  modelTable.sortBy = {};
-                }
-              } else {
-                modelTable.sortBy = { [columnName]: "asc" };
-              }
-              await modelTable.fetchData({ filtering: true });
-            }}
-            className={cn(
-              modelTable?.filterBy[columnName]?.length > 0 && sortButtonStyles
-            )}
+            variant={sortDirection ? "default" : "outline"}
+            onClick={handleSort}
+            className={cn(filterValues.length > 0 && sortButtonStyles)}
           >
-            {sortBy ? (
-              <>{sortBy === "asc" ? <ArrowUp /> : <ArrowDown />}</>
+            {sortDirection ? (
+              <>{sortDirection === "asc" ? <ArrowUp /> : <ArrowDown />}</>
             ) : (
               <ArrowUpDown />
             )}
@@ -119,62 +149,36 @@ export const ModelTableHeadContent: FC<ModelTableHeadContentProps> = ({
         </SimpleTooltip>
       </div>
       <CommandList className={svgStyles}>
-        {modelTable?.loadingUniqueValues[columnName] ? (
+        {isLoadingUniqueValues ? (
           <ModelTableHeadLoading />
         ) : (
           <>
             <CommandEmpty>Data tidak ditemukan</CommandEmpty>
 
-            {(Array.isArray(modelTable?.uniqueValues[columnName])
-              ? modelTable.uniqueValues[columnName]
-              : []
-            ).map((item: any, idx: number) => {
-              return (
-                <CommandItem asChild value={String(item)} key={idx}>
-                  <label
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <Checkbox
-                      onCheckedChange={async (checked) => {
-                        if (!modelTable) return;
-
-                        const newFilterBy = { ...modelTable.filterBy };
-
-                        if (!newFilterBy[columnName]) {
-                          newFilterBy[columnName] = [];
-                        }
-
-                        if (checked) {
-                          if (!newFilterBy[columnName].includes(item)) {
-                            newFilterBy[columnName] = [
-                              ...newFilterBy[columnName],
-                              item,
-                            ];
-                          }
-                        } else {
-                          newFilterBy[columnName] = newFilterBy[
-                            columnName
-                          ].filter((v) => v !== item);
-                          if (newFilterBy[columnName].length === 0) {
-                            delete newFilterBy[columnName];
-                          }
-                        }
-
-                        modelTable.filtering = true;
-                        modelTable.filterBy = newFilterBy;
-                        modelTable.render();
+            {uniqueValues
+              .filter(item => 
+                filterSearch === "" || 
+                String(item).toLowerCase().includes(filterSearch.toLowerCase())
+              )
+              .map((item: any, idx: number) => {
+                return (
+                  <CommandItem asChild value={String(item)} key={idx}>
+                    <label
+                      onClick={(e) => {
+                        e.stopPropagation();
                       }}
-                      checked={
-                        !!modelTable?.filterBy[columnName]?.includes(item)
-                      }
-                    />
-                    <span>{String(item)}</span>
-                  </label>
-                </CommandItem>
-              );
-            })}
+                    >
+                      <Checkbox
+                        onCheckedChange={(checked) => {
+                          handleFilterChange(item, !!checked);
+                        }}
+                        checked={filterValues.includes(item)}
+                      />
+                      <span>{String(item)}</span>
+                    </label>
+                  </CommandItem>
+                );
+              })}
           </>
         )}
       </CommandList>

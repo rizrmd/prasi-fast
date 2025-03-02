@@ -61,7 +61,11 @@ export abstract class ModelCrud<
   async findFirst(
     idOrParams:
       | string
-      | Partial<PaginationParams & { include?: Record<string, any> }>
+      | Partial<PaginationParams & { 
+          include?: Record<string, any>;
+          filters?: Record<string, any[]>;
+          sort?: { column: string; direction: 'asc' | 'desc' } | null;
+        }>
   ): Promise<T | null> {
     const isString = typeof idOrParams === "string";
     const stringId = isString ? idOrParams : undefined;
@@ -75,6 +79,25 @@ export abstract class ModelCrud<
       deleted_at: null,
     };
 
+    // Handle filters
+    if (queryParams.filters && Object.keys(queryParams.filters).length > 0) {
+      for (const [column, values] of Object.entries(queryParams.filters)) {
+        if (Array.isArray(values) && values.length > 0) {
+          // Add filter to where clause
+          queryParams.where[column] = {
+            in: values,
+          };
+        }
+      }
+    }
+
+    // Handle sorting
+    if (queryParams.sort && queryParams.sort.column) {
+      queryParams.orderBy = {
+        [queryParams.sort.column]: queryParams.sort.direction,
+      };
+    }
+
     if (Array.isArray(params.select)) {
       queryParams.select = params.select.reduce(
         (acc: Record<string, boolean>, field: string) => {
@@ -84,6 +107,10 @@ export abstract class ModelCrud<
         {}
       );
     }
+
+    // Remove custom parameters that Prisma doesn't understand
+    delete queryParams.filters;
+    delete queryParams.sort;
 
     const record = await this.prismaTable.findFirst(queryParams);
     return record as T | null;
@@ -95,6 +122,8 @@ export abstract class ModelCrud<
         select?: Record<string, any> | string[];
         include?: Record<string, any>;
         orderBy?: any;
+        filters?: Record<string, any[]>;
+        sort?: { column: string; direction: 'asc' | 'desc' } | null;
       }
     > = {}
   ): Promise<T[]> {
@@ -105,6 +134,25 @@ export abstract class ModelCrud<
       ...queryParams.where,
       deleted_at: null,
     };
+
+    // Handle filters
+    if (queryParams.filters && Object.keys(queryParams.filters).length > 0) {
+      for (const [column, values] of Object.entries(queryParams.filters)) {
+        if (Array.isArray(values) && values.length > 0) {
+          // Add filter to where clause
+          queryParams.where[column] = {
+            in: values,
+          };
+        }
+      }
+    }
+
+    // Handle sorting
+    if (queryParams.sort && queryParams.sort.column) {
+      queryParams.orderBy = {
+        [queryParams.sort.column]: queryParams.sort.direction,
+      };
+    }
 
     if (Array.isArray(params.select)) {
       queryParams.select = params.select.reduce(
@@ -120,8 +168,13 @@ export abstract class ModelCrud<
       ? this.ensurePrimaryKeys(queryParams.select)
       : undefined;
 
+    // Remove custom parameters that Prisma doesn't understand
+    const findManyParams = { ...queryParams };
+    delete findManyParams.filters;
+    delete findManyParams.sort;
+
     return this.prismaTable.findMany({
-      ...queryParams,
+      ...findManyParams,
       select: enhancedSelect,
     }) as Promise<T[]>;
   }
@@ -132,6 +185,8 @@ export abstract class ModelCrud<
         select?: Record<string, any> | string[];
         include?: Record<string, any>;
         orderBy?: any;
+        filters?: Record<string, any[]>;
+        sort?: { column: string; direction: 'asc' | 'desc' } | null;
       }
     > = {}
   ): Promise<PaginationResult<T>> {
@@ -144,6 +199,25 @@ export abstract class ModelCrud<
       ...queryParams.where,
       deleted_at: null,
     };
+
+    // Handle filters
+    if (queryParams.filters && Object.keys(queryParams.filters).length > 0) {
+      for (const [column, values] of Object.entries(queryParams.filters)) {
+        if (Array.isArray(values) && values.length > 0) {
+          // Add filter to where clause
+          queryParams.where[column] = {
+            in: values,
+          };
+        }
+      }
+    }
+
+    // Handle sorting
+    if (queryParams.sort && queryParams.sort.column) {
+      queryParams.orderBy = {
+        [queryParams.sort.column]: queryParams.sort.direction,
+      };
+    }
 
     if (Array.isArray(queryParams.select)) {
       queryParams.select = params.select?.reduce(
@@ -167,6 +241,10 @@ export abstract class ModelCrud<
       skip,
       take: perPage,
     };
+
+    // Remove custom parameters that Prisma doesn't understand
+    delete findManyParams.filters;
+    delete findManyParams.sort;
 
     const [records, count] = await Promise.all([
       this.prismaTable.findMany(findManyParams) as Promise<T[]>,

@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { getAccessorPath } from "@/hooks/model-list/utils";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { FC, useCallback, useEffect, useState } from "react";
@@ -21,12 +20,45 @@ import set from "lodash.set";
 import { FormWriter } from "../../types";
 import { useReader } from "@/hooks/use-read-write";
 import get from "lodash.get";
-import { snapshot } from "valtio";
 import { Spinner } from "@/components/ui/spinner";
+
 const isColumnWithCol = (
   field: Column<ModelName>
 ): field is { col: string } => {
   return "col" in field && typeof field.col === "string";
+};
+
+// Function to get the model and path from a field
+const getModelAndPath = (field: Column<ModelName>, rootModel: Models[ModelName]) => {
+  if (!("col" in field) || !field.col) {
+    throw new Error("Invalid field configuration");
+  }
+
+  const parts = field.col.split(".");
+  let currentPath = "";
+  let currentModel = rootModel;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (currentPath) {
+      currentPath += ".";
+    }
+    currentPath += part;
+
+    // If this is not the last part and it references a relation
+    if (i < parts.length - 1) {
+      const relationField = (currentModel as any)[part];
+      if (!relationField || !relationField.config?.modelName) {
+        throw new Error(`Invalid relation path: ${currentPath}`);
+      }
+      currentModel = relationField;
+    }
+  }
+
+  return {
+    model: currentModel,
+    path: field.col
+  };
 };
 
 export const FieldRelation: FC<{
@@ -42,8 +74,7 @@ export const FieldRelation: FC<{
 
   // Get column name safely
   const columnName = isColumnWithCol(field) ? field.col : "";
-  const { models, path } = getAccessorPath(field, rootModel);
-  const model = models[models.length - 1].model;
+  const { model, path } = getModelAndPath(field, rootModel);
   const subPath = path.split(".").slice(0, -1).join(".");
   const propValue = get(form.data, `${subPath}.${model.config.primaryKey}`);
   if (value === "" && propValue) {
@@ -56,9 +87,7 @@ export const FieldRelation: FC<{
     }
   }, [propValue]);
 
-  const [items, setItems] = useState<
-    ReturnType<typeof model.findMany> extends Promise<infer T> ? T : never
-  >([]);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadItems = useCallback(async () => {
@@ -72,6 +101,7 @@ export const FieldRelation: FC<{
       } else {
         console.warn("No titleColumns defined for model:", model);
       }
+      
       const data = await model.findMany({
         select,
       });

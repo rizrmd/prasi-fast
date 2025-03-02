@@ -1,6 +1,6 @@
 import { AppLoading } from "@/components/app/app-loading";
 import { Alert } from "@/components/ui/global-alert";
-import { useModelDetail } from "@/hooks/use-model-detail";
+import { useValtioTab } from "@/hooks/use-valtio-tab";
 import { useReader, useWriter } from "@/hooks/use-read-write";
 import { parseHash } from "@/lib/parse-hash";
 import { navigate, useParams } from "@/lib/router";
@@ -17,13 +17,18 @@ import { FormWriter } from "../types";
 
 export const DetailForm: FC<{
   model: Models[keyof Models];
-  detail: ReturnType<typeof useModelDetail>;
+  tab: ReturnType<typeof useValtioTab>;
+  tabId: string;
   onChanged?: (changedData: any) => void;
   unsavedData?: any;
-}> = ({ model, onChanged, unsavedData, detail }) => {
-  const { del, save, data, prevId, nextId } = detail;
-  const fields = detail.current?.fields;
+}> = ({ model, onChanged, unsavedData, tab, tabId }) => {
   const params = useParams();
+  const data = tab.detail?.data;
+  const prevId = tab.op.pagination.canPrev ? tab.list?.data?.[tab.detail?.idx - 1]?.id : null;
+  const nextId = tab.op.pagination.canNext ? tab.list?.data?.[tab.detail?.idx + 1]?.id : null;
+  
+  const fields = tab.config?.layout?.detail?.default?.fields;
+  
   const writer = useWriter({
     data: {} as any,
     unsaved: false,
@@ -34,12 +39,12 @@ export const DetailForm: FC<{
       recordId: "",
     },
     saving: false,
-    prevId: prevId || null,
-    nextId: nextId || null,
+    prevId: prevId,
+    nextId: nextId,
   } as FormWriter);
   const form = useReader(writer);
 
-  const isLoading = detail.loading || detail.data === null || form.saving;
+  const isLoading = tab.status !== "ready" || !data || form.saving;
 
   useEffect(() => {
     writer.nextId = nextId;
@@ -91,18 +96,135 @@ export const DetailForm: FC<{
 
   if (!fields) return null;
 
+  // Function to save data using the tab's model's save capability
+  interface SaveResponse {
+    success: boolean;
+    error?: {
+      message: string;
+    };
+    newId?: string;
+  }
+
+  const saveData = async (formData: any): Promise<SaveResponse> => {
+    try {
+      if (!model.config?.modelName) {
+        throw new Error("Model not properly configured");
+      }
+      
+      // Cast to any to handle the dynamic nature of model methods
+      const modelWithSave = tab.config?.model as any;
+      const res = await modelWithSave.save(formData);
+      
+      // Transform response to match expected format
+      if (!res || typeof res !== 'object') {
+        throw new Error("Invalid response from save operation");
+      }
+
+      // If res has an id property, consider it a success
+      if ('id' in res) {
+        return {
+          success: true,
+          newId: res.id
+        };
+      }
+
+      return res as SaveResponse;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: {
+          message: error.message || "Error saving data"
+        }
+      };
+    }
+  };
+
+  interface DeleteResponse {
+    success: boolean;
+    error?: {
+      message: string;
+    };
+  }
+
+  // Function to delete data
+  const deleteData = async (): Promise<DeleteResponse> => {
+    try {
+      if (!model.config?.modelName) {
+        throw new Error("Model not properly configured");
+      }
+
+      const where = { [model.config.primaryKey]: params.id };
+      // Cast to any to handle the dynamic nature of model methods
+      const modelWithDelete = tab.config?.model as any;
+      const res = await modelWithDelete.delete({ where });
+      
+      if (!res.success) {
+        toast("Data Gagal Dihapus !", {
+          dismissible: true, 
+          richColors: true,
+          duration: 10000,
+          action: {
+            label: "Detail Teknis",
+            onClick: () => Alert.info(res.error?.message || "Unknown error"),
+          },
+          className: css`
+            border: 0 !important;
+            background: #a31616 !important;
+          `,
+        });
+      } else {
+        toast(
+          <div className="flex items-center space-x-1 cursor-default select-none">
+            <Check /> <div>Data Berhasil Dihapus !</div>
+          </div>,
+          {
+            dismissible: true,
+            richColors: true,
+            className: css`
+              border: 0 !important;
+              background: #1fa316 !important;
+            `,
+          }
+        );
+        // Navigate back to list view after successful delete
+        navigate(`/model/${model.config.modelName.toLowerCase()}`);
+      }
+      return res;
+    } catch (error: any) {
+      toast("Data Gagal Dihapus !", {
+        dismissible: true,
+        richColors: true,
+        duration: 10000,
+        action: {
+          label: "Detail Teknis",
+          onClick: () => Alert.info(error.message || "Error deleting data"),
+        },
+        className: css`
+          border: 0 !important;
+          background: #a31616 !important;
+        `,
+      });
+      return {
+        success: false,
+        error: {
+          message: error.message || "Error deleting data"
+        }
+      };
+    }
+  };
+
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
         writer.saving = true;
 
-        const res = await save(snapshot(writer.data));
+        const res = await saveData(snapshot(writer.data));
         writer.saving = false;
 
         if (!res.success) {
           writer.unsaved = true;
-          writer.error.system = res.error.message;
+          writer.error.system = res.error?.message || "Unknown error";
           writer.error.recordId = params.id;
           toast("Data Gagal Tersimpan !", {
             dismissible: true,
@@ -110,7 +232,7 @@ export const DetailForm: FC<{
             duration: 10000,
             action: {
               label: "Detail Teknis",
-              onClick: () => Alert.info(res.error.message),
+              onClick: () => Alert.info(res.error?.message || "Unknown error"),
             },
             className: css`
               border: 0 !important;
@@ -120,6 +242,11 @@ export const DetailForm: FC<{
         } else {
           writer.unsaved = false;
           onChanged?.(undefined);
+          
+          // Refresh the tab data after save
+          if (tab.mode === "detail") {
+            tab.op.refreshDetail();
+          }
 
           toast(
             <div className="flex items-center space-x-1 cursor-default select-none">
@@ -148,8 +275,8 @@ export const DetailForm: FC<{
       <Toolbar
         writer={writer}
         model={model}
-        loading={detail.loading}
-        del={del}
+        loading={tab.status !== "ready"}
+        del={deleteData}
         onReset={() => {
           const prev_id = parseHash()["prev"];
           onChanged?.(undefined);

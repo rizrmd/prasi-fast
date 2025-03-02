@@ -3,7 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useModelList } from "@/hooks/model-list/use-model-list";
+import { useValtioTab } from "@/hooks/use-valtio-tab";
 import { useLocal } from "@/hooks/use-local";
 import { FC } from "react";
 import * as models from "shared/models";
@@ -14,12 +14,13 @@ import { ModelTableHeadTitle } from "./table-head-title";
 
 export const ModelTableHead: FC<{
   modelName: ModelName;
-  tableModel: ReturnType<typeof useModelList>;
   columnName: string;
   colIdx: number;
   className?: string;
-}> = ({ modelName, columnName, colIdx, className, tableModel }) => {
+  tabId: string;
+}> = ({ modelName, columnName, colIdx, className, tabId }) => {
   const local = useLocal({ open: false });
+  const modelTab = useValtioTab(tabId);
   const rootModel = models[modelName];
   let model = rootModel;
 
@@ -32,26 +33,21 @@ export const ModelTableHead: FC<{
       title = rel.relation.label;
       model = rel.model;
     } else {
-      return "- invalid -";
+      return null;
     }
   } else {
     title = rootModel.config.columns[columnName]?.label || columnName;
   }
 
-  const isFiltering =
-    tableModel?.filterBy[columnName] &&
-    tableModel?.filterBy[columnName].length > 0;
-
-  const sortDirection = tableModel?.sortBy[columnName];
+  // Get current filter and sort state from the tab
+  const isFiltering = modelTab.filters[columnName]?.length > 0;
+  const sortDirection = modelTab.sortBy?.column === columnName ? modelTab.sortBy.direction : undefined;
 
   return (
     <Popover
       open={local.open}
       onOpenChange={async (open) => {
         local.open = open;
-        if (open && tableModel) {
-          await tableModel.fetchUniqueValues(columnName);
-        }
         local.render();
       }}
     >
@@ -59,9 +55,7 @@ export const ModelTableHead: FC<{
         <ModelTableHeadTitle
           title={title}
           sortBy={sortDirection}
-          filterCount={
-            isFiltering ? tableModel?.filterBy[columnName].length : undefined
-          }
+          filterCount={isFiltering ? modelTab.filters[columnName]?.length : undefined}
           isOpen={local.open}
           colIdx={colIdx}
           className={className}
@@ -75,7 +69,7 @@ export const ModelTableHead: FC<{
           modelName={modelName}
           columnName={columnName}
           title={title}
-          modelTable={tableModel}
+          tabId={tabId}
           onClose={() => {
             local.open = false;
             local.render();

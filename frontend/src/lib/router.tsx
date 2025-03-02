@@ -190,8 +190,11 @@ export function useRouter() {
   return router;
 }
 
-export function useParams<T extends Record<string, string>>(): T {
-  return useContext(ParamsContext) as T;
+export function useParams<T extends Record<string, string>>() {
+  return {
+    params: useContext(ParamsContext) as T,
+    hash: {} as Record<string, string>,
+  };
 }
 
 export function Link({

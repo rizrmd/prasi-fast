@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -6,23 +7,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLocal } from "@/hooks/use-local";
+import { useValtioTab } from "@/hooks/use-valtio-tab";
+import { cn } from "@/lib/utils";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-
-import { useModelList } from "@/hooks/model-list/use-model-list";
-import { useLocal } from "@/hooks/use-local";
-import { cn } from "@/lib/utils";
 import { css } from "goober";
 import { ChevronDown } from "lucide-react";
 import { ReactElement, useEffect } from "react";
 import { ModelName } from "shared/types";
-import { LayoutList } from "system/model/layout/types";
 import { AppLoading } from "../../app/app-loading";
 import { WarnFull } from "../../app/warn-full";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DataCell } from "./cell/data-cell";
 import { ModelTableHead } from "./head/table-head";
 
@@ -35,22 +33,81 @@ export type ColumnMetaData = {
 type DataTableProps = {
   primaryKey: string;
   status: "init" | "loading" | "ready";
-  checkbox?: LayoutList<any>["checkbox"];
+  checkbox?: {
+    enabled: boolean;
+  };
   onRowClick: (row: any) => void;
   onRowSelected?: (rows: any[]) => void;
-  modelTable: ReturnType<typeof useModelList>;
+  modelTable: ReturnType<typeof useValtioTab>;
+  tabId: string;
 };
 
 export function DataTable(props: DataTableProps) {
-  const local = useLocal({
+  const local = useLocal<{
+    data: any[];
+    columns: any[];
+    pagingInfo: ReactElement;
+  }>({
     data: [],
-    columns: [] as any[],
+    columns: [],
     pagingInfo: <>-</>,
   });
+
   const onRowSelected = props.onRowSelected;
-  const result = props.modelTable.result;
-  const columns = props.modelTable.columns;
+  const tab = props.modelTable;
+  const result = tab.list;
+
+  // Derive columns from layout
   useEffect(() => {
+    if (!tab.config?.layout?.list?.default?.columns) {
+      local.columns = [];
+      local.render();
+      return;
+    }
+
+    // Extract columns from layout
+    const layoutColumns = tab.config?.layout?.list?.default?.columns;
+    const derivedColumns = Array.isArray(layoutColumns)
+      ? layoutColumns.map((col: any, index: number) => {
+          // Convert layout column definition to table column format
+          const isRelation = col.rel ? true : false;
+          let relationType = "data";
+          let accessorPath = col.col || col.rel;
+
+          if (isRelation) {
+            // Get the relation type from the model configuration
+            const relationParts = col.rel.split(".");
+            const relationName = relationParts[0];
+
+            // Access relations from the model instead of tab.config
+            const model = tab.config?.model;
+            const relation = model?.config?.relations?.[relationName];
+            relationType = relation?.type || "relation";
+
+            // For relations, ensure the accessorPath is correctly set
+            if (col.col) {
+              // If both rel and col are specified, the accessorPath should be rel.col
+              accessorPath = `${col.rel}.${col.col}`;
+            }
+          }
+
+          return {
+            accessorKey: col.col || col.rel,
+            header: col.header || col.col || col.rel,
+            meta: {
+              modelName: tab.config?.modelName,
+              columnName: col.col
+                ? col.rel
+                  ? `${col.rel}.${col.col}`
+                  : col.col
+                : col.rel,
+              accessorPath: accessorPath,
+              type: isRelation ? relationType : "data",
+            },
+          };
+        })
+      : [];
+
     local.columns = props.checkbox?.enabled
       ? [
           {
@@ -89,25 +146,36 @@ export function DataTable(props: DataTableProps) {
             enableSorting: false,
             enableHiding: false,
           },
-          ...columns,
+          ...derivedColumns,
         ]
-      : columns;
+      : derivedColumns;
+
     if (!result) {
       local.data = [];
       local.pagingInfo = <>-</>;
       local.render();
       return;
     }
-    local.data = result.data;
+    local.data = result.data ? [...result.data] : [];
     local.pagingInfo = (
       <>
-        <sup>{Math.min(result.total, result.perPage * result.page)}</sup>
+        <sup>
+          {Math.min(
+            result.total || 0,
+            (result.perPage || 0) * (result.page || 0)
+          )}
+        </sup>
         <div className="px-1">/</div>
-        <sub>{result.total}</sub>
+        <sub>{result.total || 0}</sub>
       </>
     );
     local.render();
-  }, [result?.data, columns]);
+  }, [
+    result?.data,
+    tab.config?.layout?.list?.default?.columns,
+    props.checkbox?.enabled,
+    props.tabId,
+  ]);
 
   return (
     <InternalDataTable
@@ -128,6 +196,7 @@ const InternalDataTable = ({
   modelTable,
   pagingInfo,
   primaryKey,
+  tabId,
 }: DataTableProps & {
   data: any[];
   columns: any[];
@@ -179,7 +248,7 @@ const InternalDataTable = ({
                     {header.isPlaceholder ? null : (
                       <ModelTableHead
                         colIdx={idx}
-                        tableModel={modelTable}
+                        tabId={tabId}
                         columnName={meta.columnName}
                         modelName={meta.modelName}
                         className={cn(
@@ -234,7 +303,7 @@ const InternalDataTable = ({
                     >
                       <DataCell
                         colIdx={idx}
-                        modelTable={modelTable}
+                        tabId={tabId}
                         cell={cell}
                         row={row}
                         rowId={row.original[primaryKey]}

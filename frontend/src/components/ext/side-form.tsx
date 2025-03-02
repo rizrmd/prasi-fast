@@ -1,5 +1,5 @@
-import { FC, ReactNode } from "react"
-import { Logo } from "@/components/app/logo"
+import { FC, ReactNode } from "react";
+import { Logo } from "@/components/app/logo";
 import sideImage from '@/components/img/side-bg.jpeg';
 
 export const SideForm: FC<{ children: ReactNode }> = ({ children }) => {
@@ -17,6 +17,7 @@ export const SideForm: FC<{ children: ReactNode }> = ({ children }) => {
     <div className="relative hidden bg-muted lg:block">
       <img
         src={sideImage}
+        alt="Background"
         className="absolute inset-0 h-full w-full object-cover"
       />
     </div>

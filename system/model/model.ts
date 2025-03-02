@@ -5,7 +5,6 @@ import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
 import type { BaseRecord } from "./base/model-base";
 import { prismaFrontendProxy } from "./model-client";
-import { CacheManager } from "./base/manager/model-cache";
 
 export {
   defaultColumns,
@@ -180,6 +179,38 @@ export class Model<T extends BaseRecord = any> {
   ): Promise<T[]> {
     await this.ensureInitialized();
     return this.crudManager.findMany(params);
+  }
+
+  /**
+   * Get unique values for a specific column
+   * Used for filtering in the UI
+   */
+  public async getUniqueValues(columnName: string): Promise<any[]> {
+    await this.ensureInitialized();
+    
+    try {
+      // Get the table name from the config
+      const tableName = this.state.config.tableName;
+      
+      // Check if the column exists in the model
+      if (!this.state.config.columns[columnName] && columnName !== this.state.config.primaryKey) {
+        console.warn(`Column ${columnName} not found in model ${this.state.config.modelName}`);
+        return [];
+      }
+      
+      // Use raw query to get distinct values
+      const result = await this.state.prisma.$queryRawUnsafe(
+        `SELECT DISTINCT "${columnName}" FROM "${tableName}" WHERE "${columnName}" IS NOT NULL ORDER BY "${columnName}" LIMIT 100`
+      );
+      
+      // Extract the values from the result
+      return Array.isArray(result) 
+        ? result.map((item: any) => item[columnName]).filter(Boolean)
+        : [];
+    } catch (error) {
+      console.error(`Error getting unique values for ${columnName}:`, error);
+      return [];
+    }
   }
 
   public async create(params: { data: Partial<T> }): Promise<T> {
