@@ -18,8 +18,6 @@ export const ModelContainer: FC<{
   const tab = useValtioTab({ root: true });
   const manager = useSnapshot(TabManager.state);
 
-
-
   if (manager.activeIdx === -1) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -28,18 +26,18 @@ export const ModelContainer: FC<{
     );
   }
 
-  console.log(tab, manager.activeIdx)
+  console.log(tab, manager.activeIdx);
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col flex-1 bg-slate-100">
+      <div className="flex flex-col flex-1 bg-slate-100 select-none">
         <ModelNavTabs />
 
-        <div className="flex border-b  bg-white items-stretch justify-between">
+        <div className="flex border-b bg-white items-stretch justify-between">
           <ModelBreadList />
           <ModelBreadAction />
         </div>
-        <div className="p-2 flex flex-1 items-stretch flex-col">{children}</div>
+        <div className="flex flex-1 items-stretch flex-col">{children}</div>
       </div>
     </ProtectedRoute>
   );
