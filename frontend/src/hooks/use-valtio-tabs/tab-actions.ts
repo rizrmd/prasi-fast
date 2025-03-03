@@ -3,23 +3,6 @@ import { TabActions, TabState } from "./types";
 export const createValtioTabAction = (state: TabState): TabActions => {
   return {
     list: {
-      filter: {
-        async queryOptions(name) {
-          // TODO: Implement filter options query
-          return Promise.resolve();
-        },
-        async setValue(name, value) {
-          if (!state.list.filter[name]) {
-            state.list.filter[name] = { value: null, loading: false, options: [] };
-          }
-          state.list.filter[name].value = value;
-          return Promise.resolve();
-        },
-        async reset() {
-          state.list.filter = {};
-          return Promise.resolve();
-        }
-      },
       sort: {
         async querySort(column, direction) {
           state.list.sortBy = direction ? { column, direction } : null;
@@ -28,7 +11,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
         async reset() {
           state.list.sortBy = null;
           return Promise.resolve();
-        }
+        },
       },
       async query(params) {
         state.list.loading = true;
@@ -39,7 +22,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
             total: 0,
             page: 1,
             perPage: 10,
-            totalPages: 1
+            totalPages: 1,
           };
         } finally {
           state.list.loading = false;
@@ -70,7 +53,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
       async goToLastPage() {
         state.list.data.page = state.list.data.totalPages;
         await this.query();
-      }
+      },
     },
     detail: {
       async save(data) {
@@ -125,7 +108,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
         } finally {
           state.detail.loading = false;
         }
-      }
+      },
     },
     mode: {
       setListMode() {
@@ -136,7 +119,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
       },
       toggle() {
         state.mode = state.mode === "list" ? "detail" : "list";
-      }
+      },
     },
     layout: {
       setListLayout(layout: string) {
@@ -144,7 +127,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
       },
       setDetailLayout(layout: string) {
         state.layout.detail = "default";
-      }
-    }
+      },
+    },
   };
 };

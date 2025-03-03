@@ -86,11 +86,6 @@ export type TabState = {
 
 export type TabActions = {
   list: {
-    filter: {
-      queryOptions(name: ColumnName): Promise<void>;
-      setValue(name: ColumnName, value: any): Promise<void>;
-      reset(): Promise<void>;
-    };
     sort: {
       querySort(
         column: string,

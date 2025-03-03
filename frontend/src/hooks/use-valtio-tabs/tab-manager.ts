@@ -52,10 +52,54 @@ export const TabManager = {
 
     return tabID;
   },
-  closeTab(tabId: string) {},
-  closeAllTabs() {},
-  closeOtherTabs(tabId: string) {},
-  openTab(tabId: string) {},
+  closeTab(tabId: string) {
+    const idx = this.state.tabs.findIndex((tab) => tab.id === tabId);
+    if (idx === -1) return;
+
+    // Remove tab from state
+    this.state.tabs.splice(idx, 1);
+    delete valtio_tabs[tabId];
+
+    // Update active tab
+    if (this.state.tabs.length === 0) {
+      this.state.activeIdx = -1;
+      this.state.activeTabID = "";
+    } else if (idx <= this.state.activeIdx) {
+      this.state.activeIdx = Math.max(0, this.state.activeIdx - 1);
+      this.state.activeTabID = this.state.tabs[this.state.activeIdx].id;
+    }
+
+    saveTabsToLocalStorage();
+  },
+  closeAllTabs() {
+    this.state.tabs = [];
+    this.state.activeIdx = -1;
+    this.state.activeTabID = "";
+    Object.keys(valtio_tabs).forEach((key) => delete valtio_tabs[key]);
+    saveTabsToLocalStorage();
+  },
+  closeOtherTabs(tabId: string) {
+    const tab = this.state.tabs.find((tab) => tab.id === tabId);
+    if (!tab) return;
+
+    // Keep only the selected tab
+    Object.keys(valtio_tabs).forEach((key) => {
+      if (key !== tabId) delete valtio_tabs[key];
+    });
+
+    this.state.tabs = [tab];
+    this.state.activeIdx = 0;
+    this.state.activeTabID = tabId;
+    saveTabsToLocalStorage();
+  },
+  openTab(tabId: string) {
+    const idx = this.state.tabs.findIndex((tab) => tab.id === tabId);
+    if (idx === -1) return;
+
+    this.state.activeIdx = idx;
+    this.state.activeTabID = tabId;
+    saveTabsToLocalStorage();
+  },
 };
 
 const convertNavToUrl = (nav: TabState["nav"]) => {
@@ -98,5 +142,59 @@ const parseParamsAndHash = async (
     },
   } as TabState["nav"];
 };
-const loadTabsFromLocalStorage = () => {};
-const saveTabsToLocalStorage = () => {};
+
+const loadTabsFromLocalStorage = () => {
+  try {
+    const savedTabs = localStorage.getItem("valtio-tabs");
+    if (!savedTabs) return;
+
+    const { tabs, activeIdx, activeTabID } = JSON.parse(savedTabs);
+
+    // Restore tabs state
+    tabs.forEach((tab: Tab) => {
+      const savedTab = JSON.parse(
+        localStorage.getItem(`valtio-tab-${tab.id}`) || "{}"
+      );
+      if (savedTab.state && savedTab.action) {
+        valtio_tabs[tab.id] = {
+          state: proxy(savedTab.state),
+          action: createValtioTabAction(savedTab.state),
+        };
+      }
+    });
+
+    // Update tab manager state
+    TabManager.state.tabs = tabs;
+    TabManager.state.activeIdx = activeIdx;
+    TabManager.state.activeTabID = activeTabID;
+  } catch (error) {
+    console.error("Error loading tabs from localStorage:", error);
+  }
+};
+
+const saveTabsToLocalStorage = () => {
+  try {
+    // Save tab manager state
+    localStorage.setItem(
+      "valtio-tabs",
+      JSON.stringify({
+        tabs: TabManager.state.tabs,
+        activeIdx: TabManager.state.activeIdx,
+        activeTabID: TabManager.state.activeTabID,
+      })
+    );
+
+    // Save individual tab states
+    Object.entries(valtio_tabs).forEach(([tabId, tab]) => {
+      localStorage.setItem(
+        `valtio-tab-${tabId}`,
+        JSON.stringify({
+          state: tab.state,
+          action: null, // We don't save the action as it will be recreated
+        })
+      );
+    });
+  } catch (error) {
+    console.error("Error saving tabs to localStorage:", error);
+  }
+};
