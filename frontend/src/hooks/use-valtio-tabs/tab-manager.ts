@@ -14,7 +14,12 @@ type HASH_ID = string;
 type MODEL_ID = string;
 
 export const TabManager = {
-  state: proxy({ show: false, activeIdx: -1, tabs: [] as Tab[] }),
+  state: proxy({
+    show: false,
+    activeIdx: -1,
+    activeTabID: "",
+    tabs: [] as Tab[],
+  }),
   init(
     params: { name: string; id?: string },
     hash: Partial<{ parent: HASH_ID; filter: HASH_ID; prev: MODEL_ID }>
@@ -24,7 +29,6 @@ export const TabManager = {
     if (Object.entries(valtio_tabs).length === 0) {
       parseParamsAndHash(params, hash).then((nav) => {
         this.openInNewTab(nav);
-        this.state.activeIdx = 0;
       });
     }
   },
@@ -42,6 +46,10 @@ export const TabManager = {
       url: convertNavToUrl(nav),
       closable: true,
     });
+
+    this.state.activeIdx = this.state.tabs.length - 1;
+    this.state.activeTabID = tabID;
+
     return tabID;
   },
   closeTab(tabId: string) {},

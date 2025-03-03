@@ -15,5 +15,5 @@ export const useValtioTab = (init?: { root: true }) => {
     return { state: proxy({ id: "" }), actions: {} } as unknown as ValtioTab;
   }
 
-  return valtio_tabs[TabManager.state.activeIdx];
+  return valtio_tabs[TabManager.state.activeTabID];
 };

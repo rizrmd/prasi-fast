@@ -15,8 +15,10 @@ import { TabManager } from "@/hooks/use-valtio-tabs/tab-manager";
 export const ModelContainer: FC<{
   children: ReactNode;
 }> = ({ children }) => {
-  useValtioTab({ root: true });
+  const tab = useValtioTab({ root: true });
   const manager = useSnapshot(TabManager.state);
+
+
 
   if (manager.activeIdx === -1) {
     return (
@@ -25,6 +27,8 @@ export const ModelContainer: FC<{
       </div>
     );
   }
+
+  console.log(tab, manager.activeIdx)
 
   return (
     <ProtectedRoute>
