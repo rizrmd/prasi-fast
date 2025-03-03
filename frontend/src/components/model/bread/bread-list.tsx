@@ -1,25 +1,14 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumb, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { useValtioTab } from "@/hooks/use-valtio-tab";
-import { Link } from "@/lib/router";
-import { FC, Fragment } from "react";
-import { useSnapshot } from "valtio";
-import { BreadcrumbList } from "../ui/breadcrumb";
+import { FC } from "react";
 
-export const ModelBreadcrumb: FC<{
-  tabId: string;
-}> = ({ tabId }) => {
-  const tab = useValtioTab(tabId);
-  const state = useSnapshot(tab.state);
+export const ModelBreadList: FC<{}> = ({}) => {
+  const tab = useValtioTab();
 
   return (
     <Breadcrumb className="p-2 bg-transparent select-none">
       <BreadcrumbList>
-        {state.breads.list.map((bread, index) => (
+        {/* {state.breads.list.map((bread, index) => (
           <Fragment key={index}>
             <BreadcrumbItem>
               {index === state.breads.list.length - 1 ? (
@@ -42,7 +31,7 @@ export const ModelBreadcrumb: FC<{
               </div>
             </BreadcrumbItem>
           </>
-        )}
+        )} */}
       </BreadcrumbList>
     </Breadcrumb>
   );

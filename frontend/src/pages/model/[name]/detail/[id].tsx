@@ -1,8 +1,10 @@
 import { ModelContainer } from "@/components/model/container";
-import { MDetail } from "@/components/model/detail";
+import { ModelDetail } from "@/components/model/detail/model-detail";
 
 export default () => {
   return (
-    <ModelContainer>{({ tabId }) => <MDetail tabId={tabId} />}</ModelContainer>
+    <ModelContainer>
+      <ModelDetail />
+    </ModelContainer>
   );
 };

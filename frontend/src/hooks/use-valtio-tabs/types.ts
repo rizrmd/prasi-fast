@@ -42,16 +42,23 @@ export type TabState = {
     data: any;
     loading: boolean;
   };
-  breads: {
-    list: Array<{ title: string; url: string }>;
-    loading: boolean;
-    actions: {
-      label: ReactElement;
-      tooltip?: string;
-      onClick?: () => void;
-      href?: string;
-    }[];
-  };
+  nav:
+    | (
+        | { mode: "detail"; modelName: string; id: string }
+        | {
+            mode: "list";
+            modelName: string;
+          }
+      )
+    | {
+        parent?: {
+          modelName: string;
+          columnName: string;
+          rowId: string;
+          type: "hasMany" | "hasOne";
+        };
+        prev?: string;
+      };
 };
 
 export type TabActions = {
@@ -82,12 +89,6 @@ export type TabActions = {
     prevItem: () => Promise<void>;
     create: () => Promise<void>;
     delete: (id: string) => Promise<void>;
-  };
-  breadcrumbs: {
-    init: () => Promise<void>;
-    update: (
-      breadcrumbs: Array<{ title: string; url: string }>
-    ) => Promise<void>;
   };
   mode: {
     setListMode: () => void;

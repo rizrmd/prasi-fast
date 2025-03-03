@@ -1,20 +1,13 @@
 import { navigate, parseRouteParams } from "@/lib/router";
-import { cn } from "@/lib/utils";
 import cuid from "@bugsnag/cuid";
-import { css } from "goober";
 import { FC } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
-import { DraggableTabs } from "../ext/draggable-tabs";
-import { nav } from "./nav/types";
-import { findTabIndexByUrl, getTabIndexById, saveNavState } from "./nav/utils";
 
-export const ModelNavTabs: FC<{
-  tabId: string;
-}> = ({ tabId }) => {
+export const ModelNavTabs: FC<{}> = ({}) => {
   return (
     <div className="flex relative items-stretch flex-col overflow-hidden">
-      <div
+      {/* <div
         className={cn(
           "border-b border-sidebar-border transition-all",
           nav.show ? "h-[40px]" : "h-0"
@@ -75,7 +68,7 @@ export const ModelNavTabs: FC<{
           saveNavState();
           nav.render();
         }}
-      />
+      /> */}
     </div>
   );
 };
@@ -91,29 +84,29 @@ export const openInNewTab = async (
   ) as ModelName;
 
   if (modelName && params) {
-    const newTab = {
-      id: cuid(),
-      url,
-      label: modelName,
-      closable: true,
-    };
+    // const newTab = {
+    //   id: cuid(),
+    //   url,
+    //   label: modelName,
+    //   closable: true,
+    // };
 
-    // Check if tab with this URL already exists
-    const existingTabIndex = findTabIndexByUrl(url);
-    if (existingTabIndex !== -1) {
-      if (opt?.activate !== false) {
-        nav.activeIdx = existingTabIndex;
-        navigate(url);
-      }
-    } else {
-      nav.tabs.push(newTab);
-      if (opt?.activate !== false) {
-        nav.activeIdx = nav.tabs.length - 1;
-        navigate(url);
-      }
-    }
+    // // Check if tab with this URL already exists
+    // const existingTabIndex = findTabIndexByUrl(url);
+    // if (existingTabIndex !== -1) {
+    //   if (opt?.activate !== false) {
+    //     nav.activeIdx = existingTabIndex;
+    //     navigate(url);
+    //   }
+    // } else {
+    //   nav.tabs.push(newTab);
+    //   if (opt?.activate !== false) {
+    //     nav.activeIdx = nav.tabs.length - 1;
+    //     navigate(url);
+    //   }
+    // }
 
-    saveNavState();
-    nav.render();
+    // saveNavState();
+    // nav.render();
   }
 };
