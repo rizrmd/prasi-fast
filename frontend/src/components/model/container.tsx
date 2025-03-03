@@ -10,13 +10,21 @@ import { Button } from "../ui/button";
 import { ModelNavTabs } from "./nav-tabs";
 import { ModelBreadList } from "./bread/bread-list";
 import { ModelBreadAction } from "./bread/bread-action";
+import { TabManager } from "@/hooks/use-valtio-tabs/tab-manager";
 
 export const ModelContainer: FC<{
   children: ReactNode;
 }> = ({ children }) => {
-  const tab = useValtioTab({ root: true });
-  const state = useSnapshot(tab.state);
-  const tabId = tab.state.id;
+  useValtioTab({ root: true });
+  const manager = useSnapshot(TabManager.state);
+
+  if (manager.activeIdx === -1) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <AppLoading />
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -27,15 +35,7 @@ export const ModelContainer: FC<{
           <ModelBreadList />
           <ModelBreadAction />
         </div>
-        <div className="p-2 flex flex-1 items-stretch flex-col">
-          {tabId ? (
-            children
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <AppLoading />
-            </div>
-          )}
-        </div>
+        <div className="p-2 flex flex-1 items-stretch flex-col">{children}</div>
       </div>
     </ProtectedRoute>
   );

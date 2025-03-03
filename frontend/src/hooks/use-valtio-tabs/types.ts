@@ -44,20 +44,24 @@ export type TabState = {
   };
   nav:
     | (
-        | { mode: "detail"; modelName: string; id: string }
+        | { mode: "detail"; id: string }
         | {
             mode: "list";
-            modelName: string;
           }
-      )
-    | {
+      ) & {
+        modelName: string;
+        hash: {
+          parent: string;
+          filter: string;
+          prev: string;
+        };
         parent?: {
           modelName: string;
           columnName: string;
           rowId: string;
           type: "hasMany" | "hasOne";
         };
-        prev?: string;
+        filter?: Record<string, string>;
       };
 };
 

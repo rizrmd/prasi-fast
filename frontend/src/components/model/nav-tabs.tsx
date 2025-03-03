@@ -1,13 +1,20 @@
+import { TabManager } from "@/hooks/use-valtio-tabs/tab-manager";
 import { navigate, parseRouteParams } from "@/lib/router";
-import cuid from "@bugsnag/cuid";
+import { cn } from "@/lib/utils";
+import { css } from "goober";
 import { FC } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
+import { useSnapshot } from "valtio";
+import { DraggableTabs, Tab } from "../ext/draggable-tabs";
 
 export const ModelNavTabs: FC<{}> = ({}) => {
+  const state = TabManager.state;
+  const nav = useSnapshot(TabManager.state);
+
   return (
     <div className="flex relative items-stretch flex-col overflow-hidden">
-      {/* <div
+      <div
         className={cn(
           "border-b border-sidebar-border transition-all",
           nav.show ? "h-[40px]" : "h-0"
@@ -15,7 +22,7 @@ export const ModelNavTabs: FC<{}> = ({}) => {
       ></div>
       <DraggableTabs
         activeIndex={nav.activeIdx}
-        tabs={nav.tabs}
+        tabs={nav.tabs as Tab[]}
         className={cn(
           "bg-transparent pb-0 pt-0 items-end absolute left-0 top-0 right-0 z-10",
           css`
@@ -37,38 +44,28 @@ export const ModelNavTabs: FC<{}> = ({}) => {
           `
         )}
         onTabChange={(index) => {
-          nav.activeIdx = index;
-          saveNavState();
+          state.activeIdx = index;
           navigate(nav.tabs[index].url);
-          nav.render();
         }}
         onTabClose={(tabId) => {
-          const tabIndex = getTabIndexById(tabId);
+          const tabIndex = state.tabs.findIndex((e) => e.id);
           if (tabIndex !== -1) {
             // Remove the tab
-            nav.tabs.splice(tabIndex, 1);
+            state.tabs.splice(tabIndex, 1);
 
             // Update active index if needed
-            if (nav.tabs.length === 0) {
-              // No tabs left, navigate to home
+            if (state.tabs.length === 0) {
               navigate("/");
             } else if (tabIndex <= nav.activeIdx) {
-              // If we removed a tab before or at the active index
-              nav.activeIdx = Math.max(0, nav.activeIdx - 1);
-              // Navigate to the new active tab
+              state.activeIdx = Math.max(0, state.activeIdx - 1);
               navigate(nav.tabs[nav.activeIdx].url);
             }
-
-            saveNavState();
-            nav.render();
           }
         }}
         onTabsReorder={(tabs) => {
-          nav.tabs = tabs;
-          saveNavState();
-          nav.render();
+          state.tabs = tabs;
         }}
-      /> */}
+      />
     </div>
   );
 };
@@ -90,7 +87,6 @@ export const openInNewTab = async (
     //   label: modelName,
     //   closable: true,
     // };
-
     // // Check if tab with this URL already exists
     // const existingTabIndex = findTabIndexByUrl(url);
     // if (existingTabIndex !== -1) {
@@ -105,7 +101,6 @@ export const openInNewTab = async (
     //     navigate(url);
     //   }
     // }
-
     // saveNavState();
     // nav.render();
   }

@@ -35,6 +35,11 @@ export const createValtioTabState = (tabId: string): TabState => {
     nav: {
       mode: "list",
       modelName: "",
+      hash: {
+        filter: "",
+        parent: "",
+        prev: "",
+      },
     },
   });
 };
