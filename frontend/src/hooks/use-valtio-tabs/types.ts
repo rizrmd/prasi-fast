@@ -29,10 +29,29 @@ export type TabState = {
     detail: "default";
   };
   list: {
-    filter: Record<
-      ColumnName,
-      { value: any; loading: boolean; options: { id: string; label: any }[] }
-    >;
+    filter: {
+      fieldOrder: ColumnName[];
+      unique: Record<
+        ColumnName,
+        {
+          value: any;
+          loading: boolean;
+          options: { value: string; label: any }[];
+        }
+      >;
+      fields: Record<
+        ColumnName,
+        {
+          type: string;
+          options?: Partial<{
+            operator: string;
+            list: { value: string; label: string }[];
+          }>;
+          value: any;
+          operator: string;
+        }
+      >;
+    };
     data: PaginationResult<any>;
     sortBy: { column: string; direction: "asc" | "desc" } | null;
     loading: boolean;

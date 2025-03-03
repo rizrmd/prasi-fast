@@ -16,7 +16,11 @@ export const createValtioTabState = (tabId: string): TabState => {
       detail: "default",
     },
     list: {
-      filter: {},
+      filter: {
+        fieldOrder: [],
+        unique: {},
+        fields: {},
+      },
       data: {
         data: [],
         total: 0,
