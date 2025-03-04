@@ -30,11 +30,13 @@ export const createValtioTabState = (tabId: string): TabState => {
       },
       sortBy: null,
       loading: false,
+      ready: false,
     },
     detail: {
       idx: 0,
       data: null,
       loading: false,
+      ready: false,
     },
     nav: {
       mode: "list",

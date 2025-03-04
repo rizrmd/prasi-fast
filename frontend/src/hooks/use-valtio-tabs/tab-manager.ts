@@ -1,12 +1,12 @@
+import { Tab } from "@/components/ext/draggable-tabs";
 import cuid from "@bugsnag/cuid";
+import * as Models from "shared/models";
 import { ModelName } from "shared/types";
 import { loadHash } from "system/utils/object-hash";
 import { proxy } from "valtio";
 import { createValtioTabAction } from "./tab-actions";
 import { createValtioTabState } from "./tab-state";
 import { TabState, ValtioTab } from "./types";
-import { Tab } from "@/components/ext/draggable-tabs";
-import * as Models from "shared/models";
 
 export const valtio_tabs = {} as Record<string, ValtioTab>;
 
@@ -27,8 +27,21 @@ export const TabManager = {
     loadTabsFromLocalStorage();
 
     if (Object.entries(valtio_tabs).length === 0) {
+      const tabID = this.openInNewTab({
+        id: params.id || "",
+        modelName: params.name,
+        hash: {
+          parent: hash.parent || "",
+          filter: hash.filter || "",
+          prev: hash.prev || "",
+        },
+        mode: params.id ? "detail" : "list",
+      });
       parseParamsAndHash(params, hash).then((nav) => {
-        this.openInNewTab(nav);
+        const tab = valtio_tabs[tabID];
+        if (tab) {
+          tab.state.nav = nav;
+        }
       });
     }
   },
@@ -152,13 +165,13 @@ const loadTabsFromLocalStorage = () => {
 
     // Restore tabs state
     tabs.forEach((tab: Tab) => {
-      const savedTab = JSON.parse(
-        localStorage.getItem(`valtio-tab-${tab.id}`) || "{}"
-      );
-      if (savedTab.state && savedTab.action) {
+      const savedNav = localStorage.getItem(`valtio-tab-nav-${tab.id}`);
+      if (savedNav) {
+        const state = createValtioTabState(tab.id);
+        state.nav = JSON.parse(savedNav);
         valtio_tabs[tab.id] = {
-          state: proxy(savedTab.state),
-          action: createValtioTabAction(savedTab.state),
+          state,
+          action: createValtioTabAction(state),
         };
       }
     });
@@ -184,14 +197,11 @@ const saveTabsToLocalStorage = () => {
       })
     );
 
-    // Save individual tab states
+    // Save individual tab navigation states
     Object.entries(valtio_tabs).forEach(([tabId, tab]) => {
       localStorage.setItem(
-        `valtio-tab-${tabId}`,
-        JSON.stringify({
-          state: tab.state,
-          action: null, // We don't save the action as it will be recreated
-        })
+        `valtio-tab-nav-${tabId}`,
+        JSON.stringify(tab.state.nav)
       );
     });
   } catch (error) {

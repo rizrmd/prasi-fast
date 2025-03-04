@@ -55,11 +55,13 @@ export type TabState = {
     data: PaginationResult<any>;
     sortBy: { column: string; direction: "asc" | "desc" } | null;
     loading: boolean;
+    ready: boolean;
   };
   detail: {
     idx: number;
     data: any;
     loading: boolean;
+    ready: boolean;
   };
   nav:
     | (

@@ -1,21 +1,15 @@
 import { AppLoading } from "@/components/app/app-loading";
-import { useValtioTab } from "@/hooks/use-valtio-tab";
-import { ProtectedRoute } from "@/lib/auth";
-import { cn } from "@/lib/utils";
-import { css } from "goober";
-import { FC, isValidElement, ReactNode } from "react";
-import { useSnapshot } from "valtio";
-import { SimpleTooltip } from "../ext/simple-tooltip";
-import { Button } from "../ui/button";
-import { ModelNavTabs } from "./nav-tabs";
-import { ModelBreadList } from "./bread/bread-list";
-import { ModelBreadAction } from "./bread/bread-action";
 import { TabManager } from "@/hooks/use-valtio-tabs/tab-manager";
+import { ProtectedRoute } from "@/lib/auth";
+import { FC, ReactNode } from "react";
+import { useSnapshot } from "valtio";
+import { ModelBreadAction } from "./bread/bread-action";
+import { ModelBreadList } from "./bread/bread-list";
+import { ModelNavTabs } from "./nav-tabs";
 
 export const ModelContainer: FC<{
   children: ReactNode;
 }> = ({ children }) => {
-  const tab = useValtioTab({ root: true });
   const manager = useSnapshot(TabManager.state);
 
   if (manager.activeIdx === -1) {
@@ -25,8 +19,6 @@ export const ModelContainer: FC<{
       </div>
     );
   }
-
-  console.log(tab, manager.activeIdx);
 
   return (
     <ProtectedRoute>
