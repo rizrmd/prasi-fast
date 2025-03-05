@@ -66,10 +66,15 @@ export type TabState = {
     ready: boolean;
   };
   detail: {
+    select: any;
     idx: number;
     data: any;
     loading: boolean;
     ready: boolean;
+    nav: {
+      prevId: string;
+      nextId: string;
+    };
   };
   nav:
     | (
@@ -113,11 +118,11 @@ export type TabActions = {
   };
   detail: {
     save: (data: any) => Promise<void>;
-    query: (id: string) => Promise<void>;
+    query: () => Promise<void>;
     nextItem: () => Promise<void>;
     prevItem: () => Promise<void>;
     create: () => Promise<void>;
-    delete: (id: string) => Promise<void>;
+    delete: () => Promise<void>;
   };
   mode: {
     setListMode: () => void;

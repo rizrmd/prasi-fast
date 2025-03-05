@@ -2,7 +2,7 @@ import { listFilterToWhere } from "./list-manager/list-filter-where";
 import { TabActions, TabState } from "./types";
 
 export const createValtioTabAction = (state: TabState): TabActions => {
-  return {
+  const action: TabActions = {
     list: {
       get layout() {
         return state.ref.layout?.list[state.layout.list] as any;
@@ -10,11 +10,11 @@ export const createValtioTabAction = (state: TabState): TabActions => {
       sort: {
         async querySort(column, direction) {
           state.list.sortBy = direction ? { column, direction } : null;
-          return Promise.resolve();
+          await action.list.query();
         },
         async reset() {
           state.list.sortBy = null;
-          return Promise.resolve();
+          await action.list.query();
         },
       },
       async query() {
@@ -87,7 +87,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
           state.detail.loading = false;
         }
       },
-      async query(id) {
+      async query() {
         state.detail.loading = true;
         try {
           // TODO: Implement actual detail fetching
@@ -97,21 +97,17 @@ export const createValtioTabAction = (state: TabState): TabActions => {
         }
       },
       async nextItem() {
-        if (state.detail.idx < state.list.data.data.length - 1) {
-          state.detail.idx++;
-          const nextItem = state.list.data.data[state.detail.idx];
-          if (nextItem) {
-            await this.query(nextItem.id);
-          }
+        state.nav.mode = "detail";
+        if (state.nav.mode === "detail" && state.detail.nav.prevId) {
+          state.nav.id = state.detail.nav.nextId;
+          await this.query();
         }
       },
       async prevItem() {
-        if (state.detail.idx > 0) {
-          state.detail.idx--;
-          const prevItem = state.list.data.data[state.detail.idx];
-          if (prevItem) {
-            await this.query(prevItem.id);
-          }
+        state.nav.mode = "detail";
+        if (state.nav.mode === "detail" && state.detail.nav.prevId) {
+          state.nav.id = state.detail.nav.prevId;
+          await this.query();
         }
       },
       async create() {
@@ -123,7 +119,7 @@ export const createValtioTabAction = (state: TabState): TabActions => {
           state.detail.loading = false;
         }
       },
-      async delete(id) {
+      async delete() {
         state.detail.loading = true;
         try {
           // TODO: Implement deletion logic
@@ -152,4 +148,5 @@ export const createValtioTabAction = (state: TabState): TabActions => {
       },
     },
   };
+  return action;
 };

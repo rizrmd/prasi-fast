@@ -14,7 +14,7 @@ export const createValtioTabState = (tabId: string): TabState => {
     },
     ref: {
       model: undefined as ReturnType<typeof getModel>,
-      layout: undefined as ReturnType<typeof getLayout>
+      layout: undefined as ReturnType<typeof getLayout>,
     },
     layout: {
       list: "default",
@@ -23,16 +23,19 @@ export const createValtioTabState = (tabId: string): TabState => {
     list: {
       select: {} as Record<string, boolean>,
       filter: {
-        unique: {} as Record<string, {
-          value: any;
-          loading: boolean;
-          options: { value: string; label: any }[];
-        }>,
+        unique: {} as Record<
+          string,
+          {
+            value: any;
+            loading: boolean;
+            options: { value: string; label: any }[];
+          }
+        >,
         values: {},
         field: {
           order: [],
           config: {},
-        }
+        },
       },
       data: {
         data: [],
@@ -46,12 +49,18 @@ export const createValtioTabState = (tabId: string): TabState => {
       ready: false,
     },
     detail: {
-      idx: 0,
+      idx: -1,
       data: null,
       loading: false,
       ready: false,
+      select: {},
+      nav: {
+        prevId: "",
+        nextId: "",
+      },
     },
     nav: {
+      id: "",
       mode: "list",
       modelName: "",
       hash: {
