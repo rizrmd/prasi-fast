@@ -88,10 +88,34 @@ export const createValtioTabAction = (state: TabState): TabActions => {
         }
       },
       async query() {
+        const model = state.ref.model;
+        if (!model || state.nav.mode !== "detail" || !("id" in state.nav))
+          return;
+
         state.detail.loading = true;
         try {
-          // TODO: Implement actual detail fetching
-          state.detail.data = null;
+          // Find current item index in list data
+          const currentIdx = state.list.data.data.findIndex(
+            (item) => state.nav.mode === "detail" && item.id === state.nav.id
+          );
+          state.detail.idx = currentIdx;
+
+          // Set navigation ids
+          const listData = state.list.data.data;
+          state.detail.nav = {
+            prevId: currentIdx > 0 ? listData[currentIdx - 1].id : "",
+            nextId:
+              currentIdx < listData.length - 1
+                ? listData[currentIdx + 1].id
+                : "",
+          };
+
+          // Fetch detailed data
+          const detailData = await model.findFirst({
+            where: { id: state.nav.id },
+            select: state.detail.select,
+          });
+          state.detail.data = detailData;
         } finally {
           state.detail.loading = false;
         }
