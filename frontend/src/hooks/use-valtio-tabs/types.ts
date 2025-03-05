@@ -1,7 +1,8 @@
-import { PaginationResult } from "system/types";
 import { layouts } from "shared/layouts";
 import { ModelName } from "shared/types";
-import { ReactElement, ReactNode } from "react";
+import { PaginationResult } from "system/types";
+import { getLayout, getModel } from "./tab-utility";
+import { LayoutList } from "system/model/layout/types";
 
 export type Layouts = typeof layouts;
 export type LayoutName = keyof Layouts;
@@ -14,6 +15,10 @@ export type TabState = {
   id: string;
   status: "init" | "ready";
   mode: "list" | "detail";
+  ref: {
+    model: ReturnType<typeof getModel>;
+    layout: ReturnType<typeof getLayout>;
+  };
   config: {
     modelName: ModelName;
     parent: null | {
@@ -29,8 +34,8 @@ export type TabState = {
     detail: "default";
   };
   list: {
+    select: any;
     filter: {
-      fieldOrder: ColumnName[];
       unique: Record<
         ColumnName,
         {
@@ -39,18 +44,21 @@ export type TabState = {
           options: { value: string; label: any }[];
         }
       >;
-      fields: Record<
-        ColumnName,
-        {
-          type: string;
-          options?: Partial<{
+      values: Record<ColumnName, any>;
+      field: {
+        order: ColumnName[];
+        config: Record<
+          ColumnName,
+          {
+            type: string;
+            options?: Partial<{
+              operator: string;
+              list: { value: string; label: string }[];
+            }>;
             operator: string;
-            list: { value: string; label: string }[];
-          }>;
-          value: any;
-          operator: string;
-        }
-      >;
+          }
+        >;
+      };
     };
     data: PaginationResult<any>;
     sortBy: { column: string; direction: "asc" | "desc" } | null;
@@ -88,6 +96,7 @@ export type TabState = {
 
 export type TabActions = {
   list: {
+    layout: LayoutList<ModelName>;
     sort: {
       querySort(
         column: string,
@@ -95,7 +104,7 @@ export type TabActions = {
       ): Promise<void>;
       reset: () => Promise<void>;
     };
-    query: (params?: any) => Promise<void>;
+    query: () => Promise<void>;
     nextPage: () => Promise<void>;
     prevPage: () => Promise<void>;
     goToPage: (page: number) => Promise<void>;

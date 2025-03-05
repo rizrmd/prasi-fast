@@ -1,6 +1,7 @@
 import { TabState } from "./types";
 import { proxy } from "valtio";
 import { ModelName } from "shared/types";
+import { getLayout, getModel } from "./tab-utility";
 
 export const createValtioTabState = (tabId: string): TabState => {
   return proxy({
@@ -11,15 +12,27 @@ export const createValtioTabState = (tabId: string): TabState => {
       modelName: "User" as ModelName,
       parent: null,
     },
+    ref: {
+      model: undefined as ReturnType<typeof getModel>,
+      layout: undefined as ReturnType<typeof getLayout>
+    },
     layout: {
       list: "default",
       detail: "default",
     },
     list: {
+      select: {} as Record<string, boolean>,
       filter: {
-        fieldOrder: [],
-        unique: {},
-        fields: {},
+        unique: {} as Record<string, {
+          value: any;
+          loading: boolean;
+          options: { value: string; label: any }[];
+        }>,
+        values: {},
+        field: {
+          order: [],
+          config: {},
+        }
       },
       data: {
         data: [],

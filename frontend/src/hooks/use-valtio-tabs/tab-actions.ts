@@ -1,8 +1,12 @@
+import { listFilterToWhere } from "./list-manager/list-filter-where";
 import { TabActions, TabState } from "./types";
 
 export const createValtioTabAction = (state: TabState): TabActions => {
   return {
     list: {
+      get layout() {
+        return state.ref.layout?.list[state.layout.list] as any;
+      },
       sort: {
         async querySort(column, direction) {
           state.list.sortBy = direction ? { column, direction } : null;
@@ -13,19 +17,37 @@ export const createValtioTabAction = (state: TabState): TabActions => {
           return Promise.resolve();
         },
       },
-      async query(params) {
-        state.list.loading = true;
-        try {
-          // TODO: Implement actual data fetching
-          state.list.data = {
-            data: [],
-            total: 0,
-            page: 1,
-            perPage: 10,
-            totalPages: 1,
-          };
-        } finally {
-          state.list.loading = false;
+      async query() {
+        const model = state.ref.model;
+        if (model) {
+          state.list.loading = true;
+
+          try {
+            const where = listFilterToWhere(state.list.filter);
+
+            const { data, total, page, perPage, totalPages } =
+              await model.findList({
+                select: {
+                  ...state.list.select,
+                },
+                orderBy: state.list.sortBy
+                  ? { [state.list.sortBy.column]: state.list.sortBy.direction }
+                  : undefined,
+                page: state.list.data.page,
+                perPage: state.list.data.perPage,
+                where,
+              });
+
+            state.list.data = {
+              data,
+              total,
+              page,
+              perPage,
+              totalPages,
+            };
+          } finally {
+            state.list.loading = false;
+          }
         }
       },
       async nextPage() {
