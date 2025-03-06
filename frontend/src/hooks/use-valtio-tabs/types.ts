@@ -3,6 +3,7 @@ import { ModelName } from "shared/types";
 import { PaginationResult } from "system/types";
 import { getLayout, getModel } from "./tab-utility";
 import { LayoutList } from "system/model/layout/types";
+import { ReactElement } from "react";
 
 export type Layouts = typeof layouts;
 export type LayoutName = keyof Layouts;
@@ -75,7 +76,19 @@ export type TabState = {
       prevId: string;
       nextId: string;
     };
+    changes: {
+      last: number;
+      draft: any;
+    };
   };
+  tab: Record<
+    "list" | "detail",
+    ((
+      | { type: "jsx"; content: ReactElement }
+      | { type: "tab"; content: ValtioTab }
+      | { type: "default"; content: undefined }
+    ) & { id: string; title?: string })[]
+  >;
   nav:
     | (
         | { mode: "detail"; id: string }

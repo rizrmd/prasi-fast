@@ -58,6 +58,14 @@ export const createValtioTabState = (tabId: string): TabState => {
         prevId: "",
         nextId: "",
       },
+      changes: {
+        last: 0,
+        draft: null,
+      },
+    },
+    tab: {
+      list: [{ type: "default", id: "default", content: undefined }],
+      detail: [{ type: "default", id: "default", content: undefined }],
     },
     nav: {
       id: "",
