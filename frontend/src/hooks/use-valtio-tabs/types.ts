@@ -113,6 +113,7 @@ export type TabState = {
 };
 
 export type TabActions = {
+  navigate(nav: TabState["nav"]): Promise<void>;
   list: {
     layout: LayoutList<ModelName>;
     sort: {
@@ -130,11 +131,11 @@ export type TabActions = {
     goToLastPage: () => Promise<void>;
   };
   detail: {
+    load: (id: string) => Promise<void>;
     save: (data: any) => Promise<void>;
     query: () => Promise<void>;
     nextItem: () => Promise<void>;
     prevItem: () => Promise<void>;
-    create: () => Promise<void>;
     delete: () => Promise<void>;
   };
   mode: {

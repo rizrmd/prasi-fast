@@ -115,7 +115,7 @@ export const TabManager = {
   },
 };
 
-const convertNavToUrl = (nav: TabState["nav"]) => {
+export const convertNavToUrl = (nav: TabState["nav"]) => {
   const name = nav.modelName.toLowerCase();
   let base = `/model/${name}`;
   if (nav.mode === "detail" && nav.id) {
@@ -131,7 +131,7 @@ const convertNavToUrl = (nav: TabState["nav"]) => {
   return `${base}${hashes.length > 1 ? hashes : ""}`;
 };
 
-const parseParamsAndHash = async (
+export const parseParamsAndHash = async (
   params: { name: string; id?: string },
   hash: Partial<{ parent: HASH_ID; filter: HASH_ID; prev: MODEL_ID }>
 ) => {
@@ -166,9 +166,18 @@ const loadTabsFromLocalStorage = () => {
     // Restore tabs state
     tabs.forEach((tab: Tab) => {
       const savedNav = localStorage.getItem(`valtio-tab-nav-${tab.id}`);
+      const savedState = localStorage.getItem(`valtio-tab-state-${tab.id}`);
       if (savedNav) {
         const state = createValtioTabState(tab.id);
         state.nav = JSON.parse(savedNav);
+        
+        if (savedState) {
+          const parsedState = JSON.parse(savedState);
+          state.detail.changes = parsedState.detail?.changes || state.detail.changes;
+          state.list.filter = parsedState.list?.filter || state.list.filter;
+          state.list.data.page = parsedState.list?.data?.page || state.list.data.page;
+          state.list.sortBy = parsedState.list?.sortBy ?? state.list.sortBy;
+        }
         valtio_tabs[tab.id] = {
           state,
           action: createValtioTabAction(state),
@@ -197,11 +206,27 @@ const saveTabsToLocalStorage = () => {
       })
     );
 
-    // Save individual tab navigation states
+    // Save individual tab states
     Object.entries(valtio_tabs).forEach(([tabId, tab]) => {
       localStorage.setItem(
         `valtio-tab-nav-${tabId}`,
         JSON.stringify(tab.state.nav)
+      );
+      
+      localStorage.setItem(
+        `valtio-tab-state-${tabId}`,
+        JSON.stringify({
+          detail: {
+            changes: tab.state.detail.changes
+          },
+          list: {
+            filter: tab.state.list.filter,
+            data: {
+              page: tab.state.list.data.page
+            },
+            sortBy: tab.state.list.sortBy
+          }
+        })
       );
     });
   } catch (error) {
