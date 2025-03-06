@@ -12,6 +12,18 @@ export abstract class ModelCrud<
     super();
   }
 
+  /**
+   * Execute operations in a transaction when in server mode
+   */
+  private async withTransaction<R>(
+    operations: () => Promise<R>
+  ): Promise<R> {
+    if (this.state.mode === "server") {
+      return this.state.prisma.$transaction(operations);
+    }
+    return operations();
+  }
+
   protected abstract ensurePrimaryKeys(
     select: Record<string, any>
   ): Record<string, any>;
@@ -63,7 +75,7 @@ export abstract class ModelCrud<
       }
     }
 
-    // Handle sorting
+    // Handle sorting 
     if (queryParams.sort && queryParams.sort.column) {
       queryParams.orderBy = {
         [queryParams.sort.column]: queryParams.sort.direction,
@@ -90,61 +102,63 @@ export abstract class ModelCrud<
 
   async save(data: Partial<T>): Promise<Partial<T>> {
     try {
-      // Clone the data to avoid modifying the original
-      const dataToSave = { ...data };
-      const relations: Record<string, any> = {};
+      return this.withTransaction(async () => {
+        // Clone the data to avoid modifying the original
+        const dataToSave = { ...data };
+        const relations: Record<string, any> = {};
 
-      // Get the primary key from config
-      const primaryKey = this.state.config.primaryKey || "id";
+        // Get the primary key from config
+        const primaryKey = this.state.config.primaryKey || "id";
 
-      // Check if there are relations in the data
-      if (this.state.config.relations) {
-        // Extract relations from data
-        for (const [key, relationConfig] of Object.entries(
-          this.state.config.relations
-        )) {
-          if (
-            key in dataToSave &&
-            dataToSave[key] !== null &&
-            typeof dataToSave[key] === "object"
-          ) {
-            // Store the relation data
-            relations[key] = dataToSave[key];
-            // Remove the relation from the data to be saved
-            delete dataToSave[key];
+        // Check if there are relations in the data
+        if (this.state.config.relations) {
+          // Extract relations from data
+          for (const [key, relationConfig] of Object.entries(
+            this.state.config.relations
+          )) {
+            if (
+              key in dataToSave &&
+              dataToSave[key] !== null &&
+              typeof dataToSave[key] === "object"
+            ) {
+              // Store the relation data
+              relations[key] = dataToSave[key];
+              // Remove the relation from the data to be saved
+              delete dataToSave[key];
+            }
           }
         }
-      }
 
-      let result;
+        let result;
+        
+        // Determine whether to update or create
+        if (dataToSave[primaryKey]) {
+          // If primary key exists, use update directly
+          result = await this.prismaTable.update({
+            data: dataToSave,
+            where: { [primaryKey]: dataToSave[primaryKey] },
+          });
+        } else {
+          // If no primary key, use create directly
+          result = await this.prismaTable.create({
+            data: dataToSave,
+          });
+        }
 
-      // Determine whether to update or create
-      if (dataToSave[primaryKey]) {
-        // If primary key exists, use update directly
-        result = await this.prismaTable.update({
-          data: dataToSave,
-          where: { [primaryKey]: dataToSave[primaryKey] },
-        });
-      } else {
-        // If no primary key, use create directly
-        result = await this.prismaTable.create({
-          data: dataToSave,
-        });
-      }
+        // Process relations if any
+        if (Object.keys(relations).length > 0 && result[primaryKey]) {
+          // Prepare relation data with proper connect syntax
+          const relationData = this.prepareRelationConnect(relations);
 
-      // Process relations if any
-      if (Object.keys(relations).length > 0 && result[primaryKey]) {
-        // Prepare relation data with proper connect syntax
-        const relationData = this.prepareRelationConnect(relations);
-
-        // Update the record with relation connections directly
-        result = await this.prismaTable.update({
-          data: relationData,
-          where: { [primaryKey]: result[primaryKey] },
-        });
-      }
-
-      return result;
+          // Update the record with relation connections directly
+          result = await this.prismaTable.update({
+            data: relationData,
+            where: { [primaryKey]: result[primaryKey] },
+          });
+        }
+        
+        return result;
+      });
     } catch (error) {
       console.error("Error in save:", error);
       throw error;
@@ -296,81 +310,85 @@ export abstract class ModelCrud<
   }
 
   async delete(id: string | { where: Record<string, any> }): Promise<T> {
-    // Handle where clause correctly whether id is a string or an object
-    const where = typeof id === "string" ? { id } : id.where;
+    return this.withTransaction(async () => {
+      // Handle where clause correctly whether id is a string or an object
+      const where = typeof id === "string" ? { id } : id.where;
 
-    // Soft delete by setting deleted_at timestamp
-    return this.prismaTable.update({
-      where,
-      data: {
-        deleted_at: new Date(),
-      },
-      select: {
-        id: true,
-      },
-    }) as Promise<T>;
+      // Soft delete by setting deleted_at timestamp
+      return this.prismaTable.update({
+        where,
+        data: {
+          deleted_at: new Date(),
+        },
+        select: {
+          id: true,
+        },
+      }) as Promise<T>;
+    });
   }
 
   async create(opt: {
     data: Partial<T>;
     select?: Record<string, any> | string[];
   }): Promise<T> {
-    const { select, data } = opt;
+    return this.withTransaction(async () => {
+      const { select, data } = opt;
 
-    // Clone the data to avoid modifying the original
-    const dataToSave = { ...data };
-    const relations: Record<string, any> = {};
+      // Clone the data to avoid modifying the original
+      const dataToSave = { ...data };
+      const relations: Record<string, any> = {};
 
-    // Extract relations from data
-    if (this.state.config.relations) {
-      for (const [key, relationConfig] of Object.entries(
-        this.state.config.relations
-      )) {
-        if (
-          key in dataToSave &&
-          dataToSave[key] !== null &&
-          typeof dataToSave[key] === "object"
-        ) {
-          // Store the relation data
-          relations[key] = dataToSave[key];
-          // Remove the relation from the data to be saved
-          delete dataToSave[key];
+      // Extract relations from data
+      if (this.state.config.relations) {
+        for (const [key, relationConfig] of Object.entries(
+          this.state.config.relations
+        )) {
+          if (
+            key in dataToSave &&
+            dataToSave[key] !== null &&
+            typeof dataToSave[key] === "object"
+          ) {
+            // Store the relation data
+            relations[key] = dataToSave[key];
+            // Remove the relation from the data to be saved
+            delete dataToSave[key];
+          }
         }
       }
-    }
 
-    let selectFields = select;
-    if (Array.isArray(select)) {
-      selectFields = select.reduce(
-        (acc: Record<string, boolean>, field: string) => {
-          acc[field] = true;
-          return acc;
-        },
-        {}
-      );
-    }
+      let selectFields = select;
+      if (Array.isArray(select)) {
+        selectFields = select.reduce(
+          (acc: Record<string, boolean>, field: string) => {
+            acc[field] = true;
+            return acc;
+          },
+          {}
+        );
+      }
 
-    const enhancedSelect = selectFields
-      ? this.ensurePrimaryKeys(selectFields as Record<string, any>)
-      : undefined;
+      const enhancedSelect = selectFields
+        ? this.ensurePrimaryKeys(selectFields as Record<string, any>)
+        : undefined;
 
-    // Create with main data first
-    const result = await this.prismaTable.create({
-      data: dataToSave,
-      select: enhancedSelect,
-    });
-
-    // Then update with relations if any
-    if (Object.keys(relations).length > 0 && result.id) {
-      const relationData = this.prepareRelationConnect(relations);
-      return this.prismaTable.update({
-        where: { id: result.id },
-        data: relationData,
+      // Create with main data first
+      const result = await this.prismaTable.create({
+        data: dataToSave,
         select: enhancedSelect,
-      }) as Promise<T>;
-    }
+      });
 
-    return result as Promise<T>;
+      // Then update with relations if any
+      if (Object.keys(relations).length > 0 && result.id) {
+        const relationData = this.prepareRelationConnect(relations);
+        return this.prismaTable.update({
+          where: { id: result.id },
+          data: relationData,
+          select: enhancedSelect,
+        }) as Promise<T>;
+      }
+
+      return result as Promise<T>;
+    });
   }
 
   prepareRelationConnect = (data: any) => {
@@ -396,7 +414,7 @@ export abstract class ModelCrud<
         if (relationData.id) {
           // Only keep id field for relation connection
           result[key] = {
-            connect: { id: relationData.id },
+            connect: { id: relationData.id }
           };
         }
       }
@@ -407,7 +425,7 @@ export abstract class ModelCrud<
           result[key] = {
             connect: relationData
               .filter((item) => item && item.id)
-              .map((item) => ({ id: item.id })),
+              .map((item) => ({ id: item.id }))
           };
         }
       }
@@ -421,100 +439,9 @@ export abstract class ModelCrud<
     where: any;
     select?: any;
   }): Promise<T> {
-    const { select, data, where } = opt;
+    return this.withTransaction(async () => {
+      const { select, data, where } = opt;
 
-    // Clone the data to avoid modifying the original
-    const dataToSave = { ...data };
-    const relations: Record<string, any> = {};
-
-    // Extract relations from data
-    if (this.state.config.relations) {
-      for (const [key, relationConfig] of Object.entries(
-        this.state.config.relations
-      )) {
-        if (
-          key in dataToSave &&
-          dataToSave[key] !== null &&
-          typeof dataToSave[key] === "object"
-        ) {
-          // Store the relation data
-          relations[key] = dataToSave[key];
-          // Remove the relation from the data to be saved
-          delete dataToSave[key];
-        }
-      }
-    }
-
-    let selectFields = select;
-    if (Array.isArray(select)) {
-      selectFields = select.reduce(
-        (acc: Record<string, boolean>, field: string) => {
-          acc[field] = true;
-          return acc;
-        },
-        {}
-      );
-    }
-
-    const enhancedSelect = selectFields
-      ? this.ensurePrimaryKeys(selectFields as Record<string, any>)
-      : undefined;
-
-    // Update main data
-    const result = await this.prismaTable.update({
-      select: enhancedSelect,
-      data: dataToSave,
-      where,
-    });
-
-    // Then update relations if any
-    if (Object.keys(relations).length > 0) {
-      const relationData = this.prepareRelationConnect(relations);
-      return this.prismaTable.update({
-        select: enhancedSelect,
-        data: relationData,
-        where,
-      }) as Promise<T>;
-    }
-
-    return result as Promise<T>;
-  }
-
-  /**
-   * Perform a bulk delete operation on multiple records
-   * This is a soft delete that sets deleted_at timestamp
-   */
-  async deleteMany(params: {
-    where: Record<string, any>;
-  }): Promise<{ count: number }> {
-    const { where } = params;
-
-    try {
-      // Perform soft delete by setting deleted_at timestamp
-      const result = await this.prismaTable.updateMany({
-        where,
-        data: {
-          deleted_at: new Date(),
-        },
-      });
-
-      return { count: result.count };
-    } catch (error) {
-      console.error("Error in deleteMany:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Perform a bulk update operation on multiple records
-   */
-  async updateMany(params: {
-    where: Record<string, any>;
-    data: Record<string, any>;
-  }): Promise<{ count: number }> {
-    const { where, data } = params;
-
-    try {
       // Clone the data to avoid modifying the original
       const dataToSave = { ...data };
       const relations: Record<string, any> = {};
@@ -537,50 +464,80 @@ export abstract class ModelCrud<
         }
       }
 
+      let selectFields = select;
+      if (Array.isArray(select)) {
+        selectFields = select.reduce(
+          (acc: Record<string, boolean>, field: string) => {
+            acc[field] = true;
+            return acc;
+          },
+          {}
+        );
+      }
+
+      const enhancedSelect = selectFields
+        ? this.ensurePrimaryKeys(selectFields as Record<string, any>)
+        : undefined;
+
       // Update main data
-      const result = await this.prismaTable.updateMany({
+      const result = await this.prismaTable.update({
+        select: enhancedSelect,
+        data: dataToSave,
         where,
-        data: {
-          ...dataToSave,
-          updated_at: new Date(),
-        },
       });
 
       // Then update relations if any
       if (Object.keys(relations).length > 0) {
         const relationData = this.prepareRelationConnect(relations);
-        // Note: updateMany doesn't support relations, so we need to update each record individually
-        const records = await this.prismaTable.findMany({
+        return this.prismaTable.update({
+          select: enhancedSelect,
+          data: relationData,
           where,
-          select: { id: true },
-        });
-        await Promise.all(
-          records.map((record: { id: string }) =>
-            this.prismaTable.update({
-              where: { id: record.id },
-              data: relationData,
-            })
-          )
-        );
+        }) as Promise<T>;
       }
 
-      return { count: result.count };
+      return result as Promise<T>;
+    });
+  }
+
+  /**
+   * Perform a bulk delete operation on multiple records
+   * This is a soft delete that sets deleted_at timestamp
+   */
+  async deleteMany(params: {
+    where: Record<string, any>;
+  }): Promise<{ count: number }> {
+    const { where } = params;
+
+    try {
+      return this.withTransaction(async () => {
+        // Perform soft delete by setting deleted_at timestamp
+        const result = await this.prismaTable.updateMany({
+          where,
+          data: {
+            deleted_at: new Date(),
+          },
+        });
+
+        return { count: result.count };
+      });
     } catch (error) {
-      console.error("Error in updateMany:", error);
+      console.error("Error in deleteMany:", error);
       throw error;
     }
   }
 
   /**
-   * Save multiple records at once, handling both creation and updates
+   * Perform a bulk update operation on multiple records
    */
-  async saveMany(records: Partial<T>[]): Promise<Partial<T>[]> {
-    try {
-      const results: Partial<T>[] = [];
-      const primaryKey = this.state.config.primaryKey || "id";
+  async updateMany(params: {
+    where: Record<string, any>;
+    data: Record<string, any>;
+  }): Promise<{ count: number }> {
+    const { where, data } = params;
 
-      // Process each record sequentially to maintain order
-      for (const data of records) {
+    try {
+      return this.withTransaction(async () => {
         // Clone the data to avoid modifying the original
         const dataToSave = { ...data };
         const relations: Record<string, any> = {};
@@ -603,38 +560,104 @@ export abstract class ModelCrud<
           }
         }
 
-        let result;
+        // Update main data
+        const result = await this.prismaTable.updateMany({
+          where,
+          data: {
+            ...dataToSave,
+            updated_at: new Date(),
+          },
+        });
 
-        // Determine whether to update or create
-        if (dataToSave[primaryKey]) {
-          // If primary key exists, use update
-          result = await this.prismaTable.update({
-            data: dataToSave,
-            where: { [primaryKey]: dataToSave[primaryKey] },
-          });
-        } else {
-          // If no primary key, create new record
-          result = await this.prismaTable.create({
-            data: dataToSave,
-          });
-        }
-
-        // Process relations if any
-        if (Object.keys(relations).length > 0 && result[primaryKey]) {
-          // Prepare relation data with proper connect syntax
+        // Then update relations if any
+        if (Object.keys(relations).length > 0) {
           const relationData = this.prepareRelationConnect(relations);
-
-          // Update the record with relation connections
-          result = await this.prismaTable.update({
-            data: relationData,
-            where: { [primaryKey]: result[primaryKey] },
-          });
+          // Note: updateMany doesn't support relations, so we need to update each record individually
+          const records = await this.prismaTable.findMany({ where, select: { id: true } });
+          await Promise.all(
+            records.map((record: { id: string }) =>
+              this.prismaTable.update({
+                where: { id: record.id },
+                data: relationData,
+              })
+            )
+          );
         }
 
-        results.push(result);
-      }
+        return { count: result.count };
+      });
+    } catch (error) {
+      console.error("Error in updateMany:", error);
+      throw error;
+    }
+  }
 
-      return results;
+  /**
+   * Save multiple records at once, handling both creation and updates
+   */
+  async saveMany(records: Partial<T>[]): Promise<Partial<T>[]> {
+    try {
+      return this.withTransaction(async () => {
+        const results: Partial<T>[] = [];
+        const primaryKey = this.state.config.primaryKey || "id";
+
+        // Process each record sequentially to maintain order
+        for (const data of records) {
+          // Clone the data to avoid modifying the original
+          const dataToSave = { ...data };
+          const relations: Record<string, any> = {};
+
+          // Extract relations from data
+          if (this.state.config.relations) {
+            for (const [key, relationConfig] of Object.entries(
+              this.state.config.relations
+            )) {
+              if (
+                key in dataToSave &&
+                dataToSave[key] !== null &&
+                typeof dataToSave[key] === "object"
+              ) {
+                // Store the relation data
+                relations[key] = dataToSave[key];
+                // Remove the relation from the data to be saved
+                delete dataToSave[key];
+              }
+            }
+          }
+
+          let result;
+
+          // Determine whether to update or create
+          if (dataToSave[primaryKey]) {
+            // If primary key exists, use update
+            result = await this.prismaTable.update({
+              data: dataToSave,
+              where: { [primaryKey]: dataToSave[primaryKey] },
+            });
+          } else {
+            // If no primary key, create new record
+            result = await this.prismaTable.create({
+              data: dataToSave,
+            });
+          }
+
+          // Process relations if any
+          if (Object.keys(relations).length > 0 && result[primaryKey]) {
+            // Prepare relation data with proper connect syntax
+            const relationData = this.prepareRelationConnect(relations);
+
+            // Update the record with relation connections
+            result = await this.prismaTable.update({
+              data: relationData,
+              where: { [primaryKey]: result[primaryKey] },
+            });
+          }
+
+          results.push(result);
+        }
+
+        return results;
+      });
     } catch (error) {
       console.error("Error in saveMany:", error);
       throw error;
