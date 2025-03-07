@@ -6,7 +6,7 @@ type GetModelFromRel<
   Rel extends Models[Name]["relations"][number]
 > = Models[Name]["config"]["relations"][Rel]["model"];
 
-type GetColumnsFromModel<M extends ModelName> = Models[M]["columns"][number];
+export type GetColumnsFromModel<M extends ModelName> = Models[M]["columns"][number];
 
 type RelValue<M extends ModelName> =
   | { col: GetColumnsFromModel<M> }
@@ -26,8 +26,11 @@ export type Column<Name extends ModelName> =
     }
   | { rel: RelObject<Name> };
 
+export type Filter<Name extends ModelName> = GetColumnsFromModel<Name>;
+
 export type LayoutList<Name extends ModelName> = {
   columns: Column<Name>[];
+  filters?: Column<Name>[];
   checkbox?: {
     enabled: boolean;
     actions?: { label: ReactNode; onClick: () => void }[];

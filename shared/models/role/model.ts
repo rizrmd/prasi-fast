@@ -1,11 +1,10 @@
-import type { Prisma, Role as PrismaRole } from "@prisma/client";
-import { Model, DefaultColumns } from "system/model/model";
+import type { Role as PrismaRole } from "@prisma/client";
+import { DefaultColumns, Model } from "system/model/model";
 import {
+  ColumnConfig,
+  ModelColumns,
   ModelRelations,
   RelationConfig,
-  ColumnConfig,
-  ModelConfig,
-  ModelColumns,
 } from "system/types";
 
 export class Role extends Model<PrismaRole> {
@@ -24,17 +23,17 @@ export class Role extends Model<PrismaRole> {
   }
   titleColumns = ["name"];
 
-  get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.state.config.columns);
+  get columns() {
+    return Object.keys(columns) as (keyof typeof columns)[];
   }
 
-  get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.state.config.relations);
+  get relations() {
+    return Object.keys(relations) as (keyof typeof relations)[];
   }
 }
 
 /** Columns **/
-const columns: Record<string, ColumnConfig> = {
+const columns = {
   id: {
     type: "string",
     label: "Id",
@@ -45,10 +44,10 @@ const columns: Record<string, ColumnConfig> = {
     label: "Name",
     required: true,
   },
-};
+} as const satisfies Record<string, ColumnConfig>;
 
 /** Relations **/
-const relations: Record<string, RelationConfig> = {
+const relations = {
   user: {
     model: "User",
     type: "hasMany",
@@ -57,4 +56,4 @@ const relations: Record<string, RelationConfig> = {
     toColumn: "id",
     label: "User",
   },
-};
+} as const satisfies Record<string, RelationConfig>;

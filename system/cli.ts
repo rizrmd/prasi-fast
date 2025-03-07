@@ -228,7 +228,7 @@ async function runCombined({
 
       // Final status
       console.log(`\n${cyan}[3/3]${reset} All services ready!\n`);
-      // console.clear();
+      console.clear();
       console.log(`🚀 Prasi Fast\n`);
       console.log(` ${green}• Frontend${reset} ▸  ${config.frontend.url}`);
       console.log(` ${cyan}• Backend${reset}  ▸  ${config.backend.url}\n`);

@@ -1,5 +1,11 @@
 import type { PrismaClient, User } from "@prisma/client";
-import type { ModelConfig, PaginationParams, PaginationResult } from "../types";
+import type {
+  ColumnConfig,
+  ModelConfig,
+  PaginationParams,
+  PaginationResult,
+  RelationConfig,
+} from "../types";
 import { ModelCrud } from "./base/manager/model-crud";
 import { ModelQuery } from "./base/manager/model-query";
 import { ModelRelations } from "./base/manager/model-relations";
@@ -40,6 +46,7 @@ export class Model<T extends BaseRecord = any> {
     currentUser: null,
     updateCallbacks: new Set(),
   };
+
   private queryManager!: ModelQuery<T>;
   private relationsManager!: ModelRelations<T>;
   private crudManager!: ModelCrud<T>;
@@ -187,24 +194,29 @@ export class Model<T extends BaseRecord = any> {
    */
   public async getUniqueValues(columnName: string): Promise<any[]> {
     await this.ensureInitialized();
-    
+
     try {
       // Get the table name from the config
       const tableName = this.state.config.tableName;
-      
+
       // Check if the column exists in the model
-      if (!this.state.config.columns[columnName] && columnName !== this.state.config.primaryKey) {
-        console.warn(`Column ${columnName} not found in model ${this.state.config.modelName}`);
+      if (
+        !this.state.config.columns[columnName] &&
+        columnName !== this.state.config.primaryKey
+      ) {
+        console.warn(
+          `Column ${columnName} not found in model ${this.state.config.modelName}`
+        );
         return [];
       }
-      
+
       // Use raw query to get distinct values
       const result = await this.state.prisma.$queryRawUnsafe(
         `SELECT DISTINCT "${columnName}" FROM "${tableName}" WHERE "${columnName}" IS NOT NULL ORDER BY "${columnName}" LIMIT 100`
       );
-      
+
       // Extract the values from the result
-      return Array.isArray(result) 
+      return Array.isArray(result)
         ? result.map((item: any) => item[columnName]).filter(Boolean)
         : [];
     } catch (error) {

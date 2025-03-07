@@ -1,11 +1,10 @@
-import type { Prisma, User as PrismaUser } from "@prisma/client";
-import { Model, DefaultColumns } from "system/model/model";
+import type { User as PrismaUser } from "@prisma/client";
+import { Model } from "system/model/model";
 import {
+  ColumnConfig,
+  ModelColumns,
   ModelRelations,
   RelationConfig,
-  ColumnConfig,
-  ModelConfig,
-  ModelColumns,
 } from "system/types";
 
 export class User extends Model<PrismaUser> {
@@ -24,17 +23,17 @@ export class User extends Model<PrismaUser> {
     return `${data.username}`;
   }
 
-  get columns(): (keyof typeof columns | DefaultColumns)[] {
-    return Object.keys(this.state.config.columns);
+  get columns() {
+    return Object.keys(columns) as (keyof typeof columns)[];
   }
 
-  get relations(): (keyof typeof relations)[] {
-    return Object.keys(this.state.config.relations);
+  get relations() {
+    return Object.keys(relations) as (keyof typeof relations)[];
   }
 }
 
 /** Columns **/
-const columns: Record<string, ColumnConfig> = {
+const columns = {
   id: {
     type: "string",
     label: "Id",
@@ -80,10 +79,10 @@ const columns: Record<string, ColumnConfig> = {
     label: "Role ID",
     required: false,
   },
-};
+} as const satisfies Record<string, ColumnConfig>;
 
 /** Relations **/
-const relations: Record<string, RelationConfig> = {
+const relations = {
   role: {
     model: "Role",
     type: "belongsTo",
@@ -92,4 +91,4 @@ const relations: Record<string, RelationConfig> = {
     toColumn: "id",
     label: "Role",
   },
-};
+} as const satisfies Record<string, RelationConfig>;
