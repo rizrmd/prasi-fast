@@ -5,14 +5,23 @@
     "**/.hg": true,
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
-    "**/CVS": true
+    "**/CVS": true,
+    ".clinerules": true,
+    "node_modules": true,
+    ".vscode": true,
+    ".gitignore": true,
+    "bun.lock": true,
+    "frontend/node_modules/@types/bun": true,
+    "frontend/node_modules": true
   },
   "hide-files.files": [
     ".clinerules",
     "node_modules",
     ".vscode",
     ".gitignore",
-    "bun.lock"
+    "bun.lock",
+    "frontend/node_modules/@types/bun",
+    "frontend/node_modules"
   ],
   "css.customData": [
     ".vscode/tailwind.json"

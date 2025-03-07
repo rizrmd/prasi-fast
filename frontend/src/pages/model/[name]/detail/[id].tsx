@@ -1,5 +1,5 @@
-import { ModelContainer } from "@/components/model/container";
-import { ModelDetail } from "@/components/model/detail/model-detail";
+import { ModelContainer } from "@/components/model/desktop/container";
+import { ModelDetail } from "@/components/model/desktop/detail/model-detail";
 
 export default () => {
   return (

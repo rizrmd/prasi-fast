@@ -9,7 +9,7 @@ export const createValtioTabState = (tabId: string): TabState => {
     status: "init",
     mode: "list",
     config: {
-      modelName: "User" as ModelName,
+      modelName: "" as ModelName,
       parent: null,
     },
     ref: {

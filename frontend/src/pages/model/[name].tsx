@@ -1,7 +1,7 @@
 import { AppLoading } from "@/components/app/app-loading";
-import { ModelContainer } from "@/components/model/container";
-import { ModelFilter } from "@/components/model/list/model-filter";
-import { ModelList } from "@/components/model/list/model-list";
+import { ModelContainer } from "@/components/model/desktop/container";
+import { ModelFilter } from "@/components/model/desktop/list/model-filter";
+import { ModelList } from "@/components/model/desktop/list/model-list";
 import { useValtioTab } from "@/hooks/use-valtio-tab";
 import { tabInitList } from "@/hooks/use-valtio-tabs/list-manager/list-init";
 import { useSnapshot } from "valtio";

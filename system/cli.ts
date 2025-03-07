@@ -132,7 +132,7 @@ async function runFrontend({
 
   const command = "bun";
   const args = [
-    hot && !prod ? "--hot" : "",
+    hot && !prod ? "--watch" : "",
     "src/index.html",
     `--port ${port}`,
     `--hostname ${host}`,

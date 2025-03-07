@@ -48,6 +48,7 @@ export const TabManager = {
   openInNewTab(nav: TabState["nav"]) {
     const tabID = cuid();
     const state = createValtioTabState(tabID);
+    state.config.modelName = nav.modelName as ModelName;
     state.nav = nav;
     valtio_tabs[tabID] = {
       state,
@@ -170,12 +171,14 @@ const loadTabsFromLocalStorage = () => {
       if (savedNav) {
         const state = createValtioTabState(tab.id);
         state.nav = JSON.parse(savedNav);
-        
+
         if (savedState) {
           const parsedState = JSON.parse(savedState);
-          state.detail.changes = parsedState.detail?.changes || state.detail.changes;
+          state.detail.changes =
+            parsedState.detail?.changes || state.detail.changes;
           state.list.filter = parsedState.list?.filter || state.list.filter;
-          state.list.data.page = parsedState.list?.data?.page || state.list.data.page;
+          state.list.data.page =
+            parsedState.list?.data?.page || state.list.data.page;
           state.list.sortBy = parsedState.list?.sortBy ?? state.list.sortBy;
         }
         valtio_tabs[tab.id] = {
@@ -212,20 +215,20 @@ const saveTabsToLocalStorage = () => {
         `valtio-tab-nav-${tabId}`,
         JSON.stringify(tab.state.nav)
       );
-      
+
       localStorage.setItem(
         `valtio-tab-state-${tabId}`,
         JSON.stringify({
           detail: {
-            changes: tab.state.detail.changes
+            changes: tab.state.detail.changes,
           },
           list: {
             filter: tab.state.list.filter,
             data: {
-              page: tab.state.list.data.page
+              page: tab.state.list.data.page,
             },
-            sortBy: tab.state.list.sortBy
-          }
+            sortBy: tab.state.list.sortBy,
+          },
         })
       );
     });

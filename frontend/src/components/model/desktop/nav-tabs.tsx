@@ -6,7 +6,7 @@ import { FC } from "react";
 import * as Models from "shared/models";
 import { ModelName } from "shared/types";
 import { useSnapshot } from "valtio";
-import { DraggableTabs, Tab } from "../ext/draggable-tabs";
+import { DraggableTabs, Tab } from "../../ext/draggable-tabs";
 
 export const ModelNavTabs: FC<{}> = ({}) => {
   const state = TabManager.state;
