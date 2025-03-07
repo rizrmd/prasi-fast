@@ -15,13 +15,8 @@ export abstract class ModelCrud<
   /**
    * Execute operations in a transaction when in server mode
    */
-  private async withTransaction<R>(
-    operations: () => Promise<R>
-  ): Promise<R> {
-    if (this.state.mode === "server") {
-      return this.state.prisma.$transaction(operations);
-    }
-    return operations();
+  private async withTransaction<R>(operations: () => Promise<R>): Promise<R> {
+    return this.state.prisma.$transaction(operations);
   }
 
   protected abstract ensurePrimaryKeys(
@@ -75,7 +70,7 @@ export abstract class ModelCrud<
       }
     }
 
-    // Handle sorting 
+    // Handle sorting
     if (queryParams.sort && queryParams.sort.column) {
       queryParams.orderBy = {
         [queryParams.sort.column]: queryParams.sort.direction,
@@ -130,7 +125,7 @@ export abstract class ModelCrud<
         }
 
         let result;
-        
+
         // Determine whether to update or create
         if (dataToSave[primaryKey]) {
           // If primary key exists, use update directly
@@ -156,7 +151,7 @@ export abstract class ModelCrud<
             where: { [primaryKey]: result[primaryKey] },
           });
         }
-        
+
         return result;
       });
     } catch (error) {
@@ -285,15 +280,13 @@ export abstract class ModelCrud<
     const skip = (page - 1) * perPage;
 
     const findManyParams = {
-      ...queryParams,
       select: enhancedSelect,
       skip,
       take: perPage,
+      where: queryParams.where,
+      include: queryParams.include,
+      orderBy: queryParams.orderBy,
     };
-
-    // Remove custom parameters that Prisma doesn't understand
-    delete findManyParams.filters;
-    delete findManyParams.sort;
 
     const [records, count] = await Promise.all([
       this.prismaTable.findMany(findManyParams) as Promise<T[]>,
@@ -414,7 +407,7 @@ export abstract class ModelCrud<
         if (relationData.id) {
           // Only keep id field for relation connection
           result[key] = {
-            connect: { id: relationData.id }
+            connect: { id: relationData.id },
           };
         }
       }
@@ -425,7 +418,7 @@ export abstract class ModelCrud<
           result[key] = {
             connect: relationData
               .filter((item) => item && item.id)
-              .map((item) => ({ id: item.id }))
+              .map((item) => ({ id: item.id })),
           };
         }
       }
@@ -573,7 +566,10 @@ export abstract class ModelCrud<
         if (Object.keys(relations).length > 0) {
           const relationData = this.prepareRelationConnect(relations);
           // Note: updateMany doesn't support relations, so we need to update each record individually
-          const records = await this.prismaTable.findMany({ where, select: { id: true } });
+          const records = await this.prismaTable.findMany({
+            where,
+            select: { id: true },
+          });
           await Promise.all(
             records.map((record: { id: string }) =>
               this.prismaTable.update({

@@ -1,41 +1,100 @@
+import type { PrismaClient } from "@prisma/client";
 import { BunRequest } from "bun";
 import { unpack } from "msgpackr";
 import * as models from "shared/models";
-import { Model } from "./model";
 import { ModelName } from "shared/types";
-const g = global as any;
+const g = global as unknown as { prisma: PrismaClient };
 
-export const modelRoute = async (req: BunRequest<"/_system/models/:model">) => {
-  let paramModelName = req.params.model;
+export const transactionRoute = async (
+  req: BunRequest<"/_system/transaction">
+) => {
   if (req.method === "POST") {
-    const posts = unpack(new Uint8Array(await req.arrayBuffer())) as {
-      method: string;
-      args: any[];
-    }[];
+    try {
+      // Unpack the transaction operations
+      const operations = unpack(
+        new Uint8Array(await req.arrayBuffer())
+      ) as Array<{
+        modelName: string;
+        method: string;
+        args: any[];
+      }>;
 
-    if (!g.prisma) {
-      g.prisma = new (await import("@prisma/client")).PrismaClient();
-    }
-
-    let modelName = Object.keys(models).find((e) => {
-      if (paramModelName.toLowerCase() === e.toLowerCase()) {
-        return true;
+      // Initialize Prisma if needed
+      if (!g.prisma) {
+        g.prisma = new (await import("@prisma/client")).PrismaClient();
       }
-    }) as ModelName;
-    const prisma = g.prisma[modelName];
-    const result = [] as any[];
-    for (const post of posts) {
-      try {
-        const done = await prisma[post.method](...post.args);
-        result.push(done);
-      } catch (e: any) {
-        console.error(e);
-        result.push({ error: { ...e, message: e.message } });
-      }
-    }
 
-    return Response.json(result);
+      // Execute the transaction
+      const results = await g.prisma.$transaction(async (tx) => {
+        const txResults = [];
+
+        // Process each operation in order
+        for (const op of operations) {
+          try {
+            // Get model name with proper casing
+            const modelName = Object.keys(models).find(
+              (e) => e.toLowerCase() === op.modelName.toLowerCase()
+            ) as ModelName;
+
+            if (!modelName) {
+              txResults.push({
+                error: {
+                  message: `Model not found: ${op.modelName}`,
+                },
+              });
+              continue;
+            }
+
+            // Get the model from transaction context
+            const model = (tx as any)[
+              modelName.charAt(0).toLowerCase() + modelName.slice(1)
+            ];
+
+            if (!model || typeof model[op.method] !== "function") {
+              txResults.push({
+                error: {
+                  message: `Invalid method: ${modelName}.${op.method}`,
+                },
+              });
+              continue;
+            }
+
+            // Execute the operation
+            const result = await model[op.method](...op.args);
+            txResults.push(result);
+          } catch (error: any) {
+            console.error("Operation error:", error);
+            // Store the error to return to the client
+            txResults.push({
+              error: {
+                message: error.message,
+                code: error.code,
+              },
+            });
+            // Re-throw to abort the transaction
+            throw error;
+          }
+        }
+
+        return txResults;
+      });
+
+      return Response.json(results);
+    } catch (error: any) {
+      console.error("Transaction error:", error);
+      return Response.json(
+        [
+          {
+            error: {
+              message: error.message,
+              code: error.code,
+            },
+          },
+        ],
+        { status: 500 }
+      );
+    }
   } else {
-    return new Response("OK", { status: 200 });
+    return new Response("Method not allowed", { status: 405 });
   }
 };
